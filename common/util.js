@@ -25,6 +25,8 @@ async function index_documents(documents) {
     });
 
     const batches = create_batches(documents, 50);
+    let elapsed = 0;
+    let done = 0;
     for (const batch of batches) {
         let success = false;
         let start_time = new Date();
@@ -44,6 +46,7 @@ async function index_documents(documents) {
                 console.log(response);
 
                 success = true;
+                done += batch.length;
             } catch (e) {
                 console.log(e);
                 console.log("Retrying in 10 seconds...");
@@ -54,6 +57,10 @@ async function index_documents(documents) {
         let end_time = new Date();
         let seconds = Math.round((end_time - start_time) / 1000);
         console.log(`Took ${seconds} seconds`);
+
+        elapsed += seconds;
+
+        console.log(`Remaining time: ${Math.round((elapsed / done) * (documents.length - done))} seconds`);
     }
 
     console.log("Done");
