@@ -9,10 +9,10 @@ const { create_batches, index_documents } = require('../common/util');
 
 dotenv.config();
 
-const folder_name = "bitcoinops.github.io-2022-11-fix-frontmatter-key";
+const folder_name = "bitcoinops.github.io-master";
 
 async function download_repo() {
-    const URL = "https://github.com/aureleoules/bitcoinops.github.io/archive/refs/heads/2022-11-fix-frontmatter-key.zip";
+    const URL = "https://github.com/bitcoinops/bitcoinops.github.io/archive/refs/heads/master.zip";
     const dir = path.join(process.env.DATA_DIR, "bitcoinops");
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir);
