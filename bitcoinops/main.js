@@ -9,6 +9,8 @@ const { create_batches, index_documents } = require('../common/util');
 
 dotenv.config();
 
+const folder_name = "bitcoinops.github.io-2022-11-fix-frontmatter-key";
+
 async function download_repo() {
     const URL = "https://github.com/aureleoules/bitcoinops.github.io/archive/refs/heads/2022-11-fix-frontmatter-key.zip";
     const dir = path.join(process.env.DATA_DIR, "bitcoinops");
@@ -16,7 +18,7 @@ async function download_repo() {
         fs.mkdirSync(dir);
     }
     
-    if (fs.existsSync(path.join(dir, "bitcoinops.github.io-master"))) {
+    if (fs.existsSync(path.join(dir, folder_name))) {
         console.log("Repo already downloaded");
         return;
     }
@@ -107,7 +109,7 @@ function parse_post(path) {
 
 function parse_topics() {
     const documents = [];
-    const dir = path.join(process.env.DATA_DIR, "bitcoinops", "bitcoinops.github.io-master", "_topics/en");
+    const dir = path.join(process.env.DATA_DIR, "bitcoinops", folder_name, "_topics/en");
     const files = fs.readdirSync(dir);
     for (const file of files) {
         console.log(`Parsing ${path.join(dir, file)}...`);
@@ -119,7 +121,7 @@ function parse_topics() {
 
 async function main() {
     await download_repo();
-    const dir = path.join(process.env.DATA_DIR, "bitcoinops", "bitcoinops.github.io-master", "_posts", "en");
+    const dir = path.join(process.env.DATA_DIR, "bitcoinops", folder_name, "_posts", "en");
     const documents = parse_posts(dir).concat(parse_topics());
 
     console.log(`Parsed ${documents.length} documents`);

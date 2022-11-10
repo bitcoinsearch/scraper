@@ -1,12 +1,17 @@
 name: Bitcoin Optech 
-on: [repository_dispatch]
+on:
+  schedule:
+    - cron: '0 13 * * 3' # every Wednesday at 1pm UTC
+  workflow_dispatch:
+  repository_dispatch:
 
 jobs:
   fetch:
-    if: github.event.action == 'scrape' && github.event.client_payload.repository == 'aureleoules/test'
+    if: (github.event.action == 'scrape' && github.event.client_payload.repository == 'aureleoules/test') || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Check password
+        if: github.event_name == 'scrape'
         run: if [ "${{ github.event.client_payload.secret }}" != "${{ secrets.COMMON_SECRET }}" ]; then echo "Wrong password"; exit 1; fi
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
