@@ -97,7 +97,15 @@ if __name__ == "__main__":
 
     i = 0
     while i < len(docs):
+        success = False
         print("Indexing documents " + str(i) + " to " + str(i + 100))
-        app_search().index_documents(engine_name=os.getenv("ES_ENGINE"), documents=docs[i:i+100], request_timeout=309)
-        i += 100
+        while not success:
+            try:
+                app_search().index_documents(engine_name=os.getenv("ES_ENGINE"), documents=docs[i:i+100], request_timeout=309)
+                success = True
+            except:
+                import time
+                time.sleep(10)
+                pass
     
+        i += 100
