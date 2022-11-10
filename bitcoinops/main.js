@@ -61,7 +61,7 @@ function parse_posts(dir) {
     return documents;
 }
 
-function parse_post(path) {
+function parse_post(path, topic = false) {
     const content = fs.readFileSync(path, 'utf8');
 
     // remove any content that is between {% and %}
@@ -92,14 +92,14 @@ function parse_post(path) {
 
     const frontMatterObj = yaml.load(frontMatter);
     const document = {
-        id: "bitcoinops-" + frontMatterObj.slug,
+        id: "bitcoinops-" + (topic ? basename(path, '.md') : frontMatterObj.slug),
         title: frontMatterObj.title,
         body: body,
         created_at: new Date(basename(path).split('-').slice(0, 3).join('-')),
         domains: ["https://bitcoinops.org/en/"],
-        url: `https://bitcoinops.org${frontMatterObj.permalink}`,
+        url: topic ? `https://bitcoinops.org/en/topics/${basename(path, '.md')}` : `https://bitcoinops.org${frontMatterObj.permalink}`,
         url_scheme: "https",
-        type: frontMatterObj.type,
+        type: topic ? 'topic' : frontMatterObj.type,
         language: frontMatterObj.lang,
         author: "bitcoinops",
     };
@@ -113,7 +113,7 @@ function parse_topics() {
     const files = fs.readdirSync(dir);
     for (const file of files) {
         console.log(`Parsing ${path.join(dir, file)}...`);
-        documents.push(parse_post(path.join(dir, file)));
+        documents.push(parse_post(path.join(dir, file), true));
     }
 
     return documents;
