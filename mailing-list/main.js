@@ -102,7 +102,7 @@ function parse_dumps() {
         console.log(`Parsing ${file}...`);
 
         const author = $("b").first().text();
-        const title = $("h1").first().text().replace("[Bitcoin-development] ", "");
+        const title = $("h1").first().text().replace("[Bitcoin-development] ", "").replace("[bitcoin-dev] ", "");
         const body = $("pre").first().text();
         const date = new Date($("I").first().text().replace("  ", " "));
 
