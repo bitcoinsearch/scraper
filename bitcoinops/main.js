@@ -105,10 +105,22 @@ function parse_post(path) {
     return document;
 }
 
+function parse_topics() {
+    const documents = [];
+    const dir = path.join(process.env.DATA_DIR, "bitcoinops", "bitcoinops.github.io-master", "_topics/en");
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+        console.log(`Parsing ${path.join(dir, file)}...`);
+        documents.push(parse_post(path.join(dir, file)));
+    }
+
+    return documents;
+}
+
 async function main() {
     await download_repo();
     const dir = path.join(process.env.DATA_DIR, "bitcoinops", "bitcoinops.github.io-master", "_posts", "en");
-    const documents = parse_posts(dir);
+    const documents = parse_posts(dir).concat(parse_topics());
 
     console.log(`Parsed ${documents.length} documents`);
 
