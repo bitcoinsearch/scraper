@@ -13,14 +13,14 @@ jobs:
           node-version: 18
       - name: Install dependencies
         run: | 
-          cd mailing-list && yarn
+          cd bitcoinops && yarn
           cd ../common && yarn
       - name: Fetch data
         run: |
-          mkdir /tmp/mailing-list
-          cd mailing-list && node main.js
+          mkdir /tmp/data
+          cd bitcoinops && node main.js
         env:
             ES_ENGINE: ${{ secrets.ES_ENGINE }}
             ES_URL: ${{ secrets.ES_URL }}
             ES_TOKEN: ${{ secrets.ES_TOKEN }}
-            DATA_DIR: /tmp/mailing-list
+            DATA_DIR: /tmp/data
