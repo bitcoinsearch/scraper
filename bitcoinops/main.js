@@ -5,6 +5,7 @@ const path = require('path');
 const request = require('request');
 const yaml = require('js-yaml');
 const { basename } = require('path');
+const marked = require('marked');
 const { create_batches, index_documents } = require('../common/util');
 
 dotenv.config();
@@ -90,11 +91,18 @@ function parse_post(path, topic = false) {
         }
     }
 
+    const parsedBody = marked.lexer(body).map((token) => {
+        return ({
+            type: token.type,
+            text: token.text,
+        })
+    });
+
     const frontMatterObj = yaml.load(frontMatter);
     const document = {
         id: "bitcoinops-" + (topic ? basename(path, '.md') : frontMatterObj.slug),
         title: frontMatterObj.title,
-        body: body,
+        body: parsedBody,
         created_at: new Date(basename(path).split('-').slice(0, 3).join('-')),
         domains: ["https://bitcoinops.org/en/"],
         url: topic ? `https://bitcoinops.org/en/topics/${basename(path, '.md')}` : `https://bitcoinops.org${frontMatterObj.permalink}`,
