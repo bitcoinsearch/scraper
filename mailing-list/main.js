@@ -117,9 +117,8 @@ function parse_dumps() {
             title,
             body: bodyText,
             created_at: date,
-            domains: ["https://lists.linuxfoundation.org/pipermail/bitcoin-dev/"],
+            domain: "https://lists.linuxfoundation.org/pipermail/bitcoin-dev/",
             url: `https://lists.linuxfoundation.org/pipermail/bitcoin-dev/${fileDate}/${fileName}`,
-            url_scheme: "https",
         };
 
         documents.push(document);
