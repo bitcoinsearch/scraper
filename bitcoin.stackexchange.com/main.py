@@ -31,6 +31,8 @@ def parse_users():
     for user in root:
         users[user.attrib.get("Id")] = user.attrib.get("DisplayName")
 
+posts = {}
+
 def parse_posts():
     import xml.etree.ElementTree as ET
     tree = ET.parse(dir + "/bitcoin.stackexchange.com/Posts.xml")
@@ -59,25 +61,31 @@ def parse_posts():
                 "author": user,
                 "id": "stackexchange-" + post.attrib.get("Id"),
                 "tags": tags,
-                "domains": ["https://bitcoin.stackexchange.com"],
+                "domain": "https://bitcoin.stackexchange.com",
                 "url": "https://bitcoin.stackexchange.com/questions/" + post.attrib.get("Id"),
-                "url_scheme": "https",
                 "created_at": post.attrib.get("CreationDate"),
                 "accepted_answer_id": post.attrib.get("AcceptedAnswerId"),
                 "type": "question"
             }
         else: # Answer
+            # Fetch question from XML
+            question = posts.get(post.attrib.get("ParentId"))
+            if question is None:
+                question = root.find("./row[@Id='" + post.attrib.get("ParentId") + "']")
+                posts[post.attrib.get("ParentId")] = question
+
             document = {
                 "body": strip_tags(post.attrib.get("Body")),
                 "author": user,
-                "id": post.attrib.get("Id"),
-                "domains": ["https://bitcoin.stackexchange.com"],
+                "id": "stackexchange-" + post.attrib.get("Id"),
+                "domain": "https://bitcoin.stackexchange.com",
                 "url": "https://bitcoin.stackexchange.com/questions/" + post.attrib.get("ParentId") + "#" + post.attrib.get("Id"),
-                "url_scheme": "https",
                 "created_at": post.attrib.get("CreationDate"),
-                "type": "answer"
+                "type": "answer",
+                "title": question.attrib.get("Title") + " (Answer)",
             }
 
+        print("Adding document: " + document["id"], document["title"])
         documents.append(document)
 
     return documents
