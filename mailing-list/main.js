@@ -8,10 +8,7 @@ dotenv.config();
 
 const { index_documents, create_batches } = require("../common/util");
 
-const URL = "https://lists.linuxfoundation.org/pipermail/bitcoin-dev/";
-
-const START_YEAR = 2011;
-const START_MONTH = 5; // June
+const URL = process.env.URL || "https://lists.linuxfoundation.org/pipermail/bitcoin-dev/";
 
 const MONTHS = [
     "January",
@@ -28,14 +25,15 @@ const MONTHS = [
     "December",
 ];
 
-let year = START_YEAR;
-let month = START_MONTH;
+let year = process.env.START_YEAR || 2011;
+let month = process.env.START_MONTH || 5;
 
 async function download_dumps() {
     if (!fs.existsSync(path.join(process.env.DATA_DIR, "mailing-list"))) {
         fs.mkdirSync(path.join(process.env.DATA_DIR, "mailing-list"));
     }
     const agent = new https.Agent({ keepAlive: true });
+    let consecutive_errors = 0;
     while (true) {
         console.log(`Downloading ${year}-${MONTHS[month]}...`);
         const url = URL + year + "-" + MONTHS[month] + "/date.html";
@@ -47,7 +45,16 @@ async function download_dumps() {
         const uls = $("ul");
         if (uls.length === 0) {
             console.log("No more data");
-            break;
+            consecutive_errors++;
+            if (consecutive_errors >= 6)
+                break;
+
+            month++;
+            if (month >= MONTHS.length) {
+                month = 0;
+                year++;
+            }
+            continue;
         }
 
         const ul = uls[1];
@@ -102,7 +109,11 @@ function parse_dumps() {
         console.log(`Parsing ${file}...`);
 
         const author = $("b").first().text();
-        const title = $("h1").first().text().replace("[Bitcoin-development] ", "").replace("[bitcoin-dev] ", "");
+        const title = $("h1").first().text()
+            .replace("[Bitcoin-development] ", "")
+            .replace("[bitcoin-dev] ", "")
+            .replace("[Lightning-dev", "")
+            .replace("[lightning-dev] ", "")
         const body = $("pre").first().text();
         const date = new Date($("I").first().text().replace("  ", " "));
 
@@ -112,13 +123,13 @@ function parse_dumps() {
         const fileDate = file.split("-")[0] + "-" + file.split("-")[1];
         const fileName = file.split("-")[2];
         const document = {
-            id: "mailing-list-" + file.replace(".html", ""),
+            id: "mailing-list-" + process.env.NAME + '-' + file.replace(".html", ""),
             author,
             title,
             body: bodyText,
             created_at: date,
-            domain: "https://lists.linuxfoundation.org/pipermail/bitcoin-dev/",
-            url: `https://lists.linuxfoundation.org/pipermail/bitcoin-dev/${fileDate}/${fileName}`,
+            domain: URL,
+            url: `${URL}${fileDate}/${fileName}`,
         };
 
         documents.push(document);

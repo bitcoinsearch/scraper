@@ -1,0 +1,30 @@
+name: Bitcoin Mailing list
+on:
+  schedule:
+    - cron: '0 0 * * *' # every day at midnight
+  workflow_dispatch:
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: | 
+          cd mailing-list && yarn
+          cd ../common && yarn
+      - name: Fetch data
+        run: |
+          mkdir /tmp/data
+          cd mailing-list && node main.js
+        env:
+            ES_ENGINE: ${{ secrets.ES_ENGINE }}
+            ES_URL: ${{ secrets.ES_URL }}
+            ES_TOKEN: ${{ secrets.ES_TOKEN }}
+            DATA_DIR: /tmp/data
+            URL: https://lists.linuxfoundation.org/pipermail/bitcoin-dev/
+            NAME: bitcoin
+            START_MONTH: 5
+            START_YEAR: 2011
