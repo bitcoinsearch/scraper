@@ -1,4 +1,4 @@
-name: Mailing list
+name: Lightning Mailing list
 on:
   schedule:
     - cron: '0 0 * * *' # every day at midnight
@@ -24,3 +24,7 @@ jobs:
             ES_URL: ${{ secrets.ES_URL }}
             ES_TOKEN: ${{ secrets.ES_TOKEN }}
             DATA_DIR: /tmp/data
+            URL: https://lists.linuxfoundation.org/pipermail/lightning-dev/
+            NAME: lightning
+            START_MONTH: 5
+            START_YEAR: 2015
