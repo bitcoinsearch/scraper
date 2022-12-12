@@ -62,6 +62,12 @@ async function get_documents_from_post(url) {
     const text = await response.text();
     const $ = cheerio.load(text);
 
+    if (response.status >= 500 || response.status === 403) {
+        console.log(`Error ${response.status} downloading ${url}`);
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        return get_documents_from_post(url);
+    }
+
     let urls = $('a.navPages').toArray().map(a => $(a).attr('href'))
     urls = [...new Set(urls)];
 
@@ -135,6 +141,8 @@ async function fetch_posts(url) {
         console.log(`Downloading ${url}...`);
         const resp = await get_documents_from_post(url);
         documents.push(...resp.documents);
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     return documents;
