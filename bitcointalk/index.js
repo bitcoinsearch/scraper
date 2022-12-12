@@ -57,75 +57,86 @@ async function fetch_all_topics() {
     return topics;
 }
 
-async function fetch_posts(url) {
-    const documents = [];
-    let offset = 0;
-    url = url.slice(0, -2);
+async function get_documents_from_post(url) {
+    const response = await fetch(url);
+    const text = await response.text();
+    const $ = cheerio.load(text);
 
-    while (true) {
-        const urlWithOffset = url + "." + offset;
-        console.log(`Downloading ${urlWithOffset}...`);
-        const response = await fetch(urlWithOffset);
-        const text = await response.text();
-        const $ = cheerio.load(text);
+    let urls = $('a.navPages').toArray().map(a => $(a).attr('href'))
+    urls = [...new Set(urls)];
 
-        // #quickModForm > table:nth-child(1)
-        const table = $('#quickModForm > table:nth-child(1)');
-        const rows = table.find('tr');
-        const firstTrClass = $(rows[0]).attr('class');
+    // #quickModForm > table:nth-child(1)
+    const table = $('#quickModForm > table:nth-child(1)');
+    const rows = table.find('tr');
+    const firstTrClass = $(rows[0]).attr('class');
 
-        const trList = table.find(`tr.${firstTrClass}`);
-        console.log(`Found ${trList.length} posts in ${urlWithOffset}`);
+    const trList = table.find(`tr.${firstTrClass}`);
+    console.log(`Found ${trList.length} posts in ${url}`);
 
-        for (const tr of trList) {
-            const author = $(tr).find('.poster_info > b > a').text();
-            // text without title attribute
-            let date = $(tr).find('.td_headerandpost .smalltext > .edited').text();
-            if(date === '') {
-                date = $(tr).find('.td_headerandpost .smalltext').text();
-            }
-
-            // remove text after "Merited by"
-            const meritedIndex = date.indexOf('Merited by');
-            if (meritedIndex !== -1) {
-                date = date.substring(0, meritedIndex);
-            }
-
-            if (date.startsWith('Today at')) {
-                date = date.replace('Today at', new Date().toLocaleDateString());
-            }
-
-            const url = $(tr).find('.td_headerandpost .subject > a').attr('href');
-            const title = $(tr).find('.td_headerandpost .subject > a').text();
-            let body = $(tr).find('.td_headerandpost .post');
-            // remove div with class 'quoteheader' and 'quote'
-            body.find('.quoteheader').remove();
-            body.find('.quote').remove();
-            body = body.text();
-
-            const dateJs = new Date(date);
-
-            const id = url.substring(url.indexOf('#msg') + 4);
-
-            const document = {
-                author,
-                body,
-                domain: 'https://bitcointalk.org',
-                url,
-                title,
-                id: 'bitcoin-talk-' + id,
-                date: dateJs,
-            }
-
-            documents.push(document);
-        }
-
-        if (trList.length !== 20) {
-            break;
-        }
-
-        offset += 20;
+    if (trList.length === 0) {
+        console.log(text);
     }
+
+    const documents = [];
+
+    for (const tr of trList) {
+        const author = $(tr).find('.poster_info > b > a').text();
+        // text without title attribute
+        let date = $(tr).find('.td_headerandpost .smalltext > .edited').text();
+        if(date === '') {
+            date = $(tr).find('.td_headerandpost .smalltext').text();
+        }
+
+        // remove text after "Merited by"
+        const meritedIndex = date.indexOf('Merited by');
+        if (meritedIndex !== -1) {
+            date = date.substring(0, meritedIndex);
+        }
+
+        if (date.startsWith('Today at')) {
+            date = date.replace('Today at', new Date().toLocaleDateString());
+        }
+
+        const url = $(tr).find('.td_headerandpost .subject > a').attr('href');
+        const title = $(tr).find('.td_headerandpost .subject > a').text();
+        let body = $(tr).find('.td_headerandpost .post');
+        // remove div with class 'quoteheader' and 'quote'
+        body.find('.quoteheader').remove();
+        body.find('.quote').remove();
+        body = body.text();
+
+        const dateJs = new Date(date);
+
+        const id = url.substring(url.indexOf('#msg') + 4);
+
+        const document = {
+            author,
+            body,
+            domain: 'https://bitcointalk.org',
+            url,
+            title,
+            id: 'bitcointalk-' + id,
+            date: dateJs,
+        }
+
+        documents.push(document);
+    }
+
+    return {documents, urls};
+}
+
+async function fetch_posts(url) {
+    const resp = await get_documents_from_post(url);
+    const documents = resp.documents;
+
+    const urls = resp.urls;
+
+    for (const url of urls) {
+        console.log(`Downloading ${url}...`);
+        const resp = await get_documents_from_post(url);
+        documents.push(...resp.documents);
+    }
+
     return documents;
 }
 
