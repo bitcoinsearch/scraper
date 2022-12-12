@@ -162,7 +162,9 @@ async function main() {
 
     console.log(`Found ${topics.length} topics`);
 
-    for (let i = 0; i < topics.length; i++) {
+    const start_index = process.env.START_INDEX ? parseInt(process.env.START_INDEX) : 0;
+
+    for (let i = start_index; i < topics.length; i++) {
         const topic = topics[i];
         console.log(`Processing ${i+1}/${topics.length}`);
         const documents = await fetch_posts(topic);
