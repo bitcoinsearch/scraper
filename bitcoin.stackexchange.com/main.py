@@ -58,7 +58,7 @@ def parse_posts():
             document = {
                 "title": post.attrib.get("Title"),
                 "body": strip_tags(post.attrib.get("Body")),
-                "author": user,
+                "authors": [user],
                 "id": "stackexchange-" + post.attrib.get("Id"),
                 "tags": tags,
                 "domain": "https://bitcoin.stackexchange.com",
@@ -76,7 +76,7 @@ def parse_posts():
 
             document = {
                 "body": strip_tags(post.attrib.get("Body")),
-                "author": user,
+                "authors": [user],
                 "id": "stackexchange-" + post.attrib.get("Id"),
                 "domain": "https://bitcoin.stackexchange.com",
                 "url": "https://bitcoin.stackexchange.com/questions/" + post.attrib.get("ParentId") + "#" + post.attrib.get("Id"),

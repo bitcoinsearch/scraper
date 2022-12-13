@@ -90,9 +90,9 @@ function parse_log(file) {
         documents.push({
             id: `bitcoin-core-dev-${username}-${date.getTime()}`,
             created_at: date,
-            author: username,
+            authors: [username],
             body: body,
-            domains: [URL],
+            domain: URL,
             url: `${URL}${file.substring(file.lastIndexOf("/") + 1)}`,
             url_scheme: "https",
         });
