@@ -127,6 +127,7 @@ function parse_dumps() {
             author: [author],
             title,
             body: bodyText,
+            body_type: "raw",
             created_at: date,
             domain: URL,
             url: `${URL}${fileDate}/${fileName}`,

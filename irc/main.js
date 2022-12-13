@@ -92,6 +92,7 @@ function parse_log(file) {
             created_at: date,
             authors: [username],
             body: body,
+            body_type: 'raw',
             domain: URL,
             url: `${URL}${file.substring(file.lastIndexOf("/") + 1)}`,
             url_scheme: "https",

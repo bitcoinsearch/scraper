@@ -119,6 +119,7 @@ async function get_documents_from_post(url) {
         const document = {
             authors: [author],
             body,
+            body_type: 'raw',
             domain: 'https://bitcointalk.org',
             url,
             title,
