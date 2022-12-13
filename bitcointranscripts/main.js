@@ -98,7 +98,7 @@ function parse_post(p_path) {
         }
     }
 
-    const parsedBody = marked.lexer(body).map((token) => {
+    const parsedBody = marked.lexer(body.substr(0, 90000)).map((token) => {
         return ({
             type: token.type,
             text: token.text,
