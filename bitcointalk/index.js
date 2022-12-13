@@ -6,7 +6,7 @@ const path = require('path');
 const dotenv = require('dotenv');
 dotenv.config();
 
-const { index_documents, create_batches } = require('../common/util');
+const { index_documents, fetch_with_retry } = require('../common/util');
 
 const URL = process.env.URL || BOARD;
 
@@ -58,7 +58,7 @@ async function fetch_all_topics() {
 }
 
 async function get_documents_from_post(url) {
-    const response = await fetch(url);
+    const response = await fetch_with_retry(url);
     const text = await response.text();
     const $ = cheerio.load(text);
 

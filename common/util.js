@@ -16,6 +16,23 @@ function create_batches(objects, size) {
     return batches;
 }
 
+async function fetch_with_retry(url, options) {
+    let success = false;
+    let response = null;
+    while (!success) {
+        try {
+            response = await fetch(url, options);
+            success = true;
+        } catch (e) {
+            console.log(e);
+            console.log("Retrying in 10 seconds...");
+            await new Promise((resolve) => setTimeout(resolve, 1000 * 10));
+        }
+    }
+
+    return response;
+}
+
 async function index_documents(documents) {
     const client = new Client({
         url: process.env.ES_URL,
@@ -69,4 +86,5 @@ async function index_documents(documents) {
 module.exports = {
     create_batches,
     index_documents,
+    fetch_with_retry
 };
