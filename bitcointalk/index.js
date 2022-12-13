@@ -122,7 +122,7 @@ async function get_documents_from_post(url) {
             url,
             title,
             id: 'bitcointalk-' + id,
-            date: dateJs,
+            created_at: dateJs,
         }
 
         documents.push(document);
