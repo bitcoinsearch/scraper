@@ -96,6 +96,8 @@ function parse_post(path, topic = false) {
             type: token.type,
             text: token.text,
         })
+    }).filter((token) => {
+        return token.type !== 'space';
     });
 
     const frontMatterObj = yaml.load(frontMatter);
