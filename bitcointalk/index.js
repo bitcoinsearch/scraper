@@ -106,6 +106,7 @@ async function get_documents_from_post(url) {
         const url = $(tr).find('.td_headerandpost .subject > a').attr('href');
         const title = $(tr).find('.td_headerandpost .subject > a').text();
         let body = $(tr).find('.td_headerandpost .post');
+        let messageNumber = $(tr).find('.td_headerandpost .message_number').text();
         // remove div with class 'quoteheader' and 'quote'
         body.find('.quoteheader').remove();
         body.find('.quote').remove();
@@ -123,6 +124,7 @@ async function get_documents_from_post(url) {
             title,
             id: 'bitcointalk-' + id,
             created_at: dateJs,
+            type: messageNumber === "#1" ? "topic" : "post",
         }
 
         documents.push(document);
