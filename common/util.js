@@ -1,5 +1,4 @@
 const { Client } = require("@elastic/enterprise-search");
-
 function create_batches(objects, size) {
     const batches = [];
     for (let i = 0; i < objects.length; i += size) {

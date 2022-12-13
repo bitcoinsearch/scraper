@@ -120,7 +120,7 @@ function parse_post(p_path) {
         categories: frontMatterObj.categories,
         tags: frontMatterObj.tags,
         media: frontMatterObj.media,
-        speakers: frontMatterObj.speakers,
+        authors: frontMatterObj.speakers,
         transcript_by: frontMatterObj.transcript_by,
     };
 

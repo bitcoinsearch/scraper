@@ -116,7 +116,7 @@ async function get_documents_from_post(url) {
         const id = url.substring(url.indexOf('#msg') + 4);
 
         const document = {
-            author,
+            authors: [author],
             body,
             domain: 'https://bitcointalk.org',
             url,

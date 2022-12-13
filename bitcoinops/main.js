@@ -108,7 +108,7 @@ function parse_post(path, topic = false) {
         url: topic ? `https://bitcoinops.org/en/topics/${basename(path, '.md')}` : `https://bitcoinops.org${frontMatterObj.permalink}`,
         type: topic ? 'topic' : frontMatterObj.type,
         language: frontMatterObj.lang,
-        author: "bitcoinops",
+        authors: ["bitcoinops"],
     };
 
     return document;
