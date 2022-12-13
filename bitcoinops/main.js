@@ -103,6 +103,7 @@ function parse_post(path, topic = false) {
         id: "bitcoinops-" + (topic ? basename(path, '.md') : frontMatterObj.slug),
         title: frontMatterObj.title,
         body: parsedBody,
+        body_type: "markdown",
         created_at: new Date(basename(path).split('-').slice(0, 3).join('-')),
         domain: "https://bitcoinops.org/en/",
         url: topic ? `https://bitcoinops.org/en/topics/${basename(path, '.md')}` : `https://bitcoinops.org${frontMatterObj.permalink}`,

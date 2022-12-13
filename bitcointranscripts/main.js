@@ -115,6 +115,7 @@ function parse_post(p_path) {
         id: "bitcointranscripts-" + id,
         title: frontMatterObj.title,
         body: parsedBody,
+        body_type: "markdown",
         created_at: new Date(frontMatterObj.date),
         domain: "https://btctranscripts.com/",
         url: `https://btctranscripts.com${pathWithoutExtension.replace(path.join(process.env.DATA_DIR, "bitcointranscripts", folder_name), '')}`,
