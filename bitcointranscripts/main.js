@@ -6,6 +6,7 @@ const request = require('request');
 const yaml = require('js-yaml');
 const marked = require('marked');
 const { index_documents } = require('../common/util');
+const md5 = require('md5');
 
 dotenv.config();
 
@@ -109,9 +110,9 @@ function parse_post(p_path) {
 
     const pathWithoutExtension = p_path.replace('.md', '');
     const frontMatterObj = yaml.load(frontMatter);
-    const id = pathWithoutExtension.replace(path.join(process.env.DATA_DIR, "bitcointranscripts", folder_name), '').replaceAll("/", "-");
+    const id = md5(pathWithoutExtension.replace(path.join(process.env.DATA_DIR, "bitcointranscripts", folder_name), '').replaceAll("/", "-")).substring(0, 20);
     const document = {
-        id: "bitcointranscripts" + id,
+        id: "bitcointranscripts-" + id,
         title: frontMatterObj.title,
         body: parsedBody,
         created_at: new Date(frontMatterObj.date),
