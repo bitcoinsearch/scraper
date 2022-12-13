@@ -9,10 +9,10 @@ const { index_documents } = require('../common/util');
 
 dotenv.config();
 
-const folder_name = "bitcointranscripts-2022-12-duplicate-fields";
+const folder_name = "bitcointranscripts-master";
 
 async function download_repo() {
-    const URL = "https://github.com/aureleoules/bitcointranscripts/archive/refs/heads/2022-12-duplicate-fields.zip";
+    const URL = "https://github.com/bitcointranscripts/bitcointranscripts/archive/refs/heads/master.zip";
     const dir = path.join(process.env.DATA_DIR, "bitcointranscripts");
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir);
