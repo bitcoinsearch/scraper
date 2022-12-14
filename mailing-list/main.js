@@ -124,7 +124,7 @@ function parse_dumps() {
         const fileName = file.split("-")[2];
         const document = {
             id: "mailing-list-" + process.env.NAME + '-' + file.replace(".html", ""),
-            author: [author],
+            authors: [author],
             title,
             body: bodyText,
             body_type: "raw",
