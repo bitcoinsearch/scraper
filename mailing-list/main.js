@@ -112,8 +112,10 @@ function parse_dumps() {
         const title = $("h1").first().text()
             .replace("[Bitcoin-development] ", "")
             .replace("[bitcoin-dev] ", "")
-            .replace("[Lightning-dev", "")
+            .replace("[Lightning-dev]", "")
             .replace("[lightning-dev] ", "")
+            .replace("\t", " ")
+            .trim();
         const body = $("pre").first().text();
         const date = new Date($("I").first().text().replace("  ", " "));
 
