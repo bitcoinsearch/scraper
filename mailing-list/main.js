@@ -141,6 +141,13 @@ function parse_dumps() {
     return documents;
 }
 
+function findEarliestTimestamp(documents, title) {
+    const earliest = documents
+        .filter((d) => d.title === title)
+        .sort((a, b) => a.created_at - b.created_at)[0];
+    return earliest.created_at;
+}
+
 async function main() {
     await download_dumps();
 
@@ -169,6 +176,25 @@ async function main() {
         );
     }
     console.log(`Found ${documents.length} documents`);
+
+    let threads = {};
+    for (let i = 0; i < documents.length; i++) {
+        const document = documents[i];
+        if (!threads[document.title]) {
+            threads[document.title] = {
+                id: document.id,
+                date: findEarliestTimestamp(documents, document.title),
+                url: document.url,
+            };
+        }
+
+        if (threads[document.title].id === document.id) {
+            document.type = "original_post";
+        } else {
+            document.type = "reply";
+            document.thread_url = threads[document.title].url; 
+        }
+    }
 
     await index_documents(documents);
 }
