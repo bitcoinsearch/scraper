@@ -2,6 +2,7 @@ from io import StringIO
 from html.parser import HTMLParser
 from os import getenv
 from elastic_enterprise_search import AppSearch
+from elasticsearch import Elasticsearch
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -28,3 +29,8 @@ def app_search():
         http_auth=getenv("ES_TOKEN")
     )
 
+def elastic_client():
+    return Elasticsearch(
+        cloud_id=getenv("CLOUD_ID"),
+        basic_auth=(getenv("USERNAME"), getenv("PASSWORD"))
+    )

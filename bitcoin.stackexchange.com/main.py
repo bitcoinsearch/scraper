@@ -1,8 +1,8 @@
 import requests
 import os
 from dotenv import load_dotenv
-
-from util import app_search, strip_tags
+from util import app_search, strip_tags, elastic_client
+from elasticsearch.helpers import bulk
 dir = os.getenv("DATA_DIR")
 
 load_dotenv()
@@ -111,7 +111,12 @@ if __name__ == "__main__":
         print("Indexing documents " + str(i) + " to " + str(i + 100))
         while not success:
             try:
-                app_search().index_documents(engine_name=os.getenv("ES_ENGINE"), documents=docs[i:i+100], request_timeout=309)
+                # Indexing documents to Elasticsearch
+                bulk(
+                    client=elastic_client(),
+                    index=os.getenv("INDEX"),
+                    actions=docs[i:i+100]
+                )
                 success = True
             except:
                 import time
