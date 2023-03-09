@@ -1,4 +1,4 @@
-const { Client } = require("@elastic/enterprise-search");
+const { Client } = require('@elastic/elasticsearch')
 function create_batches(objects, size) {
     const batches = [];
     for (let i = 0; i < objects.length; i += size) {
@@ -33,11 +33,12 @@ async function fetch_with_retry(url, options) {
 }
 
 async function index_documents(documents) {
+    let cloud_id = process.env.CLOUD_ID;
+    let username = process.env.USERNAME;
+    let password = process.env.PASSWORD;
     const client = new Client({
-        url: process.env.ES_URL,
-        auth: {
-            token: process.env.ES_TOKEN,
-        },
+        cloud: { id: cloud_id },
+        auth: { username, password }
     });
 
     const batches = create_batches(documents, 50);
@@ -50,16 +51,9 @@ async function index_documents(documents) {
 
         while (!success) {
             try {
-                const response = await client.app.indexDocuments(
-                    {
-                        engine_name: process.env.ES_ENGINE,
-                        documents: batch,
-                    },
-                    {
-                        requestTimeout: 1000 * 60 * 10,
-                    }
-                );
-                console.log(response);
+                const operations = batch.flatMap(doc => [{ index: { _index: process.env.INDEX } }, doc])
+                const bulkResponse = await client.bulk({ refresh: true, operations })
+                console.log(bulkResponse);
 
                 success = true;
                 done += batch.length;
