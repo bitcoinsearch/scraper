@@ -6,7 +6,7 @@ const dotenv = require("dotenv");
 const path = require("path");
 dotenv.config();
 
-const { index_documents, create_batches } = require("../common/util");
+const { index_documents, create_batches } = require("../common/elasticsearch-scraper/util");
 
 const URL = process.env.URL || "https://lists.linuxfoundation.org/pipermail/bitcoin-dev/";
 
