@@ -1,0 +1,26 @@
+name: StackExchange
+on:
+  schedule:
+    - cron: '0 0 * * 0' # every Sunday at midnight
+  workflow_dispatch:
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r bitcoin.stackexchange.com/requirements.txt
+      - name: Fetch data
+        run: |
+          mkdir /tmp/stackexchange
+          python bitcoin.stackexchange.com/elasticsearch-scraper/main.py
+        env:
+            ES_ENGINE: ${{ secrets.CLOUD_ID }}
+            ES_URL: ${{ secrets.USERNAME }}
+            ES_TOKEN: ${{ secrets.USER_PASSWORD }}
+            DATA_DIR: /tmp/stackexchange
