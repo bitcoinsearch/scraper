@@ -2,7 +2,7 @@ const path = require('path');
 const dotenv = require('dotenv');
 const fs = require('fs');
 const request = require('request');
-const { create_batches, index_documents } = require('../common/util');
+const { create_batches, index_documents } = require('../common/elasticsearch-scraper/util');
 dotenv.config();
 
 const URL = "https://bitcoin-irc.chaincode.com/bitcoin-core-dev/";
