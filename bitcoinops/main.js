@@ -6,7 +6,7 @@ const request = require('request');
 const yaml = require('js-yaml');
 const { basename } = require('path');
 const marked = require('marked');
-const { create_batches, index_documents } = require('../common/util');
+const { create_batches, index_documents } = require('../common/elasticsearch-scraper/util');
 
 dotenv.config();
 
