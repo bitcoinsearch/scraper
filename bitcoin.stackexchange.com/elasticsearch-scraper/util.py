@@ -33,6 +33,6 @@ def elastic_client():
     return Elasticsearch(
         cloud_id=getenv("CLOUD_ID"),
         basic_auth=(getenv("USERNAME"),
-        getenv("PASSWORD"))
+        getenv("USER_PASSWORD"))
     )
 
