@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "@elastic/enterprise-search": "^8.1.1-beta.1"
+    "@elastic/enterprise-search": "^8.1.1-beta.1",
+    "@elastic/elasticsearch": "^8.6.0"
   }
 }
