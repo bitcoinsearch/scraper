@@ -23,6 +23,10 @@ jobs:
             ES_ENGINE: ${{ secrets.ES_ENGINE }}
             ES_URL: ${{ secrets.ES_URL }}
             ES_TOKEN: ${{ secrets.ES_TOKEN }}
+            CLOUD_ID: ${{ secrets.CLOUD_ID }}
+            USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+            USERNAME: ${{ secrets.USERNAME }}
+            INDEX: ${{ secrets.INDEX }}
             DATA_DIR: /tmp/data
             URL: https://lists.linuxfoundation.org/pipermail/bitcoin-dev/
             NAME: bitcoin
