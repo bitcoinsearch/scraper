@@ -20,7 +20,8 @@ jobs:
           mkdir /tmp/stackexchange
           python bitcoin.stackexchange.com/elasticsearch-scraper/main.py
         env:
-            ES_ENGINE: ${{ secrets.CLOUD_ID }}
-            ES_URL: ${{ secrets.USERNAME }}
-            ES_TOKEN: ${{ secrets.USER_PASSWORD }}
             DATA_DIR: /tmp/stackexchange
+            CLOUD_ID: ${{ secrets.CLOUD_ID }}
+            USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+            USERNAME: ${{ secrets.USERNAME }}
+            INDEX: ${{ secrets.INDEX }}
