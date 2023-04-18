@@ -115,7 +115,8 @@ if __name__ == "__main__":
                 bulk(
                     client=elastic_client(),
                     index=os.getenv("INDEX"),
-                    actions=docs[i:i+100]
+                    actions=docs[i:i+100],
+                    pipeline="avoid-duplicates"
                 )
                 success = True
             except:
