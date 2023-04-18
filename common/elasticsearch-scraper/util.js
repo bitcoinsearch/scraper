@@ -52,7 +52,7 @@ async function index_documents(documents) {
         while (!success) {
             try {
                 const operations = batch.flatMap(doc => [{ index: { _index: process.env.INDEX } }, doc])
-                const bulkResponse = await client.bulk({ refresh: true, operations })
+                const bulkResponse = await client.bulk({ refresh: true, pipeline: "avoid-duplicates", operations })
                 console.log(bulkResponse);
 
                 success = true;
