@@ -13,6 +13,49 @@ You need an env file to indicate where you are pushing the data.
 
 You should be calling the scrapers from the root dir because they use the common dir.
 
+## Scrapybot 
+
+This section explains how to run the scrapers in `scrapybot` folder
+
+The folder has a bunch of crawlers(spiders) in the `scrapybot/scrapybot/spiders` folder. Each of the crawler files is specific to a particular site.
+To run a crawler using scrapybot, for example `rusty` ,which will scrape the site `https://rusty.ozlabs.org`,switch to the root directory(where there is this README file) and run these commands from your terminal:
+- `pip install -r requirements.txt && cd scrapybot`
+- ` scrapy crawl rusty -O rusty.json`
+
+The above commands will install scrapy dependencies, then run the `rusty` spider(one of the crawlers) and store the collected document in `rusty.json` file in the `scrapybot` project directory
+
+The same procedure can be applied to any of the crawlers in the `scrapybot/spiders` directory
+
+<<<<<<< HEAD
+### Sending the output to elastic search
+
+- create an `example.ini` file inside the `scrapybot` directory with the following contents
+```
+[ELASTIC]
+cloud_id = `your_cloud_id` 
+user = `your_elasticsearch_username`
+password =  `your_elasticsearch_password`
+```
+- inside the `pipelines.py file` in the `scrapybot` directory, read the above file to load your elasticsearch credentials with the line below:
+```
+config.read("/path/to/your/example.ini") - replace what's in quotes with your actual `ini` file
+```
+
+=======
+## Githubcontent 
+
+This section explains how to run the scrapers in `githubcontent` folder
+
+Procedure is almost the same as in the `Scrapybot` section above only that we are using raw python3 in this case instead of the scrapy framework
+The `githubcontent` folder has a bunch of crawler files, each of which is specific to a particular site.
+To run a crawler, for example `bips.py` ,which will scrape the `https://github.com/bips`,switch to the root directory(where there is this README file) and run these commands from your terminal:
+- `pip install -r requirements.txt && cd githubcontent`
+- `python3 bips.py`
+
+The above commands will install necessary dependencies, then scrape the `bitcoin bips` github repository and store the collected document in `bips.json` file in the `githubcontent` project directory
+
+The same procedure can be applied to any of the crawlers in the `scrapybot/spiders` directory
+>>>>>>> 10c6504 (Initial scrapy setup)
 ## Other quirks
 
 The bitcointalk forum scraper takes many hours to scrape so to start from the beginning, you'll need to do it from a server rather than use GitHub actions which has a 6 hours timeout. It's not a big deal if it times out on GitHub actions because it's written to index the last 100 posts and work in reverse chronological order.

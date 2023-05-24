@@ -3,3 +3,6 @@ __pycache__
 .vscode
 yarn-error.log
 .env
+scrapybot/*.xml
+scrapybot/*.bz2
+scrapybot/*.json
