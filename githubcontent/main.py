@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 import json
 import re
 import requests
+import uuid
 
 def get_github_urls(base_url: str, chapters: list) -> list:
     """
@@ -14,7 +15,7 @@ def get_github_urls(base_url: str, chapters: list) -> list:
     print(urls[-5:])
     return urls
 
-def parse_chapters(urls):
+def parse_aantonop_books(urls):
 
     documents = []
     for url in urls:
@@ -24,10 +25,9 @@ def parse_chapters(urls):
         document = {}
         title = soup.find('h2', dir='auto').get_text()
         body = soup.find('div',id = 'readme').get_text()
-        body_type = "md"
-        author = "Andreas Antonopoulos"
-        chapter_number = ''.join(re.findall(r'\d+', url))
-        id = "bitcoinbook-chapter-" + chapter_number if is_bitcoin_url else "lnbook-chapter-" + chapter_number 
+        body_type = "raw"
+        authors = ["Andreas M. Antonopoulos"] if is_bitcoin_url else ["Andreas M. Antonopoulos","Olaoluwa Osuntokun","Rene Pickhardt"]
+        id = str(uuid.uuid4())
         domain = "https://github.com"
         url = url
         created_at = "2022-11-15" if is_bitcoin_url else "2023-04-22"# date of most recent commit
@@ -47,6 +47,50 @@ def parse_chapters(urls):
 
     return documents
 
+def parse_programming_bitcoin():
+    chapters = []
+    for i in range(1,15):
+        number = '0' + str(i) if i < 10 else str(i)
+        chapters.append(number)
+
+    base_url = 'https://github.com/jimmysong/programmingbitcoin/blob/master/ch{}.asciidoc'
+    print("Getting links for programming bitcoin book")
+    chapter_links = get_github_urls(base_url,chapters)
+    documents = []
+    for url in chapter_links:
+        data = requests.get(url).text
+        soup = BeautifulSoup(data,'html.parser')
+        document = {}
+        title = soup.find('h2', dir='auto').get_text()
+        body = soup.find('article').get_text()
+        body_type = "raw"
+        author = "Jimmy Song"
+        id = str(uuid.uuid4())
+        domain = "https://github.com"
+        url = url
+        created_at = "2020-12-04"
+
+        document.update({
+            "title": title,
+            "body": body,
+            "body_type": body_type,
+            "author": author,
+            "id": id,
+            "domain": domain,
+            "url": url,
+            "created_at": created_at
+            })
+        print(document.get("body"))
+        documents.append(document)
+
+    print ("Number of documents: " + str(len(documents)))
+
+    with open("programmingbitcoin.json", "w") as f:
+      json.dump(documents, f, indent=4)
+
+    # Close the file
+    f.close()
+
 def get_bitcoinbook_data():
     chapters = []
     for i in range(1,13):
@@ -56,7 +100,7 @@ def get_bitcoinbook_data():
     base_url = 'https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch{}.asciidoc'
     print("Getting links for bitcoin book")
     chapter_links = get_github_urls(base_url,chapters)
-    bitcoindocs = parse_chapters(chapter_links)
+    bitcoindocs = parse_aantonop_books(chapter_links)
     print ("Number of documents: " + str(len(bitcoindocs)))
 
     with open("bitcoinbook.json", "w") as f:
@@ -74,7 +118,7 @@ def get_lightningbook_data():
     base_url = 'https://github.com/lnbook/lnbook/blob/develop/{}.asciidoc'
     print("Getting links for lightning book")
     chapter_links = get_github_urls(base_url,chapters)
-    lndocs = parse_chapters(chapter_links)
+    lndocs = parse_aantonop_books(chapter_links)
     print ("Number of documents: " + str(len(lndocs)))
 
     with open("lnbook.json", "w") as f:
@@ -85,5 +129,4 @@ def get_lightningbook_data():
 
 if __name__ == "__main__":
 
-    get_bitcoinbook_data()
-    get_lightningbook_data()
+    parse_programming_bitcoin()
