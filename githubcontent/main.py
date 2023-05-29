@@ -47,6 +47,25 @@ def parse_aantonop_books(urls):
 
     return documents
 
+def parse_bips():
+
+    base_url = 'https://github.com/bitcoin/bips'
+    
+    data = requests.get(base_url).text
+    soup = BeautifulSoup(data,'html.parser')
+    table = soup.find('table')
+    links = table.find_all('a')
+    urls = [link['href'] for link in links]
+    for url in urls[:3]:
+        bip_url = 'https://github.com' + url
+        print(bip_url)
+        data = requests.get(bip_url).text
+        soup = BeautifulSoup(data,'html.parser')
+        body = soup.find('article').get_text()
+        pattern = r"Comments-URI"
+        details = soup.find_all(text=re.compile(pattern))
+        print(details)
+
 def parse_programming_bitcoin():
     chapters = []
     for i in range(1,15):
@@ -129,4 +148,4 @@ def get_lightningbook_data():
 
 if __name__ == "__main__":
 
-    parse_programming_bitcoin()
+    parse_bips()
