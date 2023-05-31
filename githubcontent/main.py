@@ -65,6 +65,22 @@ def parse_bips():
         pattern = r"Comments-URI"
         details = soup.find_all(text=re.compile(pattern))
         print(details)
+def parse_lightning_docs():
+
+    base_url = 'https://github.com/t-bast/lightning-docs'
+    
+    data = requests.get(base_url).text
+    soup = BeautifulSoup(data,'html.parser')
+    content = soup.find('article')
+    links = content.find_all('a')
+    urls = [link['href'] for link in links]
+    for url in urls:
+        doc_url = 'https://github.com' + url
+        print(doc_url)
+        data = requests.get(doc_url).text
+        soup = BeautifulSoup(data,'html.parser')
+        body = soup.find('article')
+        print(body)
 
 def parse_programming_bitcoin():
     chapters = []
@@ -146,6 +162,4 @@ def get_lightningbook_data():
     # Close the file
     f.close()
 
-if __name__ == "__main__":
 
-    parse_bips()
