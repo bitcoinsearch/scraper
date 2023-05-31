@@ -48,8 +48,20 @@ class GithubScraper:
 
         return documents
 
+    def get_bip_details(self, details: list):
+        result_dict = {}
+
+        for item in details:
+            if ': ' in item:
+                key, value = item.split(': ', 1)
+                result_dict[key.strip()] = value.strip()
+            else:
+                print(f"Ignoring item: {item}")
+        return result_dict
+
     def parse_bips(self):
 
+        documents = []
         base_url = 'https://github.com/bitcoin/bips'
         
         data = requests.get(base_url).text
@@ -65,7 +77,25 @@ class GithubScraper:
             body = soup.find('article').get_text()
             pattern = r"Comments-URI"
             details = soup.find_all(text=re.compile(pattern))
-            print(details)
+            bip = details[0]
+            domain = "https://github.com"
+            url = url
+            items = bip.split('\n')
+            bip_info = self.get_bip_details(items[:-1])
+            document = {}
+            document.update({
+                "title": bip_info.get("Title"),
+                "body": body,
+                "body_type": "mediawiki",
+                "author": bip_info.get("Author"),
+                "id": str(uuid.uuid4()),
+                "domain": domain,
+                "url": url,
+                "created_at": bip_info.get("Created")
+                })
+
+            documents.append(document)
+        return documents
 
     def parse_lightning_docs(self):
 
