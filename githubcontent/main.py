@@ -100,19 +100,33 @@ class GithubScraper:
     def parse_lightning_docs(self):
 
         base_url = 'https://github.com/t-bast/lightning-docs'
-        
+        documents = []
         data = requests.get(base_url).text
         soup = BeautifulSoup(data,'html.parser')
         content = soup.find('article')
         links = content.find_all('a')
         urls = [link['href'] for link in links]
-        for url in urls:
+        for url in urls[1:]:
             doc_url = 'https://github.com' + url
-            print(doc_url)
             data = requests.get(doc_url).text
             soup = BeautifulSoup(data,'html.parser')
-            body = soup.find('article')
-            print(body)
+            document = {}
+            article = soup.find('article')
+            body = article.get_text()
+            title = article.find('h1').get_text()
+            document.update({
+                "title": title,
+                "body": body,
+                "body_type": "md",
+                "authors": ['Bastien Teinturier'],
+                "id": str(uuid.uuid4()),
+                "domain": 'https://github.com',
+                "url": url,
+                "created_at": "2022-08-11"
+                })
+            documents.append(document)
+        return documents
+
 
     def parse_blips(self):
 
