@@ -27,7 +27,7 @@ class GithubScraper:
             title = soup.find('h2', dir='auto').get_text()
             body = soup.find('div',id = 'readme').get_text()
             body_type = "raw"
-            authors = ["Andreas M. Antonopoulos"] if is_bitcoin_url else ["Andreas M. Antonopoulos","Olaoluwa Osuntokun","Rene Pickhardt"]
+            authors = ["Andreas Antonopoulos"] if is_bitcoin_url else ["Andreas Antonopoulos","Olaoluwa Osuntokun","Rene Pickhardt"]
             id = str(uuid.uuid4())
             domain = "https://github.com"
             url = url
@@ -37,7 +37,7 @@ class GithubScraper:
                 "title": title,
                 "body": body,
                 "body_type": body_type,
-                "author": author,
+                "authors": authors,
                 "id": id,
                 "domain": domain,
                 "url": url,
@@ -94,6 +94,41 @@ class GithubScraper:
                 "created_at": bip_info.get("Created")
                 })
 
+            documents.append(document)
+        return documents
+
+
+    def parse_grokking_bitcoin(self):
+
+        base_url = 'https://github.com/kallerosenbaum/grokkingbitcoin/blob/master/grokking-bitcoin.adoc'
+        documents = []
+        
+        data = requests.get(base_url).text
+        soup = BeautifulSoup(data,'html.parser')
+        content = soup.find('article')
+        links = content.find_all('a')
+        urls = [link['href'] for link in links]
+        for url in urls[1:]:
+            doc_url = 'https://github.com' + url
+            print(doc_url)
+            data = requests.get(doc_url).text
+            soup = BeautifulSoup(data,'html.parser')
+            article = soup.find('article')
+            title = article.find('h2', dir='auto').get_text()
+            body = article.get_text()
+            print(body)
+
+            document = {}
+            document.update({
+                "title": title,
+                "body": body,
+                "body_type": "adoc",
+                "authors": ['Kalle Rosenbaum'],
+                "id": str(uuid.uuid4()),
+                "domain": 'https://github.com',
+                "url": url,
+                "created_at": "2022-09-14"
+                })
             documents.append(document)
         return documents
 
@@ -251,5 +286,4 @@ class GithubScraper:
 
         # Close the file
         f.close()
-
 
