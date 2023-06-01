@@ -271,6 +271,7 @@ class GithubScraper:
         f.close()
 
     def get_bolts(self):
+        documents = []
         bolts = ['00-introduction','01-messaging','02-peer-protocol','03-transactions','04-onion-routing',
                     '05-onchain','07-routing-gossip','08-transport',
                     '09-features','10-dns-bootstrap','11-payment-encoding'
@@ -278,12 +279,32 @@ class GithubScraper:
 
         base_url = 'https://github.com/lightning/bolts/blob/master/{}.md'
         print("Getting links for lightning bolts")
-        bolt_links = get_github_urls(base_url,bolts)
-        for link in bolt_links[:2]:
+        bolt_links = self.get_github_urls(base_url,bolts)
+        for link in bolt_links:
             data = requests.get(link).text
             soup = BeautifulSoup(data,'html.parser')
+            title = soup.find('h1',dir='auto').get_text()
             body = soup.find('article').get_text()
-            print(body)
+            body_type = "md"
+            authors = []
+            id = str(uuid.uuid4())
+            url = link
+            domain = "https://github.com"
+            created_at = "2023-05-11"
+            document = {}
+
+            document.update({
+                "title": title,
+                "body": body,
+                "body_type": body_type,
+                "authors": authors,
+                "id": id,
+                "domain": domain,
+                "url": url,
+                "created_at": created_at
+                })
+            documents.append(document)
+        return documents
 
     def get_lightningbook_data(self):
         chapters = ['01_introduction','02_getting_started','03_how_ln_works','04_node_client',
@@ -306,5 +327,5 @@ class GithubScraper:
 if __name__ == "__main__":
 
     my_obj = GithubScraper()
-    docs = my_obj.parse_blips()
+    docs = my_obj.get_bolts()
     print(docs)
