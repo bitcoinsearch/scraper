@@ -48,7 +48,7 @@ class GithubScraper:
 
         return documents
 
-    def get_bip_details(self, details: list):
+    def get_details(self, details: list):
         result_dict = {}
 
         for item in details:
@@ -81,7 +81,7 @@ class GithubScraper:
             domain = "https://github.com"
             url = url
             items = bip.split('\n')
-            bip_info = self.get_bip_details(items[:-1])
+            bip_info = self.get_details(items[:-1])
             document = {}
             document.update({
                 "title": bip_info.get("Title"),
@@ -165,6 +165,7 @@ class GithubScraper:
 
     def parse_blips(self):
 
+        documents = []
         base_url = 'https://github.com/lightning/blips'
         data = requests.get(base_url).text
         soup = BeautifulSoup(data,'html.parser')
@@ -173,11 +174,26 @@ class GithubScraper:
         urls = [link['href'] for link in links]
         for url in urls:
             doc_url = 'https://github.com' + url
-            print(doc_url)
             data = requests.get(doc_url).text
             soup = BeautifulSoup(data,'html.parser')
             body = soup.find('article').get_text()
-            print(body)
+            details = soup.find(class_='notranslate').get_text()
+            details = details.split("\n")
+            blip_info = self.get_details(details[:-1])
+            document = {}
+            document.update({
+                "title": blip_info.get("Title"),
+                "body": body,
+                "body_type": "md",
+                "author": blip_info.get("Author"),
+                "id": str(uuid.uuid4()),
+                "domain": 'https://github.com',
+                "url": url,
+                "created_at": blip_info.get("Created")
+                })
+
+            documents.append(document)
+        return documents
 
     def parse_programming_bitcoin(self):
         chapters = []
@@ -287,3 +303,8 @@ class GithubScraper:
         # Close the file
         f.close()
 
+if __name__ == "__main__":
+
+    my_obj = GithubScraper()
+    docs = my_obj.parse_blips()
+    print(docs)
