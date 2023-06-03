@@ -26,7 +26,7 @@ class GithubScraper:
             body = soup.find('div',id = 'readme').get_text()
             body_type = "asciidoc"
             authors = ["Andreas Antonopoulos"] if is_bitcoin_url else ["Andreas Antonopoulos","Olaoluwa Osuntokun","Rene Pickhardt"]
-            id = 'masteringbitcoin' + str(uuid.uuid4()) if is_bitcoin_url else 'masteringln' + str(uuid.uuid4())
+            id = 'masteringbitcoin-' + str(uuid.uuid4()) if is_bitcoin_url else 'masteringln-' + str(uuid.uuid4())
             domain = "https://github.com"
             url = url
             created_at = "2022-11-15" if is_bitcoin_url else "2023-04-22"# date of most recent commit
