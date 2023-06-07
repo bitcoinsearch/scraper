@@ -1,4 +1,6 @@
-import scrapy
+from .utils import strip_tags
+from datetime import datetime
+import uuid
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
 
@@ -12,11 +14,17 @@ class RiverSpider(CrawlSpider):
 
     def parse_item(self, response):
         clearn = response.xpath('//div[@class="c-learn__content"]')
+        term = clearn.xpath('//div[@class="c-article"]/p').getall()  # returns a list
+        body_to_be_parsed = "".join(term)  # turn list of paragraphs to one string
+
         item = {}
+        item["id"] = "river-glossary-" + str(uuid.uuid4())
+        item["title"] = clearn.xpath("//h1/text()").get()
+        item["body"] = strip_tags(body_to_be_parsed)
+        item["body_type"] = "raw"
+        item["authors"] = []
+        item["domain"] = self.start_urls[0]
         item["url"] = response.url
-        item['title'] = clearn.xpath('//h1/text()').get()
-        item['body'] = clearn.xpath('//div[@class="c-article"]/p').getall()
-        #item["domain_id"] = response.xpath('//input[@id="sid"]/@value').get()
-        #item["name"] = response.xpath('//div[@id="name"]').get()
-        #item["description"] = response.xpath('//div[@id="description"]').get()
+        item["created_at"] = datetime.now()
+
         return item

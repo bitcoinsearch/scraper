@@ -1,4 +1,6 @@
 import re
+import uuid
+from .utils import strip_tags
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
 
@@ -12,16 +14,18 @@ class RustySpider(CrawlSpider):
 
     def parse_item(self, response):
         item = {}
+        article = response.xpath('//div[@class="entry-content"]').get()
+        item["id"] = "rusty-blog-" + str(uuid.uuid4())
+        item["title"] = response.xpath("//h1/text()").get()
+        item["body"] = strip_tags(article)
+        item["body_type"] = "raw"
+        item["authors"] = [
+            response.xpath('//span[@class="author vcard"]/a/text()').get()
+        ]
+        item["domain"] = self.start_urls[0]
         item["url"] = response.url
-        article = response.xpath('//article')
-        item["title"] = article.xpath('//h1/text()').get()
-        unparsedbody = article.xpath('//div[@class="entry-content"]').get()
-        item["body"] = self.striphtml(unparsedbody)
-        item["created_at"] = article.xpath('//time[@class="entry-date published"]/@datetime').get()
-        item["author"] = article.xpath('//span[@class="author vcard"]/a/text()').get()
+        item["created_at"] = response.xpath(
+            '//time[@class="entry-date published"]/@datetime'
+        ).get()
 
         return item
-
-    def striphtml(self,data):
-        p = re.compile(r'<.*?>')
-        return p.sub('', data)
