@@ -26,7 +26,6 @@ class BoltsSpider(CrawlSpider):
         item["body_type"] = "markdown"
         item["authors"] = ["Spec"]
         item["domain"] = "https://github.com/lightning/bolts"
-        item["url"] = response.url
         item["created_at"] = "2023-05-11"
         item["url"] = response.url
 
