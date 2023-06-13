@@ -20,11 +20,12 @@ class RiverSpider(CrawlSpider):
         item = {}
         item["id"] = "river-glossary-" + str(uuid.uuid4())
         item["title"] = clearn.xpath("//h1/text()").get()
+        item["body_formatted"] = body_to_be_parsed
         item["body"] = strip_tags(body_to_be_parsed)
         item["body_type"] = "raw"
         item["authors"] = []
         item["domain"] = self.start_urls[0]
         item["url"] = response.url
-        item["created_at"] = datetime.now()
+        item["created_at"] = str(datetime.now())
 
         return item

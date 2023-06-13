@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from .utils import strip_tags
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
@@ -22,11 +23,12 @@ class BoltsSpider(CrawlSpider):
         body_to_be_parsed = response.xpath("//article").get()
         item["id"] = "bolts-" + str(uuid.uuid4())
         item["title"] = response.xpath('//h1[@dir="auto"]/text()').get()
+        item["body_formatted"] = body_to_be_parsed
         item["body"] = strip_tags(body_to_be_parsed)
         item["body_type"] = "markdown"
         item["authors"] = ["Spec"]
         item["domain"] = "https://github.com/lightning/bolts"
-        item["created_at"] = "2023-05-11"
+        item["created_at"] = datetime.fromisoformat("2023-05-11")
         item["url"] = response.url
 
         return item

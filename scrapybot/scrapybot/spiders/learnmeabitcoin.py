@@ -25,6 +25,7 @@ class LearnmeabitcoinSpider(CrawlSpider):
         body_to_be_parsed = "".join(article)  # turn list of paragraphs to one string
         item["id"] = "learnmeabitcoin-" + str(uuid.uuid4())
         item["title"] = response.xpath("//header/h1/text()").get()
+        item["body_formatted"] = body_to_be_parsed
         item["body"] = strip_tags(body_to_be_parsed)
         item["body_type"] = "raw"
         item["authors"] = ["Gregory Walker"]

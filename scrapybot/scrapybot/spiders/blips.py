@@ -1,0 +1,36 @@
+from .utils import get_details, strip_tags
+import uuid
+from scrapy.linkextractors import LinkExtractor
+from scrapy.spiders import CrawlSpider, Rule
+
+
+class BlipsSpider(CrawlSpider):
+    name = "blips"
+    allowed_domains = ["github.com"]
+    start_urls = ["https://github.com/lightning/blips"]
+
+    rules = (
+        Rule(
+            LinkExtractor(restrict_xpaths="//table/tbody/tr/td/a"),
+            callback="parse_item",
+        ),
+    )
+
+    def parse_item(self, response):
+        item = {}
+        details = response.xpath(
+            "//pre[contains(@class, 'notranslate')]/code/text()"
+        ).get()
+        details = details.split("\n")
+        article = response.xpath("//article").get()
+        blip_info = get_details(details[:-1])
+        item["id"] = "blips-" + str(uuid.uuid4())
+        item["title"] = blip_info.get("Title")
+        item["body_formatted"] = article
+        item["body"] = strip_tags(article)
+        item["body_type"] = "raw"
+        item["authors"] = [blip_info.get("Author")]
+        item["domain"] = self.start_urls[0]
+        item["url"] = response.url
+        item["created_at"] = blip_info.get("Created")
+        return item

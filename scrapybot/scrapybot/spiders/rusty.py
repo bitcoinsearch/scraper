@@ -1,4 +1,3 @@
-import re
 import uuid
 from .utils import strip_tags
 from scrapy.linkextractors import LinkExtractor
@@ -17,6 +16,7 @@ class RustySpider(CrawlSpider):
         article = response.xpath('//div[@class="entry-content"]').get()
         item["id"] = "rusty-blog-" + str(uuid.uuid4())
         item["title"] = response.xpath("//h1/text()").get()
+        item["body_formatted"] = article
         item["body"] = strip_tags(article)
         item["body_type"] = "raw"
         item["authors"] = [

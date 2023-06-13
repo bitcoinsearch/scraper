@@ -5,9 +5,22 @@
 
 
 # useful for handling different item types with a single interface
-from itemadapter import ItemAdapter
+import configparser
+from elasticsearch import Elasticsearch
+
+config = configparser.ConfigParser()
+config.read("/path/to/your/example.ini")
+
+es = Elasticsearch(
+    cloud_id=config["ELASTIC"]["cloud_id"],
+    basic_auth=(config["ELASTIC"]["user"], config["ELASTIC"]["password"]),
+)
 
 
-class ScrapybotPipeline:
+class ElasticsearchPipeline:
     def process_item(self, item, spider):
+
+        # Index the item in Elasticsearch
+        es.index(index="bitcoin-search-june-23", document=item)
+
         return item

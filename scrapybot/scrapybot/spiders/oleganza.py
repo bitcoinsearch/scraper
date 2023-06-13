@@ -18,6 +18,7 @@ class OleganzaSpider(CrawlSpider):
         post = body.xpath('//div[@class="regular"]').get()
         item["id"] = "oleganza-blog-" + str(uuid.uuid4())
         item["title"] = body.xpath('//div[@class="regular"]/h2/a/text()').get()
+        item["body_formatted"] = post
         item["body"] = strip_tags(post)
         item["body_type"] = "raw"
         item["authors"] = [body.xpath("//h1/a/text()").get()]

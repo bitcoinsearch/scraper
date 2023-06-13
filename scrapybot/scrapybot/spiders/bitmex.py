@@ -20,9 +20,9 @@ class BitmexSpider(CrawlSpider):
         item = {}
         article = response.xpath("//article/div/p").getall()
         body_to_be_parsed = "".join(article)  # turn list of paragraphs to one string
-
         item["id"] = "bitmex-blog-" + str(uuid.uuid4())
         item["title"] = response.xpath('//h1[@class="entry-title"]/text()').get()
+        item["body_formatted"] = body_to_be_parsed
         item["body"] = strip_tags(body_to_be_parsed)
         item["body_type"] = "raw"
         item["authors"] = [
