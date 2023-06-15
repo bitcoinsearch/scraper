@@ -22,7 +22,7 @@ class GrokkingbtcSpider(CrawlSpider):
         item = {}
         article = response.xpath("//article").get()
         item["id"] = "grokkingbtc-" + str(uuid.uuid4())
-        item["title"] = response.xpath("//article/div/h2/text()").get()
+        item["title"] = "[Grokking Bitcoin] " +response.xpath("//article/div/h2/text()").get()
 
         if not item["title"]:
             return None
@@ -31,7 +31,7 @@ class GrokkingbtcSpider(CrawlSpider):
         item["body"] = strip_tags(article)
         item["body_type"] = "html"
         item["authors"] = ["Kalle Rosenbaum"]
-        item["domain"] = self.allowed_domains[0]
+        item["domain"] = self.start_urls[0]
         item["url"] = response.url
         item["created_at"] = datetime.now()
 

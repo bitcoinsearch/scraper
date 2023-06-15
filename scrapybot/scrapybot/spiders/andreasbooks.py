@@ -31,7 +31,12 @@ class AndreasbooksSpider(CrawlSpider):
             if "bitcoinbook" in response.url
             else "masteringln-" + str(uuid.uuid4())
         )
-        item["title"] = response.xpath("//article/div/h2/text()").get()
+        item["title"] = (
+            "[Mastering Bitcoin] " + response.xpath("//article/div/h2/text()").get()
+            if "bitcoinbook" in response.url
+            else "[Mastering Lightning] "
+            + response.xpath("//article/div/h2/text()").get()
+        )
 
         if not item["title"]:
             return None
@@ -45,7 +50,9 @@ class AndreasbooksSpider(CrawlSpider):
             if "bitcoinbook" in response.url
             else ["Andreas Antonopoulos", "Olaoluwa Osuntokun", "Rene Pickhardt"]
         )
-        item["domain"] = self.allowed_domains[0]
+        item["domain"] = (
+            self.start_urls[0] if "bitcoinbook" in response.url else self.start_urls[1]
+        )
         item["created_at"] = (
             "2022-11-15" if "bitcoinbook" in response.url else "2023-04-22"
         )  # date of most recent commit

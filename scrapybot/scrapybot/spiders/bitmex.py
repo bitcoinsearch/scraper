@@ -29,7 +29,7 @@ class BitmexSpider(CrawlSpider):
         item["authors"] = [
             response.xpath('//div[@class="td-post-author-name"]/a/text()').get()
         ]
-        item["domain"] = self.allowed_domains[0]
+        item["domain"] = "https://" + self.allowed_domains[0]
         item["url"] = response.url
         item["created_at"] = response.xpath(
             '//span[@class="td-post-date"]/time/@datetime'

@@ -21,7 +21,7 @@ class BtcphilosophySpider(CrawlSpider):
         item = {}
         article = response.xpath("//article").get()
         item["id"] = "btcphilosophy-" + str(uuid.uuid4())
-        item["title"] = response.xpath("//article/div/h2/text()").get()
+        item["title"] = "[Bitcoin Dev Philosopy] " + response.xpath("//article/div/h2/text()").get()
 
         if not item["title"]:
             return None

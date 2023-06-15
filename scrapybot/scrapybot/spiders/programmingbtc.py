@@ -21,7 +21,7 @@ class ProgrammingbtcSpider(CrawlSpider):
         item = {}
         article = response.xpath("//article").get()
         item["id"] = "programmingbtc-" + str(uuid.uuid4())
-        item["title"] = response.xpath("//article/div/h2/text()").get()
+        item["title"] = "[Programming Bitcoin] " + response.xpath("//article/div/h2/text()").get()
 
         if not item["title"]:
             return None
@@ -30,7 +30,7 @@ class ProgrammingbtcSpider(CrawlSpider):
         item["body"] = strip_tags(article)
         item["body_type"] = "html"
         item["authors"] = ["Jimmy Song"]
-        item["domain"] = self.allowed_domains[0]
+        item["domain"] = self.start_urls[0]
         item["url"] = response.url
         item["created_at"] = datetime.now()
 
