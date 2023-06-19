@@ -1,5 +1,6 @@
 import requests
 import os
+from datetime import datetime
 from dotenv import load_dotenv
 
 from util import app_search, strip_tags
@@ -66,7 +67,8 @@ def parse_posts():
                 "url": "https://bitcoin.stackexchange.com/questions/" + post.attrib.get("Id"),
                 "created_at": post.attrib.get("CreationDate"),
                 "accepted_answer_id": post.attrib.get("AcceptedAnswerId"),
-                "type": "question"
+                "type": "question",
+                "indexed_at": datetime.now().isoformat()
             }
         else: # Answer
             # Fetch question from XML
@@ -85,6 +87,7 @@ def parse_posts():
                 "created_at": post.attrib.get("CreationDate"),
                 "type": "answer",
                 "title": question.attrib.get("Title") + " (Answer)",
+                "indexed_at": datetime.now().isoformat()
             }
 
         print("Adding document: " + document["id"], document["title"])

@@ -4,8 +4,9 @@ function create_batches(objects, size) {
     for (let i = 0; i < objects.length; i += size) {
         const batch = [];
         for (let j = 0; j < size; j++) {
-            if (objects[i + j]) {
-                batch.push(objects[i + j]);
+            if (objects[i + j]) {// Timestamp the object upload to strictly order it
+                const timestampedObj = {...objects[i+j], indexed_at: new Date().toISOString()}
+                batch.push(timestampedObj);
             }
         }
 
