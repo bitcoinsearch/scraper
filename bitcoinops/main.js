@@ -100,11 +100,13 @@ function parse_post(path, topic = false) {
         return token.type !== 'space';
     });
 
+    const stringRepresentation = parsedBody.map(obj => JSON.stringify(obj)).join(', ');
     const frontMatterObj = yaml.load(frontMatter);
     const document = {
         id: "bitcoinops-" + (topic ? basename(path, '.md') : frontMatterObj.slug),
         title: frontMatterObj.title,
-        body: parsedBody,
+        body_formatted: stringRepresentation,
+        body: body,
         body_type: "markdown",
         created_at: new Date(basename(path).split('-').slice(0, 3).join('-')),
         domain: "https://bitcoinops.org/en/",
