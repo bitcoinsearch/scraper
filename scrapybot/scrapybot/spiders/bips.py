@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from .utils import strip_tags, strip_attributes
 import uuid
 from scrapy.linkextractors import LinkExtractor
@@ -39,6 +40,7 @@ class BipsSpider(CrawlSpider):
         item["domain"] = self.start_urls[0]
         item["url"] = response.url
         item["created_at"] = metadata.get("Created")[0]
+        item["indexed_at"] = datetime.utcnow().isoformat()
         return item
 
     def parse_details(self, details):

@@ -35,5 +35,6 @@ class BoltsSpider(CrawlSpider):
         item["domain"] = "https://github.com/lightning/bolts"
         item["created_at"] = datetime.fromisoformat("2023-05-11")
         item["url"] = response.url
+        item["indexed_at"] = datetime.utcnow().isoformat()
 
         return item

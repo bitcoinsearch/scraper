@@ -34,6 +34,7 @@ class RustySpider(CrawlSpider):
         if not item["created_at"]:
             item["created_at"] = datetime.now()
 
+        item["indexed_at"] = datetime.utcnow().isoformat()
         pattern = re.compile("|".join(keywords), re.IGNORECASE)
 
         if item["title"] and re.search(pattern, item["title"]):
