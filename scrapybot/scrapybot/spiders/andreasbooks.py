@@ -1,5 +1,6 @@
 import uuid
 from .utils import strip_tags, strip_attributes
+from datetime import datetime
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
 
@@ -56,4 +57,5 @@ class AndreasbooksSpider(CrawlSpider):
         item["created_at"] = (
             "2022-11-15" if "bitcoinbook" in response.url else "2023-04-22"
         )  # date of most recent commit
+        item["indexed_at"] = datetime.utcnow().isoformat()
         return item

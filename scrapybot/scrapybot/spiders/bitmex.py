@@ -1,3 +1,4 @@
+from datetime import datetime
 from .utils import strip_tags, strip_attributes
 import uuid
 from scrapy.linkextractors import LinkExtractor
@@ -34,5 +35,5 @@ class BitmexSpider(CrawlSpider):
         item["created_at"] = response.xpath(
             '//span[@class="td-post-date"]/time/@datetime'
         ).get()
-
+        item["indexed_at"] = datetime.utcnow().isoformat()
         return item

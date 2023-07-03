@@ -34,5 +34,6 @@ class GrokkingbtcSpider(CrawlSpider):
         item["domain"] = self.start_urls[0]
         item["url"] = response.url
         item["created_at"] = datetime.now()
+        item["indexed_at"] = datetime.utcnow().isoformat()
 
         return item

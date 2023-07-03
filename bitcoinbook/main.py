@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 import json
 import re
 import requests
+from datetime import datetime
 
 def get_github_urls(base_url: str) -> list:
     """
@@ -42,7 +43,8 @@ def parse_chapters(urls):
             "tags": tags,
             "domain": domain,
             "url": url,
-            "created_at": created_at
+            "created_at": created_at,
+            "indexed_at": datetime.utcnow().isoformat()
             })
         print(document.get("id"))
         documents.append(document)
