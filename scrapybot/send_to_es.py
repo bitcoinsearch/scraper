@@ -33,7 +33,7 @@ es = Elasticsearch(
 #  index='bitcoin-search-april-23',
 #  document=river)
 
-result = es.search(index="bitcoin-search-scrapy-23", query={"match_all": {}})
+result = es.search(index=config["ELASTIC"]["index"], query={"match_all": {}})
 
 wanted = result["hits"]["total"]
 print(wanted)

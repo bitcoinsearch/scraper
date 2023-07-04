@@ -1,6 +1,6 @@
 #!/bin/bash
 
-spiders=("bolts" "btcphilosophy" "grokkingbtc" "learnmeabitcoin" "lndocs" "oleganza" "programmingbtc" "river" "rusty" "bips" "bitmex" "blips")
+spiders=("bolts" "btcphilosophy" "grokkingbtc" "learnmeabitcoin" "lndocs" "oleganza" "programmingbtc" "river" "rusty" "bips" "bitmex" "blips" "andreasbooks")
 
 for spider in "${spiders[@]}"
 do

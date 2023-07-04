@@ -9,7 +9,7 @@ import configparser
 from elasticsearch import Elasticsearch
 
 config = configparser.ConfigParser()
-config.read("example.ini")
+config.read("config.ini")
 
 es = Elasticsearch(
     cloud_id=config["ELASTIC"]["cloud_id"],
@@ -20,6 +20,6 @@ es = Elasticsearch(
 class ElasticsearchPipeline:
     def process_item(self, item, spider):
         # Index the item in Elasticsearch
-        es.index(index="bitcoin-search-april-23", document=item)
+        es.index(index=config["ELASTIC"]["index"], document=item)
 
         return item
