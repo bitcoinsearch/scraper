@@ -122,9 +122,11 @@ if __name__ == "__main__":
                     pipeline="avoid-duplicates"
                 )
                 success = True
-            except:
+            # handle elastic search connection error separately
+            except Exception as e:
                 import time
+                print('Error: ' + str(e))
+                print('Retrying in 10 seconds...')
                 time.sleep(10)
-                pass
-    
+
         i += 100
