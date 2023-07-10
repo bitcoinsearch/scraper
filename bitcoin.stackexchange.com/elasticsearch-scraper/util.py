@@ -22,7 +22,7 @@ def strip_tags(html):
     s = MLStripper()
     s.feed(html)
     return s.get_data()
-    
+
 def app_search():
     return AppSearch(
         getenv("ES_URL"),
@@ -32,7 +32,5 @@ def app_search():
 def elastic_client():
     return Elasticsearch(
         cloud_id=getenv("CLOUD_ID"),
-        basic_auth=(getenv("USERNAME"),
-        getenv("USER_PASSWORD"))
+        api_key=getenv("USER_PASSWORD")
     )
-
