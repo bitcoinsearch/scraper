@@ -114,7 +114,8 @@ function parse_post(p_path) {
     const document = {
         id: "bitcointranscripts-" + id,
         title: frontMatterObj.title,
-        body: parsedBody,
+        body_formatted: parsedBody,
+        body: body,
         body_type: "markdown",
         created_at: new Date(frontMatterObj.date),
         domain: "https://btctranscripts.com/",
