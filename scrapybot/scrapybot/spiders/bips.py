@@ -37,7 +37,7 @@ class BipsSpider(CrawlSpider):
         item["body"] = strip_tags(body_to_be_parsed)
         item["body_type"] = "mediawiki"
         item["authors"] = metadata.get("Author")
-        item["domain"] = self.start_urls[0]
+        item["domain"] = 'https://' + self.start_urls[0]
         item["url"] = response.url
         item["created_at"] = metadata.get("Created")[0]
         item["indexed_at"] = datetime.utcnow().isoformat()

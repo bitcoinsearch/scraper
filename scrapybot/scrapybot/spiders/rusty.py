@@ -25,7 +25,7 @@ class RustySpider(CrawlSpider):
         item["authors"] = [
             response.xpath('//span[@class="author vcard"]/a/text()').get()
         ]
-        item["domain"] = self.start_urls[0]
+        item["domain"] = 'https://' + self.start_urls[0]
         item["url"] = response.url
         item["created_at"] = response.xpath(
             '//time[@class="entry-date published"]/@datetime'

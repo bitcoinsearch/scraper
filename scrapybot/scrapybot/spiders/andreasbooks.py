@@ -52,7 +52,7 @@ class AndreasbooksSpider(CrawlSpider):
             else ["Andreas Antonopoulos", "Olaoluwa Osuntokun", "Rene Pickhardt"]
         )
         item["domain"] = (
-            self.start_urls[0] if "bitcoinbook" in response.url else self.start_urls[1]
+            'https://' + self.start_urls[0] if "bitcoinbook" in response.url else self.start_urls[1]
         )
         item["created_at"] = (
             "2022-11-15" if "bitcoinbook" in response.url else "2023-04-22"

@@ -41,3 +41,29 @@ def strip_attributes(html):
     for tag in soup.find_all():
         tag.attrs = {}
     return str(soup)
+
+def split_on_headers(html: str, header_tags: list = ["h1", "h2"]):
+    soup = BeautifulSoup(html, 'html.parser')
+
+    # Find all header tags
+    headers = [tag for tag in soup.find_all() if tag.name in header_tags]
+
+    # Split the document into sections based on these tags
+    sections = []
+    for header in headers:
+        section = {}
+
+        # Use header as section title
+        section['title'] = strip_tags(str(header))
+
+        # Collect all sibling elements that follow the header and are not headers themselves
+        content = []
+        for elem in header.next_siblings:
+            if elem.name in header_tags:
+                break
+            content.append(strip_tags(str(elem)))
+
+        section['content'] = ' '.join(content)
+        sections.append(section)
+
+    return sections

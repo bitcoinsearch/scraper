@@ -22,6 +22,7 @@ class ProgrammingbtcSpider(CrawlSpider):
         article = response.xpath("//article").get()
         item["id"] = "programmingbtc-" + str(uuid.uuid4())
         item["title"] = "[Programming Bitcoin] " + response.xpath("//article/div/h2/text()").get()
+        import pdb; pdb.set_trace()
 
         if not item["title"]:
             return None

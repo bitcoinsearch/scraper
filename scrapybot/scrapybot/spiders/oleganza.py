@@ -38,7 +38,7 @@ class OleganzaSpider(CrawlSpider):
         item["body"] = strip_tags(post)
         item["body_type"] = "html"
         item["authors"] = ["Oleg Andreev"]
-        item["domain"] = self.start_urls[0]
+        item["domain"] = 'https://' + self.start_urls[0]
         item["url"] = response.url
         item["created_at"] = datetime.now()
         item["indexed_at"] = datetime.utcnow().isoformat()
