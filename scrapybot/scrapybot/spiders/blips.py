@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from .utils import get_details, strip_tags, strip_attributes
+from .utils import get_details, strip_tags, strip_attributes, convert_to_iso_datetime
 import uuid
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
@@ -38,7 +38,7 @@ class BlipsSpider(CrawlSpider):
         item["authors"] = [blip_info.get("Author")]
         item["domain"] = self.start_urls[0]
         item["url"] = response.url
-        item["created_at"] = blip_info.get("Created")
+        item["created_at"] = convert_to_iso_datetime(blip_info.get("Created"))
         item["indexed_at"] = datetime.utcnow().isoformat()
 
         return item

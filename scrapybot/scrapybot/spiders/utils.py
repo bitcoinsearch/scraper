@@ -1,6 +1,7 @@
 from io import StringIO
 from bs4 import BeautifulSoup
 from html.parser import HTMLParser
+from datetime import datetime
 
 
 class MLStripper(HTMLParser):
@@ -41,3 +42,11 @@ def strip_attributes(html):
     for tag in soup.find_all():
         tag.attrs = {}
     return str(soup)
+
+def convert_to_iso_datetime(datetime_str):
+    try:
+        datetime_obj = datetime.fromisoformat(datetime_str)
+        iso_datetime_str = datetime_obj.isoformat()
+        return iso_datetime_str
+    except ValueError:
+        raise ValueError("Invalid datetime format")

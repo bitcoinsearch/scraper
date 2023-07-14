@@ -32,7 +32,7 @@ class ProgrammingbtcSpider(CrawlSpider):
         item["authors"] = ["Jimmy Song"]
         item["domain"] = self.start_urls[0]
         item["url"] = response.url
-        item["created_at"] = datetime.now()
+        item["created_at"] = datetime.utcnow().isoformat()
         item["indexed_at"] = datetime.utcnow().isoformat()
 
         return item

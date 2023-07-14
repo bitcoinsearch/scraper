@@ -1,5 +1,5 @@
 import uuid
-from .utils import strip_tags, strip_attributes
+from .utils import strip_tags, strip_attributes, convert_to_iso_datetime
 from datetime import datetime
 from .utils import strip_tags
 from scrapy.linkextractors import LinkExtractor
@@ -33,7 +33,7 @@ class BoltsSpider(CrawlSpider):
         item["body_type"] = "markdown"
         item["authors"] = ["Spec"]
         item["domain"] = "https://github.com/lightning/bolts"
-        item["created_at"] = datetime.fromisoformat("2023-05-11")
+        item["created_at"] = convert_to_iso_datetime("2023-05-11")
         item["url"] = response.url
         item["indexed_at"] = datetime.utcnow().isoformat()
 

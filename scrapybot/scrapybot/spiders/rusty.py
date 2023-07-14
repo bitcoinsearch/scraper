@@ -27,12 +27,12 @@ class RustySpider(CrawlSpider):
         ]
         item["domain"] = self.start_urls[0]
         item["url"] = response.url
-        item["created_at"] = response.xpath(
+        item["created_at"] = convert_to_iso_datetime(response.xpath(
             '//time[@class="entry-date published"]/@datetime'
-        ).get()
+        ).get())
 
         if not item["created_at"]:
-            item["created_at"] = datetime.now()
+            item["created_at"] = datetime.utcnow().isoformat()
 
         item["indexed_at"] = datetime.utcnow().isoformat()
         pattern = re.compile("|".join(keywords), re.IGNORECASE)

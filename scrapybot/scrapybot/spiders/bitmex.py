@@ -1,5 +1,5 @@
 from datetime import datetime
-from .utils import strip_tags, strip_attributes
+from .utils import strip_tags, strip_attributes, convert_to_iso_datetime
 import uuid
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
@@ -32,8 +32,8 @@ class BitmexSpider(CrawlSpider):
         ]
         item["domain"] = "https://" + self.allowed_domains[0]
         item["url"] = response.url
-        item["created_at"] = response.xpath(
+        item["created_at"] = convert_to_iso_datetime(response.xpath(
             '//span[@class="td-post-date"]/time/@datetime'
-        ).get()
+        ).get())
         item["indexed_at"] = datetime.utcnow().isoformat()
         return item
