@@ -19,7 +19,7 @@ es = Elasticsearch(
 )
 
 
-# datum = datetime.now()
+# datum = datetime.utcnow().isoformat()
 # river =  {"id": "river-glossary-7a1448e3-6896-457d-a202-e825dd1db35c",
 #           "title": "Yield Curve",
 #           "body": "A yield curve is a line that plots  predictor of an economic transition.",

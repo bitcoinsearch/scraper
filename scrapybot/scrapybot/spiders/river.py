@@ -45,7 +45,7 @@ class RiverSpider(CrawlSpider):
         item["authors"] = ["river"]
         item["domain"] = self.start_urls[0]
         item["url"] = response.url
-        item["created_at"] = datetime.now()
+        item["created_at"] = datetime.utcnow().isoformat()
         item["indexed_at"] = datetime.utcnow().isoformat()
 
         pattern = re.compile("|".join(keywords), re.IGNORECASE)
