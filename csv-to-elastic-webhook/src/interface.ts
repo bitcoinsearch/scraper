@@ -1,4 +1,5 @@
 export interface ElkData {
+    indexed_at: Date;
     created_at: Date;
     title: string;
     body: string;

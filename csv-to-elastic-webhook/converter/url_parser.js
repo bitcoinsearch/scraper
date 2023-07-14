@@ -15,7 +15,7 @@ function urlParser() {
       const postData = {};
       headers.forEach((header, index) => {
         const value = row[index];
-        if (header === 'created_at') {
+        if (header === 'created_at' || header === "indexed_at") {
         } else if (value !== '' && value !== null) {
           postData[header] = value;
         }
