@@ -30,7 +30,7 @@ def parse_chapters(urls):
         chapter_number = ''.join(re.findall(r'\d+', url))
         id = "bitcoinbook-chapter-" + chapter_number
         tags = ""
-        domain = "https://github.com"
+        domain = "https://github.com/bitcoinbook/bitcoinbook"
         url = url
         created_at = "2022-11-15" # date of most recent commit
 
