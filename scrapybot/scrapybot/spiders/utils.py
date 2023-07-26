@@ -1,4 +1,5 @@
 from io import StringIO
+import re
 from bs4 import BeautifulSoup
 from html.parser import HTMLParser
 from datetime import datetime
@@ -31,6 +32,9 @@ def get_details(details: list):
     for item in details:
         if ": " in item:
             key, value = item.split(": ", 1)
+            if key == "Author":
+                value = re.sub(r"<[^>]+>", "", value)
+
             result_dict[key.strip()] = value.strip()
         else:
             print(f"Ignoring item: {item}")
@@ -42,6 +46,7 @@ def strip_attributes(html):
     for tag in soup.find_all():
         tag.attrs = {}
     return str(soup)
+
 
 def convert_to_iso_datetime(datetime_str):
     try:

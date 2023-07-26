@@ -1,4 +1,6 @@
 import uuid
+from bs4 import BeautifulSoup
+import json
 from .utils import strip_tags, strip_attributes, convert_to_iso_datetime
 from datetime import datetime
 from scrapy.linkextractors import LinkExtractor
@@ -26,17 +28,24 @@ class AndreasbooksSpider(CrawlSpider):
     def parse_item(self, response):
         item = {}
 
-        article = response.xpath("//div[@id='readme']").get()
+        soup = BeautifulSoup(response.text, "html.parser")
+        script_tags = soup.find_all("script")
+        res = script_tags[-1]
+        json_object = json.loads(res.contents[0])
+        payload = json_object["payload"]
+        article = payload["blob"]["richText"]
         item["id"] = (
             "masteringbitcoin-" + str(uuid.uuid4())
             if "bitcoinbook" in response.url
             else "masteringln-" + str(uuid.uuid4())
         )
+
         item["title"] = (
-            "[Mastering Bitcoin] " + response.xpath("//article/div/h2/text()").get()
+            "[Mastering Bitcoin] "
+            + BeautifulSoup(article, "html.parser").find("h2").text
             if "bitcoinbook" in response.url
             else "[Mastering Lightning] "
-            + response.xpath("//article/div/h2/text()").get()
+            + BeautifulSoup(article, "html.parser").find("h2").text
         )
 
         if not item["title"]:

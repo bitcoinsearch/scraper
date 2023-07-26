@@ -1,4 +1,6 @@
 import uuid
+from bs4 import BeautifulSoup
+import json
 from .utils import strip_tags, strip_attributes
 from datetime import datetime
 from scrapy.linkextractors import LinkExtractor
@@ -19,10 +21,20 @@ class BtcphilosophySpider(CrawlSpider):
 
     def parse_item(self, response):
         item = {}
-        article = response.xpath("//article").get()
+        soup = BeautifulSoup(response.text, "html.parser")
+        script_tags = soup.find_all("script")
+        res = script_tags[-1]
+        json_object = json.loads(res.contents[0])
+        payload = json_object["payload"]
+        article = payload["blob"]["richText"]
         item["id"] = "btcphilosophy-" + str(uuid.uuid4())
-        item["title"] = "[Bitcoin Dev Philosopy] " + response.xpath("//article/div/h2/text()").get()
 
+        item["title"] = (
+            "[Bitcoin Dev Philosopy] "
+            + BeautifulSoup(article, "html.parser")
+            .find(["h1", "h2", "h3", "h4", "h5", "h6"])
+            .text
+        )
         if not item["title"]:
             return None
 
