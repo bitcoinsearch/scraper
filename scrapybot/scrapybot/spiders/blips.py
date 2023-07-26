@@ -1,4 +1,6 @@
 from datetime import datetime
+from bs4 import BeautifulSoup
+import json
 
 from .utils import get_details, strip_tags, strip_attributes, convert_to_iso_datetime
 import uuid
@@ -20,11 +22,14 @@ class BlipsSpider(CrawlSpider):
 
     def parse_item(self, response):
         item = {}
-        details = response.xpath(
-            "//pre[contains(@class, 'notranslate')]/code/text()"
-        ).get()
+        soup = BeautifulSoup(response.text, "html.parser")
+        script_tags = soup.find_all("script")
+        res = script_tags[-1]
+        json_object = json.loads(res.contents[0])
+        payload = json_object["payload"]
+        article = payload["blob"]["richText"]
+        details = BeautifulSoup(article, "html.parser").find("code").text
         details = details.split("\n")
-        article = response.xpath("//article").get()
         blip_info = get_details(details[:-1])
         item["id"] = "blips-" + str(uuid.uuid4())
         item["title"] = blip_info.get("Title")

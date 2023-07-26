@@ -1,4 +1,6 @@
 from datetime import datetime
+from bs4 import BeautifulSoup
+import json
 from .utils import strip_tags, strip_attributes
 from scrapy.exceptions import DropItem
 import uuid
@@ -20,10 +22,18 @@ class GrokkingbtcSpider(CrawlSpider):
 
     def parse_item(self, response):
         item = {}
-        article = response.xpath("//article").get()
+        soup = BeautifulSoup(response.text, "html.parser")
+        script_tags = soup.find_all("script")
+        res = script_tags[-1]
+        json_object = json.loads(res.contents[0])
+        payload = json_object["payload"]
+        article = payload["blob"]["richText"]
         item["id"] = "grokkingbtc-" + str(uuid.uuid4())
-        item["title"] = "[Grokking Bitcoin] " +response.xpath("//article/div/h2/text()").get()
 
+        item["title"] = (
+            "[Grokking Bitcoin] "
+            + BeautifulSoup(article, "html.parser").find("h2").text
+        )
         if not item["title"]:
             return None
 

@@ -1,4 +1,7 @@
 import uuid
+import json
+import re
+from bs4 import BeautifulSoup
 from .utils import strip_tags, strip_attributes, convert_to_iso_datetime
 from datetime import datetime
 from .utils import strip_tags
@@ -9,21 +12,30 @@ from scrapy.spiders import CrawlSpider, Rule
 class BoltsSpider(CrawlSpider):
     name = "bolts"
     allowed_domains = ["github.com"]
-    start_urls = ["https://github.com/lightning/bolts/blob/master/00-introduction.md"]
+    start_urls = ["https://github.com/lightning/bolts"]
 
     rules = (
         Rule(
-            LinkExtractor(restrict_xpaths="//ol/li/a"),
+            LinkExtractor(restrict_xpaths="//span/a[contains(@href, 'md')]"),
             callback="parse_item",
         ),
     )
 
     def parse_item(self, response):
         item = {}
+        # Regular expression pattern to match URLs containing numbers
+        pattern = r"\d"
+        if not re.search(pattern, response.url):
+            return None
 
-        body_to_be_parsed = response.xpath("//article").get()
+        soup = BeautifulSoup(response.text, "html.parser")
+        script_tags = soup.find_all("script")
+        res = script_tags[-1]
+        json_object = json.loads(res.contents[0])
+        payload = json_object["payload"]
+        body_to_be_parsed = payload["blob"]["richText"]
         item["id"] = "bolts-" + str(uuid.uuid4())
-        item["title"] = response.xpath('//h1[@dir="auto"]/text()').get()
+        item["title"] = BeautifulSoup(body_to_be_parsed, "html.parser").find("h1").text
 
         if not item["title"]:
             return None
