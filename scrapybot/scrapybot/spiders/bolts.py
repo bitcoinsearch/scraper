@@ -42,7 +42,7 @@ class BoltsSpider(CrawlSpider):
 
         item["body_formatted"] = strip_attributes(body_to_be_parsed)
         item["body"] = strip_tags(body_to_be_parsed)
-        item["body_type"] = "markdown"
+        item["body_type"] = "html"
         item["authors"] = ["Spec"]
         item["domain"] = "https://github.com/lightning/bolts"
         item["created_at"] = convert_to_iso_datetime("2023-05-11")

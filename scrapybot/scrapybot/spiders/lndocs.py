@@ -42,7 +42,7 @@ class LndocsSpider(CrawlSpider):
 
         item["body_formatted"] = strip_attributes(article)
         item["body"] = strip_tags(article)
-        item["body_type"] = "raw"
+        item["body_type"] = "html"
         item["authors"] = ["Bastien Teinturier"]
         item["domain"] = self.start_urls[0]
         item["url"] = response.url
