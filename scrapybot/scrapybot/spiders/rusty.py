@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 import re
-from .utils import strip_tags, strip_attributes
+from .utils import strip_tags, strip_attributes, convert_to_iso_datetime
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
 
