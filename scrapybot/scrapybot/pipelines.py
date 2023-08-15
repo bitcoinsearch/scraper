@@ -81,7 +81,7 @@ class ElasticsearchPipeline:
     def process_item(self, item, spider):
         def parse_title(chunk: str) -> str:
             if spider.name in ['andreasbooks', 'btcphilosophy', 'grokkingbtc',
-                               'programmingbtc']:
+                               'programmingbtc', "onboardingtobitcoincore"]:
                 delim_end = item['title'].find(']')
                 return item['title'][1:delim_end] + ':' + \
                     item['title'][delim_end + 1:] + ' - ' + \
@@ -104,7 +104,7 @@ class ElasticsearchPipeline:
         # Split documents for books
         if spider.name in ["bolts", "btcphilosophy", "grokkingbtc", "lndocs",
                            "programmingbtc", "bips", "blips", "andreasbooks",
-                           "bitmex"]:
+                           "bitmex", "onboardingtobitcoincore"]:
             # Split this first for the body_formatted
             splitter = return_splitter(item['body_type'],
                                        2000)  # 2000 character limit
@@ -124,7 +124,7 @@ class ElasticsearchPipeline:
             else:
                 if spider.name in ['andreasbooks', 'btcphilosophy',
                                    'grokkingbtc',
-                                   'programmingbtc']:
+                                   'programmingbtc', 'onboardingtobitcoincore']:
                     delim_end = item['title'].find(']')
                     title = item['title']
                     item = {**item, 'title': title[1:delim_end] + ':' + title[
