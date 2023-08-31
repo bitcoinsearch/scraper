@@ -32,3 +32,8 @@ jobs:
             NAME: bitcoin
             START_MONTH: 5
             START_YEAR: 2011
+            OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+            OPENAI_EMBED_MODEL: ${{ secrets.OPENAI_EMBED_MODEL }}
+            CHUNK_SIZE: ${{ secrets.CHUNK_SIZE }}
+            VECTORSTORE_INDEX: ${{ secrets.VECTORSTORE_INDEX }}
+            ES_VECTORSTORE_INDEX: ${{ secrets.ES_VECTORSTORE_INDEX }}

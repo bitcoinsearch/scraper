@@ -1,9 +1,15 @@
+import uuid
 import requests
 import os
 from datetime import datetime
 from dotenv import load_dotenv
+from elasticsearch import Elasticsearch
+from langchain.vectorstores import ElasticKnnSearch
+
 from util import app_search, strip_tags, elastic_client
 from elasticsearch.helpers import bulk
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 dir = os.getenv("DATA_DIR")
 
 load_dotenv()
@@ -16,6 +22,42 @@ def download_dump():
         for chunk in r.iter_content(chunk_size=1024):
             if chunk:
                 f.write(chunk)
+
+
+def upload_to_vectorstore(document: dict):
+    def elastic_client() -> Elasticsearch:
+        return Elasticsearch(
+            cloud_id=os.getenv("CLOUD_ID"),
+            api_key=os.getenv("USER_PASSWORD")
+        )
+
+    index_name = os.getenv('VECTORSTORE_INDEX')
+    chunk_size = int(os.getenv('CHUNK_SIZE'))
+    embed_model = os.getenv('OPENAI_EMBED_MODEL')
+    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+        model_name=embed_model, chunk_size=chunk_size,
+        chunk_overlap=chunk_size // 10)
+    embedding = OpenAIEmbeddings(model=embed_model,
+                                 openai_api_key=os.getenv("OPENAI_API_KEY"))
+    id_ = document.pop('id')
+    documents = text_splitter.split_text(document.pop("body"))
+    ids = [id_ + "_" + uuid.uuid4()] * len(documents)
+    metadata = list(
+        map(
+            lambda chunk_no, parent_id: {
+                **document,
+                "parent_id": id_,
+                "chunk_no": chunk_no,
+            },
+            range(1, len(documents) + 1),
+        )
+    )
+    db_store = ElasticKnnSearch(index_name, embedding,
+                                es_connection=elastic_client())
+    uploaded_ids = db_store.add_texts(texts=documents, metadatas=metadata, ids=ids)
+    assert len(uploaded_ids) == len(documents)
+    print(db_store.client.info())
+
 
 # extract dump
 def extract_dump():
@@ -38,7 +80,7 @@ def parse_posts():
     import xml.etree.ElementTree as ET
     tree = ET.parse(dir + "/bitcoin.stackexchange.com/Posts.xml")
     root = tree.getroot()
-    documents = []  
+    documents = []
     for post in root:
         # Questions and Anwsers
         if post.attrib.get("PostTypeId") != "1" and post.attrib.get("PostTypeId") != "2":
@@ -92,6 +134,8 @@ def parse_posts():
 
         print("Adding document: " + document["id"], document["title"])
         documents.append(document)
+        print("Uploading to vectorstore")
+        upload_to_vectorstore(document)
 
     return documents
 
