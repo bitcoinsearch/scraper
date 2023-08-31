@@ -24,3 +24,7 @@ jobs:
             ES_URL: ${{ secrets.ES_URL }}
             ES_TOKEN: ${{ secrets.ES_TOKEN }}
             DATA_DIR: /tmp/stackexchange
+            OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+            OPENAI_EMBED_MODEL: ${{ secrets.OPENAI_EMBED_MODEL }}
+            CHUNK_SIZE: ${{ secrets.CHUNK_SIZE }}
+            ES_VECTORSTORE_INDEX: ${{ secrets.ES_VECTORSTORE_INDEX }}

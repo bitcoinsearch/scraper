@@ -25,3 +25,7 @@ jobs:
             USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
             USERNAME: ${{ secrets.USERNAME }}
             INDEX: ${{ secrets.INDEX }}
+            OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+            OPENAI_EMBED_MODEL: ${{ secrets.OPENAI_EMBED_MODEL }}
+            CHUNK_SIZE: ${{ secrets.CHUNK_SIZE }}
+            VECTORSTORE_INDEX: ${{ secrets.VECTORSTORE_INDEX }}

@@ -12,7 +12,9 @@ import sys
 
 from bs4 import BeautifulSoup
 from elasticsearch import Elasticsearch
+from langchain.embeddings import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
+from langchain.vectorstores import ElasticKnnSearch
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 spiders_dir = os.path.join(current_dir, 'spiders')
@@ -44,7 +46,8 @@ def return_splitter(doc_type: str, chunk_size):
     if doc_type == 'html':
         return RecursiveCharacterTextSplitter(
             separators=get_separators_for_language(Language.HTML),
-            chunk_size=chunk_size, chunk_overlap=0, keep_separator=True)
+            chunk_size=chunk_size, chunk_overlap=0,
+            keep_separator=True).from_tiktoken_encoder()
     else:
         return RecursiveCharacterTextSplitter(
             chunk_size=chunk_size, chunk_overlap=0)
@@ -79,6 +82,17 @@ def extract_bip_number(body_formatted):
 
 class ElasticsearchPipeline:
     def process_item(self, item, spider):
+        def upload_to_vectorstore(document: dict):
+            index_name = config['ELASTIC']['VECTORSTORE_INDEX']
+            embed_model = config['OPENAI']['EMBED_MODEL']
+            openai_api_key = config['OPENAI']['API_KEY']
+            embedding = OpenAIEmbeddings(model=embed_model,
+                                         openai_api_key=openai_api_key)
+            db_store = ElasticKnnSearch(index_name, embedding, es_connection=es)
+            db_store.add_texts(texts=[document.pop('body')],
+                               id=document.pop('id'), metadatas=[document])
+            print(db_store.client.info())
+
         def parse_title(chunk: str) -> str:
             if spider.name in ['andreasbooks', 'btcphilosophy', 'grokkingbtc',
                                'programmingbtc']:
@@ -121,6 +135,7 @@ class ElasticsearchPipeline:
                                 'body': body}
                     es.index(index=config["ELASTIC"]["index"],
                              document=document)
+                    upload_to_vectorstore(item)
             else:
                 if spider.name in ['andreasbooks', 'btcphilosophy',
                                    'grokkingbtc',
@@ -130,6 +145,8 @@ class ElasticsearchPipeline:
                     item = {**item, 'title': title[1:delim_end] + ':' + title[
                                                                         delim_end + 1:]}
                 es.index(index=config["ELASTIC"]["index"], document=item)
+                upload_to_vectorstore(item)
         else:
             es.index(index=config["ELASTIC"]["index"], document=item)
+            upload_to_vectorstore(item)
         return item
