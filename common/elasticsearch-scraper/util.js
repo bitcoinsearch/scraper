@@ -1,11 +1,17 @@
-const { Client } = require("@elastic/elasticsearch");
+const {
+    Client
+} = require("@elastic/elasticsearch");
+
 function create_batches(objects, size) {
     const batches = [];
     for (let i = 0; i < objects.length; i += size) {
         const batch = [];
         for (let j = 0; j < size; j++) {
             if (objects[i + j]) { // Timestamp the object upload to strictly order it
-                const timestampedObj = {...objects[i+j], indexed_at: new Date().toISOString()}
+                const timestampedObj = {
+                    ...objects[i + j],
+                    indexed_at: new Date().toISOString()
+                }
                 batch.push(timestampedObj);
             }
         }
@@ -36,10 +42,14 @@ async function fetch_with_retry(url, options) {
 async function index_documents(documents) {
     let cloud_id = process.env.CLOUD_ID;
     let username = process.env.USERNAME;
-    let api_key = process.env.USER_PASSWORD;
+    let api_key = process.env.PASSWORD;
     const client = new Client({
-        cloud: { id: cloud_id },
-        auth: { apiKey: api_key }
+        cloud: {
+            id: cloud_id
+        },
+        auth: {
+            apiKey: api_key
+        }
     });
 
     const batches = create_batches(documents, 50);
@@ -52,8 +62,16 @@ async function index_documents(documents) {
 
         while (!success) {
             try {
-                const operations = batch.flatMap(doc => [{ index: { _index: process.env.INDEX } }, doc])
-                const bulkResponse = await client.bulk({ refresh: true, pipeline: "avoid-duplicates", operations })
+                const operations = batch.flatMap(doc => [{
+                    index: {
+                        _index: process.env.INDEX
+                    }
+                }, doc])
+                const bulkResponse = await client.bulk({
+                    refresh: true,
+                    pipeline: "avoid-duplicates",
+                    operations
+                })
                 console.log(bulkResponse);
 
                 success = true;
@@ -65,21 +83,21 @@ async function index_documents(documents) {
                     // The presence of the `error` key indicates that the operation
                     // that we did for the document has failed.
                     bulkResponse.items.forEach((action, i) => {
-                      const operation = Object.keys(action)[0]
-                      if (action[operation].error) {
-                        erroredDocuments.push({
-                          // If the status is 429 it means that you can retry the document,
-                          // otherwise it's very likely a mapping error, and you should
-                          // fix the document before to try it again.
-                          status: action[operation].status,
-                          error: action[operation].error,
-                          operation: operations[i * 2],
-                          document: operations[i * 2 + 1]
-                        })
-                      }
+                        const operation = Object.keys(action)[0]
+                        if (action[operation].error) {
+                            erroredDocuments.push({
+                                // If the status is 429 it means that you can retry the document,
+                                // otherwise it's very likely a mapping error, and you should
+                                // fix the document before to try it again.
+                                status: action[operation].status,
+                                error: action[operation].error,
+                                operation: operations[i * 2],
+                                document: operations[i * 2 + 1]
+                            })
+                        }
                     })
                     console.log(erroredDocuments);
-                  }
+                }
 
             } catch (e) {
                 console.log(e);
@@ -100,8 +118,40 @@ async function index_documents(documents) {
     console.log("Done");
 }
 
+
+async function checkDocumentExist(document_id) {
+    let cloud_id = process.env.CLOUD_ID;
+    let username = process.env.USERNAME;
+    let api_key = process.env.PASSWORD;
+    const client = new Client({
+        cloud: {
+            id: cloud_id
+        },
+        auth: {
+            apiKey: api_key
+        }
+    });
+
+    const bulkResponse = await client.count({
+        index: process.env.INDEX,
+        body: {
+            query: {
+                bool: {
+                    must: [{
+                        term: {
+                            "id.keyword": document_id
+                        }
+                    }]
+                }
+            }
+        }
+    });
+    return bulkResponse.count > 0;
+}
+
 module.exports = {
     create_batches,
     index_documents,
-    fetch_with_retry
+    fetch_with_retry,
+    checkDocumentExist,
 };
