@@ -168,7 +168,7 @@ function findEarliestTimestamp(documents, title) {
     return earliest.created_at;
 }
 
-async function main() {   
+async function main() {
     await download_dumps();
 
     if (!fs.existsSync(path.join(process.env.DATA_DIR, "mailing-list"))) {
@@ -176,18 +176,19 @@ async function main() {
         process.exit(1);
     }
 
-    let documents = [];
+    let parsed_dumps = parse_dumps();
+    let documents = []; 
+    fs.writeFileSync(
+        path.join(process.env.DATA_DIR, "mailing-list", "documents.json"),
+        JSON.stringify(parsed_dumps)
+    );
+
+    
     if (
-        !fs.existsSync(
+        fs.existsSync(
             path.join(process.env.DATA_DIR, "mailing-list", "documents.json")
         )
     ) {
-        documents = parse_dumps();
-        fs.writeFileSync(
-            path.join(process.env.DATA_DIR, "mailing-list", "documents.json"),
-            JSON.stringify(documents)
-        );
-    } else {
         documents = JSON.parse(
             fs.readFileSync(
                 path.join(process.env.DATA_DIR, "mailing-list", "documents.json"),
