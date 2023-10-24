@@ -27,8 +27,7 @@ jobs:
             USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
             USERNAME: ${{ secrets.USERNAME }}
             INDEX: ${{ secrets.INDEX }}
+            DAYS_TO_SUBTRACT: ${{ secrets.DAYS_TO_SUBTRACT }}
             DATA_DIR: /tmp/data
             URL: https://lists.linuxfoundation.org/pipermail/bitcoin-dev/
             NAME: bitcoin
-            START_MONTH: 5
-            START_YEAR: 2011
