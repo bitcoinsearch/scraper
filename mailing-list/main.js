@@ -33,12 +33,12 @@ const MONTHS = [
     "December",
 ];
 
-const days = process.env.DAYS_TO_SUBTRACT || 30;
-let now = new Date();
-now.setDate(now.getDate() - days);
+const days = process.env.DAYS_TO_SUBTRACT || 15;
+let startDate = new Date();
+startDate.setDate(now.getDate() - days);
 
-let year = process.env.START_YEAR || now.getUTCFullYear(); // Year to start scrapping with
-let month = process.env.START_MONTH || now.getUTCMonth(); // Month to start scrapping with
+let year = startDate.getUTCFullYear(); // Year to start scrapping with
+let month = startDate.getUTCMonth(); // Month to start scrapping with
 
 
 async function download_dumps() {
@@ -177,7 +177,7 @@ async function main() {
     }
 
     let parsed_dumps = parse_dumps();
-    let documents = []; 
+    let documents = [];
     fs.writeFileSync(
         path.join(process.env.DATA_DIR, "mailing-list", "documents.json"),
         JSON.stringify(parsed_dumps)

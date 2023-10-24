@@ -42,7 +42,7 @@ async function fetch_with_retry(url, options) {
 async function index_documents(documents) {
     let cloud_id = process.env.CLOUD_ID;
     let username = process.env.USERNAME;
-    let api_key = process.env.PASSWORD;
+    let api_key = process.env.USER_PASSWORD
     const client = new Client({
         cloud: {
             id: cloud_id
@@ -122,7 +122,7 @@ async function index_documents(documents) {
 async function checkDocumentExist(document_id) {
     let cloud_id = process.env.CLOUD_ID;
     let username = process.env.USERNAME;
-    let api_key = process.env.PASSWORD;
+    let api_key = process.env.USER_PASSWORD
     const client = new Client({
         cloud: {
             id: cloud_id
