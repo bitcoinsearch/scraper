@@ -18,7 +18,7 @@ You should be calling the scrapers from the root dir because they use the common
 This section explains how to run the scrapers in `scrapybot` folder
 
 The folder has a bunch of crawlers(spiders) in the `scrapybot/scrapybot/spiders` folder. Each of the crawler files is specific to a particular site.
-To run a crawler using scrapybot, for example `rusty` ,which will scrape the site `https://rusty.ozlabs.org`,switch to the root directory(where there is this README file) and run these commands from your terminal:
+To run a crawler using scrapybot, for example `rusty`, which will scrape the site `https://rusty.ozlabs.org`,switch to the root directory(where there is this README file) and run these commands from your terminal:
 - `pip install -r requirements.txt && cd scrapybot`
 - ` scrapy crawl rusty -O rusty.json`
 

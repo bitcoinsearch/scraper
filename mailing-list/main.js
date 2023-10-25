@@ -6,7 +6,15 @@ const dotenv = require("dotenv");
 const path = require("path");
 dotenv.config();
 
-const { index_documents, create_batches } = require("../common/elasticsearch-scraper/util");
+const {
+    index_documents,
+    create_batches,
+    checkDocumentExist
+} = require("../common/elasticsearch-scraper/util");
+const {
+    log,
+    count
+} = require("console");
 
 const URL = process.env.URL || "https://lists.linuxfoundation.org/pipermail/bitcoin-dev/";
 
@@ -25,14 +33,23 @@ const MONTHS = [
     "December",
 ];
 
-let year = process.env.START_YEAR || 2011;
-let month = process.env.START_MONTH || 5;
+const days = process.env.DAYS_TO_SUBTRACT || 15;
+let startDate = new Date();
+startDate.setDate(now.getDate() - days);
+
+let year = startDate.getUTCFullYear(); // Year to start scrapping with
+let month = startDate.getUTCMonth(); // Month to start scrapping with
+
 
 async function download_dumps() {
     if (!fs.existsSync(path.join(process.env.DATA_DIR, "mailing-list"))) {
-        fs.mkdirSync(path.join(process.env.DATA_DIR, "mailing-list"));
+        fs.mkdirSync(path.join(process.env.DATA_DIR, "mailing-list"), {
+            recursive: true
+        });
     }
-    const agent = new https.Agent({ keepAlive: true });
+    const agent = new https.Agent({
+        keepAlive: true
+    });
     let consecutive_errors = 0;
     while (true) {
         console.log(`Downloading ${year}-${MONTHS[month]}...`);
@@ -81,8 +98,11 @@ async function download_dumps() {
 
                     const u = URL + year + "-" + MONTHS[month] + "/" + href;
                     console.log(`Downloading ${u}`);
-                    const response = await fetch(u, { agent });
+                    const response = await fetch(u, {
+                        agent
+                    });
                     const text = await response.text();
+
                     fs.writeFileSync(fileName, text);
                 })
             );
@@ -156,18 +176,19 @@ async function main() {
         process.exit(1);
     }
 
+    let parsed_dumps = parse_dumps();
     let documents = [];
+    fs.writeFileSync(
+        path.join(process.env.DATA_DIR, "mailing-list", "documents.json"),
+        JSON.stringify(parsed_dumps)
+    );
+
+    
     if (
-        !fs.existsSync(
+        fs.existsSync(
             path.join(process.env.DATA_DIR, "mailing-list", "documents.json")
         )
     ) {
-        documents = parse_dumps();
-        fs.writeFileSync(
-            path.join(process.env.DATA_DIR, "mailing-list", "documents.json"),
-            JSON.stringify(documents)
-        );
-    } else {
         documents = JSON.parse(
             fs.readFileSync(
                 path.join(process.env.DATA_DIR, "mailing-list", "documents.json"),
@@ -178,24 +199,31 @@ async function main() {
     console.log(`Found ${documents.length} documents`);
 
     let threads = {};
+    console.log('Filtering existing documents...');
     for (let i = 0; i < documents.length; i++) {
         const document = documents[i];
-        if (!threads[document.title]) {
-            threads[document.title] = {
-                id: document.id,
-                date: findEarliestTimestamp(documents, document.title),
-                url: document.url,
-            };
-        }
-
-        if (threads[document.title].id === document.id) {
-            document.type = "original_post";
+        let isExist = await checkDocumentExist(document.id);
+        if (isExist) {
+            documents.splice(i, 1);
         } else {
-            document.type = "reply";
-            document.thread_url = threads[document.title].url; 
+            if (!threads[document.title]) {
+                threads[document.title] = {
+                    id: document.id,
+                    date: findEarliestTimestamp(documents, document.title),
+                    url: document.url,
+                };
+            }
+
+            if (threads[document.title].id === document.id) {
+                document.type = "original_post";
+            } else {
+                document.type = "reply";
+                document.thread_url = threads[document.title].url;
+            }
         }
     }
 
+    console.log(`Inserting ${documents.length}...`);
     await index_documents(documents);
 }
 
