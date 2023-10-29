@@ -35,7 +35,7 @@ const MONTHS = [
 
 const days = process.env.DAYS_TO_SUBTRACT || 15;
 let startDate = new Date();
-startDate.setDate(now.getDate() - days);
+startDate.setDate(startDate.getDate() - days);
 
 let year = startDate.getUTCFullYear(); // Year to start scrapping with
 let month = startDate.getUTCMonth(); // Month to start scrapping with

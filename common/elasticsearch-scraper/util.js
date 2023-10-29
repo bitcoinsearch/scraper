@@ -149,9 +149,32 @@ async function checkDocumentExist(document_id) {
     return bulkResponse.count > 0;
 }
 
+
+async function create_document(document){
+    let cloud_id = process.env.CLOUD_ID;
+    let username = process.env.USERNAME;
+    let api_key = process.env.USER_PASSWORD
+    const client = new Client({
+        cloud: {
+            id: cloud_id
+        },
+        auth: {
+            apiKey: api_key
+        }
+    });
+
+    const response = await  client.index({
+        index: process.env.INDEX,
+        body: document
+    });
+
+    console.log(response);
+}
+
 module.exports = {
     create_batches,
     index_documents,
     fetch_with_retry,
     checkDocumentExist,
+    create_document,
 };

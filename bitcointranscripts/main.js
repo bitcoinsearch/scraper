@@ -5,7 +5,7 @@ const path = require('path');
 const request = require('request');
 const yaml = require('js-yaml');
 const marked = require('marked');
-const { index_documents } = require('../common/elasticsearch-scraper/util.js');
+const { checkDocumentExist, create_document} = require('../common/elasticsearch-scraper/util.js');
 const md5 = require('md5');
 
 dotenv.config();
@@ -16,9 +16,9 @@ async function download_repo() {
     const URL = "https://github.com/bitcointranscripts/bitcointranscripts/archive/refs/heads/master.zip";
     const dir = path.join(process.env.DATA_DIR, "bitcointranscripts");
     if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir);
+        fs.mkdirSync(dir, {recursive: true});
     }
-    
+
     if (fs.existsSync(path.join(dir, folder_name))) {
         console.log("Repo already downloaded");
         return;
@@ -135,9 +135,18 @@ async function main() {
     await download_repo();
     const dir = path.join(process.env.DATA_DIR, "bitcointranscripts", folder_name);
     const documents = parse_posts(dir);
+    let count = 0;
 
-    console.log(`Parsed ${documents.length} documents`);
-    await index_documents(documents);
+    console.log(`Filtering existing ${documents.length} documents... please wait...`);
+    for (let i = 0; i < documents.length; i++) {
+        const document = documents[i];
+        const isExist = await checkDocumentExist(document.id);
+        if (!isExist) {
+            count++;
+            await create_document(document);
+        }
+    }
+    console.log(`Inserted ${count} new documents`);
 }
 
 main();
