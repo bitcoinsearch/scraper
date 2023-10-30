@@ -16,7 +16,19 @@ const {
     count
 } = require("console");
 
-const URL = process.env.URL || "https://lists.linuxfoundation.org/pipermail/bitcoin-dev/";
+let URL = process.env.URL || "https://lists.linuxfoundation.org/pipermail/bitcoin-dev/";
+let NAME = process.env.NAME || "bitcoin";
+
+if (URL === "https://lists.linuxfoundation.org/pipermail/bitcoin-dev/") {
+    NAME = "bitcoin";
+} else if (URL === 'https://lists.linuxfoundation.org/pipermail/lightning-dev/') {
+    NAME = "lightning";
+}
+
+console.log(
+    `NAME: ${NAME}\nURL: ${URL}`
+);
+
 
 const MONTHS = [
     "January",
@@ -145,7 +157,7 @@ function parse_dumps() {
         const fileDate = file.split("-")[0] + "-" + file.split("-")[1];
         const fileName = file.split("-")[2];
         const document = {
-            id: "mailing-list-" + process.env.NAME + '-' + file.replace(".html", ""),
+            id: "mailing-list-" + NAME + '-' + file.replace(".html", ""),
             authors: [author],
             title,
             body: bodyText,
