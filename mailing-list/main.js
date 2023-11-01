@@ -7,9 +7,9 @@ const path = require("path");
 dotenv.config();
 
 const {
-    index_documents,
     create_batches,
-    checkDocumentExist
+    checkDocumentExist,
+    create_document,
 } = require("../common/elasticsearch-scraper/util");
 const {
     log,
@@ -23,6 +23,7 @@ if (URL === "https://lists.linuxfoundation.org/pipermail/bitcoin-dev/") {
     NAME = "bitcoin";
 } else if (URL === 'https://lists.linuxfoundation.org/pipermail/lightning-dev/') {
     NAME = "lightning";
+
 }
 
 console.log(
@@ -131,6 +132,7 @@ async function download_dumps() {
 function parse_dumps() {
     const documents = [];
     const files = fs.readdirSync(path.join(process.env.DATA_DIR, "mailing-list"));
+    let threads = {};
     for (const file of files) {
         const text = fs.readFileSync(
             path.join(process.env.DATA_DIR, "mailing-list", file),
@@ -167,6 +169,20 @@ function parse_dumps() {
             url: `${URL}${fileDate}/${fileName}`,
         };
 
+        if (!threads[document.title]) {
+            threads[document.title] = {
+                id: document.id,
+                url: document.url,
+            };
+        }
+
+        if (threads[document.title].id === document.id) {
+            document.type = "original_post";
+        } else {
+            document.type = "reply";
+            document.thread_url = threads[document.title].url;
+        }
+
         documents.push(document);
     }
 
@@ -195,7 +211,7 @@ async function main() {
         JSON.stringify(parsed_dumps)
     );
 
-    
+
     if (
         fs.existsSync(
             path.join(process.env.DATA_DIR, "mailing-list", "documents.json")
@@ -208,35 +224,22 @@ async function main() {
             )
         );
     }
-    console.log(`Found ${documents.length} documents`);
+    // console.log(`Found ${documents.length} documents`);
+    let count = 0;
 
-    let threads = {};
-    console.log('Filtering existing documents...');
+    console.log(`Filtering existing ${documents.length} documents... please wait...`);
     for (let i = 0; i < documents.length; i++) {
         const document = documents[i];
         let isExist = await checkDocumentExist(document.id);
-        if (isExist) {
-            documents.splice(i, 1);
-        } else {
-            if (!threads[document.title]) {
-                threads[document.title] = {
-                    id: document.id,
-                    date: findEarliestTimestamp(documents, document.title),
-                    url: document.url,
-                };
-            }
-
-            if (threads[document.title].id === document.id) {
-                document.type = "original_post";
-            } else {
-                document.type = "reply";
-                document.thread_url = threads[document.title].url;
-            }
+        if (!isExist) {
+            count++;
+            await create_document(document);
         }
+
     }
 
-    console.log(`Inserting ${documents.length}...`);
-    await index_documents(documents);
+    console.log(`Inserted ${count} new documents`);
+
 }
 
 
