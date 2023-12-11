@@ -10,7 +10,7 @@ dotenv_path = os.path.join(os.path.dirname(__file__),'..','.env')
 load_dotenv(dotenv_path)
 
 # Get environment variables for path and index name
-INDEX = os.getenv("DELVING_INDEX") or "delvingbitcoin"
+INDEX = os.getenv("INDEX")
 ARCHIVE = os.getenv("ARCHIVE") or "archive"
 SUB_ARCHIVE = os.getenv("SUB_ARCHIVE") or "posts"
 
