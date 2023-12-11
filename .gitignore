@@ -1,4 +1,7 @@
 .idea/
+delvingbitcoin_2_elasticsearch\archive
+venv/
+archive
 
 node_modules
 __pycache__
