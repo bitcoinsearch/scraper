@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch, NotFoundError, BadRequestError
-
+from loguru import logger as log
 load_dotenv()
 
 es = Elasticsearch(
@@ -22,7 +22,7 @@ def create_index(index_name):
 def document_add(index_name, doc, doc_id=None):
     """Funtion to add a document by providing index_name,
     document type, document contents as doc and document id."""
-    resp = es.index(index=index_name, body=doc)
+    resp = es.index(index=index_name, body=doc, id=doc_id)
     return resp
 
 

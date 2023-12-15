@@ -13,19 +13,18 @@ import datetime
 from dataclasses import dataclass
 from pathlib import Path
 from dateutil.parser import parse
+from loguru import logger as log
 
-import logging
+# import logging
+# loglevel = 'DEBUG' if os.environ.get('DEBUG') else 'INFO'
+# try:
+#     # If `rich` is installed, use pretty logging.
+#     from rich.logging import RichHandler
+#     logging.basicConfig(level=loglevel, datefmt="[%X]", handlers=[RichHandler()])
+# except ImportError:
+#     logging.basicConfig(level=loglevel)
 
-loglevel = 'DEBUG' if os.environ.get('DEBUG') else 'INFO'
-
-try:
-    # If `rich` is installed, use pretty logging.
-    from rich.logging import RichHandler
-    logging.basicConfig(level=loglevel, datefmt="[%X]", handlers=[RichHandler()])
-except ImportError:
-    logging.basicConfig(level=loglevel)
-
-log = logging.getLogger('archive')
+# log = logging.getLogger('archive')
 
 
 parser = argparse.ArgumentParser(
@@ -47,7 +46,7 @@ def args():
 
 
 def http_get(path) -> str:
-    log.debug("HTTP GET %s", path)
+    log.debug(f"HTTP GET {path}")
     backoff = 3
 
     while True:
@@ -67,7 +66,7 @@ def http_get_json(path) -> dict:
     try:
         return json.loads(http_get(path))
     except json.JSONDecodeError:
-        log.warning("unable to decode JSON response from %r", path)
+        log.warning(f"unable to decode JSON response from {path}")
         raise
 
 
@@ -101,7 +100,7 @@ class Post:
         folder_name = self.get_created_at().strftime('%Y-%m-%B')
         full_path = dir / folder_name / filename
         full_path.parent.mkdir(parents=True, exist_ok=True)
-        log.info("saving post %s to %s", self.id, full_path)
+        log.info(f"saving post {self.id} to {full_path}")
         full_path.write_text(json.dumps(self.raw, indent=2))
 
     def get_topic(self) -> PostTopic:
@@ -137,7 +136,7 @@ class Topic:
         folder_name = self.get_created_at().strftime('%Y-%m-%B')
         full_path = dir / folder_name / filename
         full_path.parent.mkdir(parents=True, exist_ok=True)
-        log.info("saving topic markdown %s to %s", self.id, full_path)
+        log.info(f"saving topic markdown {self.id} to {full_path}")
         markdown = f"# {self.raw['title']}\n\n{self.markdown}"
         full_path.write_text(markdown)
 
@@ -181,7 +180,7 @@ def download_dumps() -> None:
         # Resync over the last day to catch any post edits.
         last_sync_date -= datetime.timedelta(days=1)
 
-    log.info("detected latest synced post date: %s", last_sync_date)
+    log.info("detected latest synced post date:{last_sync_date}")
 
     topics_to_get = {}
     max_created_at = None
@@ -192,12 +191,12 @@ def download_dumps() -> None:
     no_new_posts = False
 
     while posts:
-        log.info("processing %d posts", len(posts))
+        log.info(f"processing {len(posts)} posts")
         for json_post in posts:
             try:
                 post = Post.from_json(json_post)
             except Exception:
-                log.warning("failed to deserialize post %s", json_post)
+                log.warning(f"failed to deserialize post {json_post}")
                 raise
             last_created_at = post.get_created_at()
 
@@ -236,7 +235,7 @@ def download_dumps() -> None:
 
     if max_created_at is not None:
         metadata['last_sync_date'] = max_created_at.isoformat()
-        log.info("writing metadata: %s", metadata)
+        log.info(f"writing metadata: {metadata}")
         metadata_file.write_text(json.dumps(metadata, indent=2))
 
     time.sleep(3)
@@ -248,7 +247,7 @@ def download_dumps() -> None:
             page_num = 2
 
             if not body:
-                log.warning("could not retrieve topic %d markdown", topic.id)
+                log.warning(f"could not retrieve topic {topic.id} markdown")
                 continue
 
             while more_body := http_get(f"/raw/{topic.id}?page={page_num}"):
@@ -256,7 +255,7 @@ def download_dumps() -> None:
 
             t = Topic.from_json(data, body)
             t.save_rendered(topics_dir)
-            log.info("saved topic %s (%s)", t.id, t.slug)
+            log.info(f"saved topic {t.id} ({t.slug})")
 
             time.sleep(0.3)
         except:

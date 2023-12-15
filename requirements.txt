@@ -47,3 +47,4 @@ w3lib==2.1.1
 xmltodict==0.13.0
 zope.interface==6.0
 langchain==0.0.229
+loguru==0.7.2

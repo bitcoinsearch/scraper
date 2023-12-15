@@ -1,6 +1,9 @@
 import os
 import json
 from dotenv import load_dotenv
+import html
+from bs4 import BeautifulSoup
+from loguru import logger as log
 
 # from loguru import logger
 from elastic import create_index, document_add, document_exist, document_view
@@ -16,15 +19,23 @@ SUB_ARCHIVE = os.getenv("SUB_ARCHIVE") or "posts"
 
 # Create Index if it doesn't exist
 if create_index(INDEX):
-    print(f"Index: {INDEX}, created successfully.")
+    log.info(f"Index: {INDEX}, created successfully.")
 else:
-    print(f"Index: {INDEX}, already exist.")
+    log.info(f"Index: {INDEX}, already exist.")
 
-# Get the directory where the Python script is located
-script_dir = os.path.dirname(os.path.realpath(__file__))
+# # Get the directory where the Python script is located
+# script_dir = os.path.dirname(os.path.realpath(__file__))
 
 # Specify the path to the folder containing JSON files
-folder_path = os.path.join(script_dir, ARCHIVE, SUB_ARCHIVE)
+folder_path = os.path.join(os.getcwd(), ARCHIVE, SUB_ARCHIVE)
+
+
+def preprocess_body(text):
+    soup = BeautifulSoup(text, "html.parser")
+    text = soup.get_text()
+    text = html.unescape(text)
+    text = text.strip()
+    return text
 
 
 def index_documents(files_path):
@@ -33,7 +44,7 @@ def index_documents(files_path):
         for file in files:
             if file.endswith('.json'):
                 file_path = os.path.join(root, file)
-                print(f'Fetching document from {file_path}')
+                log.info(f'Fetching document from file: {file_path}')
 
                 # Load JSON data from file
                 with open(file_path, 'r', encoding='utf-8') as json_file:
@@ -42,10 +53,9 @@ def index_documents(files_path):
                 # Select required fields
                 doc = {
                     'id': f'{document["id"]}_{document["username"]}_{document["topic_slug"]}_{document["post_number"]}',
-                    'authors': document['username'],
+                    'authors': [document['username']],
                     'title': document['topic_title'],
-                    'body': document['raw'],
-                    'body_type': 'raw',
+                    'body': preprocess_body(document['raw']),
                     'created_at': document['updated_at'],
                     'domain': "https://delvingbitcoin.org/",
                     'url': f"https://delvingbitcoin.org/t/{document['topic_slug']}/{document['topic_id']}",
@@ -53,24 +63,21 @@ def index_documents(files_path):
 
                 if document['post_number'] != 1:
                     doc['url'] += f'/{document["post_number"]}'
-
-
+                    doc['body_type'] = 'reply'
+                else:
+                    doc['body_type'] = 'original'
 
                 # Check if document already exist
-                resp = document_exist(index_name=INDEX, doc_id=doc['id'])
+                resp = document_view(index_name=INDEX, doc_id=doc['id'])
                 if not resp:
-                    # If not, create document
                     resp = document_add(index_name=INDEX, doc=doc, doc_id=doc['id'])
-                    print(f'Successfully added {doc["title"]} with the id: {doc["id"]}, Info: {resp}.')
+                    log.success(f'Successfully added! ID: {doc["id"]}, Title: {doc["title"]}, Type:{doc["body_type"]}')
                 else:
-                    print(f"Document with id: {doc['id']} already exist.")
+                    log.info(f"Document already exist! ID: {doc['id']}")
 
 
 if __name__ == "__main__":
     no_new_posts = download_dumps()
-    if no_new_posts == False:
-        print("New Post found to update on ES!")
-        index_documents(folder_path)
-    else:
-        print("No New Post found to update on ES!")
-    print(f'{("-" * 20)}DONE{("-" * 20)}')
+    log.info(f"Looking data in folder path: {folder_path}")
+    index_documents(folder_path)
+    log.info(f'{("-" * 20)}DONE{("-" * 20)}')
