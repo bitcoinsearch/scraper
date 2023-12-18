@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import html
 from bs4 import BeautifulSoup
 from loguru import logger as log
+from datetime import datetime
 
 # from loguru import logger
 from elastic import create_index, document_add, document_exist, document_view
@@ -54,18 +55,23 @@ def index_documents(files_path):
                 doc = {
                     'id': f'{document["id"]}_{document["username"]}_{document["topic_slug"]}_{document["post_number"]}',
                     'authors': [document['username']],
+                    'thread_url': f"https://delvingbitcoin.org/t/{document['topic_slug']}/{document['topic_id']}",
                     'title': document['topic_title'],
-                    'body': preprocess_body(document['raw']),
+                    'body_type': 'raw',
+                    'body': document['raw'],
+                    'body_formatted': preprocess_body(document['raw']),
                     'created_at': document['updated_at'],
                     'domain': "https://delvingbitcoin.org/",
                     'url': f"https://delvingbitcoin.org/t/{document['topic_slug']}/{document['topic_id']}",
+                    "indexed_at": datetime.utcnow().isoformat()
                 }
 
                 if document['post_number'] != 1:
                     doc['url'] += f'/{document["post_number"]}'
-                    doc['body_type'] = 'reply'
+                    doc['type'] = 'reply'
+                    doc['thread_url'] += f'/{document["post_number"]}'
                 else:
-                    doc['body_type'] = 'original'
+                    doc['type'] = 'original'
 
                 # Check if document already exist
                 resp = document_view(index_name=INDEX, doc_id=doc['id'])
