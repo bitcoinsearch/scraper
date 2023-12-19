@@ -72,7 +72,7 @@ def index_documents(files_path):
                     'authors': [document['username']],
                     'thread_url': f"https://delvingbitcoin.org/t/{document['topic_slug']}/{document['topic_id']}",
                     'title': document['topic_title'],
-                    'body_type': 'raw',
+                    'body_type': 'html',
                     'body': preprocess_body(document['raw']),
                     'body_formatted': strip_attributes_but_urls(document['cooked']),
                     'created_at': document['updated_at'],
