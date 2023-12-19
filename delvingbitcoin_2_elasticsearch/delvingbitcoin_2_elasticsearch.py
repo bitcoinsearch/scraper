@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 from loguru import logger as log
 from datetime import datetime
 
-# from loguru import logger
 from elastic import create_index, document_add, document_exist, document_view
 from achieve import download_dumps
 
@@ -24,9 +23,6 @@ if create_index(INDEX):
 else:
     log.info(f"Index: {INDEX}, already exist.")
 
-# # Get the directory where the Python script is located
-# script_dir = os.path.dirname(os.path.realpath(__file__))
-
 # Specify the path to the folder containing JSON files
 folder_path = os.path.join(os.getcwd(), ARCHIVE, SUB_ARCHIVE)
 
@@ -37,6 +33,25 @@ def preprocess_body(text):
     text = html.unescape(text)
     text = text.strip()
     return text
+
+def strip_attributes(html):
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup.find_all():
+        tag.attrs = {}
+    return str(soup)
+
+
+def strip_attributes_but_urls(html):
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup.find_all():
+        if tag.name not in ['a', 'img']:  # preserve a and img tags
+            tag.attrs = {}
+        else:  # for a and img tags, preserve href and src respectively
+            attrs = dict(tag.attrs)
+            for attr in attrs:
+                if attr not in ['href', 'src']:
+                    del tag.attrs[attr]
+    return str(soup)
 
 
 def index_documents(files_path):
@@ -58,8 +73,8 @@ def index_documents(files_path):
                     'thread_url': f"https://delvingbitcoin.org/t/{document['topic_slug']}/{document['topic_id']}",
                     'title': document['topic_title'],
                     'body_type': 'raw',
-                    'body': document['raw'],
-                    'body_formatted': preprocess_body(document['raw']),
+                    'body': preprocess_body(document['raw']),
+                    'body_formatted': strip_attributes_but_urls(document['cooked']),
                     'created_at': document['updated_at'],
                     'domain': "https://delvingbitcoin.org/",
                     'url': f"https://delvingbitcoin.org/t/{document['topic_slug']}/{document['topic_id']}",
@@ -69,15 +84,14 @@ def index_documents(files_path):
                 if document['post_number'] != 1:
                     doc['url'] += f'/{document["post_number"]}'
                     doc['type'] = 'reply'
-                    doc['thread_url'] += f'/{document["post_number"]}'
                 else:
-                    doc['type'] = 'original'
+                    doc['type'] = 'original_post'
 
                 # Check if document already exist
                 resp = document_view(index_name=INDEX, doc_id=doc['id'])
                 if not resp:
                     resp = document_add(index_name=INDEX, doc=doc, doc_id=doc['id'])
-                    log.success(f'Successfully added! ID: {doc["id"]}, Title: {doc["title"]}, Type:{doc["body_type"]}')
+                    log.success(f'Successfully added! ID: {doc["id"]}, Type:{doc["type"]}')
                 else:
                     log.info(f"Document already exist! ID: {doc['id']}")
 
