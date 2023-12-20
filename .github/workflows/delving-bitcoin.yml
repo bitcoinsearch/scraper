@@ -17,7 +17,7 @@ jobs:
           pip install -r requirements.txt
       - name: Fetch data
         run: |
-          python delvingbitcoin_2_elasticsearch\delvingbitcoin_2_elasticsearch.py
+          python delvingbitcoin_2_elasticsearch/delvingbitcoin_2_elasticsearch.py
         env:
             ES_ENGINE: ${{ secrets.ES_ENGINE }}
             ES_URL: ${{ secrets.ES_URL }}
