@@ -68,7 +68,7 @@ def index_documents(files_path):
 
                 # Select required fields
                 doc = {
-                    'id': f'{document["id"]}_{document["username"]}_{document["topic_slug"]}_{document["post_number"]}',
+                    'id': f'delving-bitcoin-{document["topic_id"]}-{document["post_number"]}-{document["id"]}',
                     'authors': [document['username']],
                     'thread_url': f"https://delvingbitcoin.org/t/{document['topic_slug']}/{document['topic_id']}",
                     'title': document['topic_title'],
