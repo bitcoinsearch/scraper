@@ -1,10 +1,8 @@
 import traceback
 from io import StringIO
 from html.parser import HTMLParser
-from os import getenv
-from elastic_enterprise_search import AppSearch
 from dotenv import load_dotenv
-from elasticsearch import Elasticsearch, NotFoundError, BadRequestError
+from elasticsearch import Elasticsearch, NotFoundError
 import requests
 import os
 import subprocess
@@ -23,28 +21,6 @@ es = Elasticsearch(
 )
 
 
-def app_search():
-    return AppSearch(
-        getenv("ES_URL"),
-        http_auth=getenv("ES_TOKEN")
-    )
-
-
-def elastic_client():
-    return Elasticsearch(
-        cloud_id=getenv("CLOUD_ID"),
-        api_key=getenv("USER_PASSWORD")
-    )
-
-
-def create_index(index_name):
-    try:
-        resp = es.indices.create(index=index_name)
-    except BadRequestError:
-        resp = False
-    return resp
-
-
 def document_add(index_name, doc, doc_id=None):
     resp = es.index(index=index_name, body=doc, id=doc_id)
     return resp
@@ -56,42 +32,6 @@ def document_view(index_name, doc_id):
     except NotFoundError:
         resp = False
     return resp
-
-
-def document_update(index_name, doc_id, doc=None, new=None):
-    if doc:
-        resp = es.index(index=index_name, id=doc_id, body=doc)
-    else:
-        resp = es.update(index=index_name, id=doc_id, body={"doc": new})
-    return resp
-
-
-def document_delete(index_name, doc_id):
-    resp = es.delete(index=index_name, id=doc_id)
-    return resp
-
-
-def delete_index(index_name):
-    resp = es.indices.delete(index=index_name)
-    return resp
-
-
-def document_exist(index_name, doc_id):
-    body = {
-        "query": {
-            "bool": {
-                "must": [
-                    {
-                        "term": {
-                            "id.keyword": doc_id
-                        }
-                    }
-                ]
-            }
-        }
-    }
-    resp = es.count(index=index_name, body=body)
-    return resp["count"] > 0
 
 
 def find_and_delete_document_by_source_id(es_client, index_name, source_id):

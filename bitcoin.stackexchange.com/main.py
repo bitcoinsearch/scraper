@@ -4,7 +4,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from loguru import logger
 from tqdm import tqdm
-import utils
+from utils import download_dump, extract_dump, parse_posts, parse_users, strip_tags, find_and_delete_document_by_source_id, es, document_view, document_add
 import traceback
 load_dotenv()
 
@@ -19,22 +19,22 @@ if __name__ == "__main__":
 
     # download archive data
     if not os.path.exists(DOWNLOAD_PATH):
-        utils.download_dump(DOWNLOAD_PATH)
+        download_dump(DOWNLOAD_PATH)
     else:
         logger.info(f'File already exists at path: {os.path.abspath(DOWNLOAD_PATH)}')
 
     # extract the data
-    if not os.listdir(EXTRACT_PATH):
-        utils.extract_dump(DOWNLOAD_PATH, EXTRACT_PATH)
+    if not os.path.exists(EXTRACT_PATH):
+        extract_dump(DOWNLOAD_PATH, EXTRACT_PATH)
     else:
         logger.info(f'{len(os.listdir(EXTRACT_PATH))}, files already exists at path: {os.path.abspath(EXTRACT_PATH)}')
 
     # parse the data
     USERS_FILE_PATH = f"{EXTRACT_PATH}/Users.xml"
-    users = utils.parse_users(USERS_FILE_PATH)
+    users = parse_users(USERS_FILE_PATH)
 
     POSTS_FILE_PATH = f"{EXTRACT_PATH}/Posts.xml"
-    docs = utils.parse_posts(POSTS_FILE_PATH)
+    docs = parse_posts(POSTS_FILE_PATH)
 
     for post in tqdm(docs):
         try:
@@ -50,7 +50,7 @@ if __name__ == "__main__":
                 tags = tags.split("><")
                 document = {
                     "title": post.attrib.get("Title"),
-                    "body": utils.strip_tags(post.attrib.get("Body")),
+                    "body": strip_tags(post.attrib.get("Body")),
                     "body_type": "raw",
                     "authors": [user],
                     "id": "stackexchange-" + post.attrib.get("Id"),
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
                 document = {
                     "title": question.attrib.get("Title") + " (Answer)",
-                    "body": utils.strip_tags(post.attrib.get("Body")),
+                    "body": strip_tags(post.attrib.get("Body")),
                     "body_type": "raw",
                     "authors": [user],
                     "id": "stackexchange-" + post.attrib.get("Id"),
@@ -89,12 +89,12 @@ if __name__ == "__main__":
             # delete posts with previous logic where '_id' was set on its own
             this_id = document['id']
             logger.warning(f"this_id: {this_id}")
-            _ = utils.find_and_delete_document_by_source_id(utils.es, INDEX, this_id)
+            _ = find_and_delete_document_by_source_id(es, INDEX, this_id)
 
             # insert the doc if it doesn't exist, with '_id' set by our logic
-            resp = utils.document_view(index_name=INDEX, doc_id=document['id'])
+            resp = document_view(index_name=INDEX, doc_id=document['id'])
             if not resp:
-                _ = utils.document_add(index_name=INDEX, doc=document, doc_id=document['id'])
+                _ = document_add(index_name=INDEX, doc=document, doc_id=document['id'])
                 logger.success(f"Added! ID: {document['id']}, Title: {document['title']}")
             else:
                 logger.info(f"Exist! ID: {document['id']}, Title: {document['title']}")
