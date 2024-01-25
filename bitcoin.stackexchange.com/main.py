@@ -4,7 +4,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from loguru import logger
 from tqdm import tqdm
-from utils import download_dump, extract_dump, parse_posts, parse_users, strip_tags, find_and_delete_document_by_source_id, es, document_view, document_add
+from utils import download_dump, extract_dump, parse_posts, parse_users, strip_tags, document_view, document_add
 import traceback
 load_dotenv()
 
@@ -23,11 +23,20 @@ if __name__ == "__main__":
     else:
         logger.info(f'File already exists at path: {os.path.abspath(DOWNLOAD_PATH)}')
 
-    # extract the data
+    # extract the data if necessary
     if not os.path.exists(EXTRACT_PATH):
-        extract_dump(DOWNLOAD_PATH, EXTRACT_PATH)
+        os.makedirs(EXTRACT_PATH)
+        should_extract = True
     else:
-        logger.info(f'{len(os.listdir(EXTRACT_PATH))}, files already exists at path: {os.path.abspath(EXTRACT_PATH)}')
+        if not os.listdir(EXTRACT_PATH):
+            should_extract = True
+        else:
+            file_count = len(os.listdir(EXTRACT_PATH))
+            logger.info(f'{file_count} files already exist at path: {os.path.abspath(EXTRACT_PATH)}')
+            should_extract = False
+
+    if should_extract:
+        extract_dump(DOWNLOAD_PATH, EXTRACT_PATH)
 
     # parse the data
     USERS_FILE_PATH = f"{EXTRACT_PATH}/Users.xml"
@@ -86,10 +95,10 @@ if __name__ == "__main__":
                     "indexed_at": datetime.utcnow().isoformat()
                 }
 
-            # delete posts with previous logic where '_id' was set on its own
-            this_id = document['id']
-            logger.warning(f"this_id: {this_id}")
-            _ = find_and_delete_document_by_source_id(es, INDEX, this_id)
+            # # delete posts with previous logic where '_id' was set on its own and replace them with our logic
+            # this_id = document['id']
+            # logger.info(f"this_id: {this_id}")
+            # _ = find_and_delete_document_by_source_id(INDEX, this_id)
 
             # insert the doc if it doesn't exist, with '_id' set by our logic
             resp = document_view(index_name=INDEX, doc_id=document['id'])
@@ -97,7 +106,8 @@ if __name__ == "__main__":
                 _ = document_add(index_name=INDEX, doc=document, doc_id=document['id'])
                 logger.success(f"Added! ID: {document['id']}, Title: {document['title']}")
             else:
-                logger.info(f"Exist! ID: {document['id']}, Title: {document['title']}")
+                # logger.info(f"Exist! ID: {document['id']}, Title: {document['title']}")
+                pass
 
         except Exception as ex:
             logger.error(f"Error occurred: {ex} \n{traceback.format_exc()}")

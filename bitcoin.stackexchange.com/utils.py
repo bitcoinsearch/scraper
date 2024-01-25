@@ -34,7 +34,7 @@ def document_view(index_name, doc_id):
     return resp
 
 
-def find_and_delete_document_by_source_id(es_client, index_name, source_id):
+def find_and_delete_document_by_source_id(index_name, source_id):
     body = {
         "query": {
             "bool": {
@@ -50,7 +50,7 @@ def find_and_delete_document_by_source_id(es_client, index_name, source_id):
     }
 
     try:
-        search_resp = es_client.search(index=index_name, body=body, _source=False)
+        search_resp = es.search(index=index_name, body=body, _source=False)
         hits = search_resp.get('hits', {}).get('hits', [])
         if not hits:
             logger.info(f"No documents found with source-id: {source_id}")
@@ -59,7 +59,7 @@ def find_and_delete_document_by_source_id(es_client, index_name, source_id):
         document_to_delete_id = hits[0]['_id']
         logger.info(f"Document _id to delete: {document_to_delete_id}")
 
-        delete_resp = es_client.delete(index=index_name, id=document_to_delete_id)
+        delete_resp = es.delete(index=index_name, id=document_to_delete_id)
         result = delete_resp.get('result', None)
         if result == 'deleted':
             logger.info(f"Deleted! '_id': '{document_to_delete_id}'")
@@ -90,11 +90,10 @@ def parse_posts(posts_file_path):
 
 
 def extract_dump(download_path, extract_path):
-    os.makedirs(extract_path, exist_ok=True)
     try:
         logger.info('extracting the data...')
         if platform.system() == 'Windows':
-            full_7z_path = r"C:\\Program Files\\7-Zip\\7z.exe"
+            full_7z_path = r"C:\\Program Files\\7-Zip\\7z.exe"  # assuming the default path of 7z in Windows machine
             subprocess.check_call([full_7z_path, "x", "-o" + extract_path, download_path])
         else:
             subprocess.check_call(["7z", "x", "-o" + extract_path, download_path])
