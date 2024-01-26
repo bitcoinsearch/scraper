@@ -6,7 +6,13 @@ const path = require('path');
 const dotenv = require('dotenv');
 dotenv.config();
 
-const { index_documents, fetch_with_retry } = require('../common/util');
+const {index_documents, fetch_with_retry,} = require('../common/util');
+const {
+    checkDocumentExist,
+    create_document,
+    delete_document_if_exist,
+    document_view
+} = require('../common/elasticsearch-scraper/util')
 
 const URL = process.env.URL || BOARD;
 
@@ -17,15 +23,15 @@ async function fetch_all_topics() {
     let offset = 0;
     const topics = [];
     while (true) {
-        console.log(`Downloading page ${offset/40}...`);
+        console.log(`Downloading page ${offset / 40}...`);
         const url = URL + offset;
         let success = false;
         let tops = [];
-        while(!success) {
+        while (!success) {
             const response = await fetch(url);
             const text = await response.text();
-            if(response.status !== 200) {
-                console.log(`Error ${response.status} downloading page ${offset/20}`);
+            if (response.status !== 200) {
+                console.log(`Error ${response.status} downloading page ${offset / 20}`);
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 continue;
             }
@@ -89,7 +95,7 @@ async function get_documents_from_post(url) {
         const author = $(tr).find('.poster_info > b > a').text();
         // text without title attribute
         let date = $(tr).find('.td_headerandpost .smalltext > .edited').text();
-        if(date === '') {
+        if (date === '') {
             date = $(tr).find('.td_headerandpost .smalltext').text();
         }
 
@@ -169,10 +175,21 @@ async function main() {
 
     for (let i = start_index; i < topics.length; i++) {
         const topic = topics[i];
-        console.log(`Processing ${i+1}/${topics.length}`);
+        console.log(`Processing ${i + 1}/${topics.length}`);
         const documents = await fetch_posts(topic);
 
-        await index_documents(documents);
+        for (let i = 0; i < documents.length; i++) {
+            const document = documents[i];
+            const deleteId = await delete_document_if_exist(document.id)
+
+            const viewResponse = await document_view(document.id);
+            if (!viewResponse) {
+                const createResponse = await create_document(document);
+                console.log(`Document inserted :: id: ${document.id}, title: ${document.title}`)
+            }
+
+        }
+    
     }
 }
 

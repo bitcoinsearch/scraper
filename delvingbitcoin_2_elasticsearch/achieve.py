@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-"""
-This script does a basic archive of Discourse content by way of its API.
-"""
 import argparse
 import urllib.request
 import sys
@@ -14,17 +10,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from dateutil.parser import parse
 from loguru import logger as log
-
-# import logging
-# loglevel = 'DEBUG' if os.environ.get('DEBUG') else 'INFO'
-# try:
-#     # If `rich` is installed, use pretty logging.
-#     from rich.logging import RichHandler
-#     logging.basicConfig(level=loglevel, datefmt="[%X]", handlers=[RichHandler()])
-# except ImportError:
-#     logging.basicConfig(level=loglevel)
-
-# log = logging.getLogger('archive')
 
 
 parser = argparse.ArgumentParser(
@@ -241,7 +226,7 @@ def download_dumps() -> None:
     time.sleep(3)
 
     for topic in topics_to_get.values():
-        try:            
+        try:
             data = http_get_json(f"/t/{topic.id}.json")
             body = http_get(f"/raw/{topic.id}")
             page_num = 2
@@ -261,8 +246,6 @@ def download_dumps() -> None:
         except:
             pass
 
-    return no_new_posts
-    
 
 if __name__ == "__main__":
-    _ = download_dumps()
+    download_dumps()

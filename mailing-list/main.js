@@ -4,12 +4,14 @@ const fs = require("fs");
 const https = require("https");
 const dotenv = require("dotenv");
 const path = require("path");
+
 dotenv.config();
 
 const {
     create_batches,
-    checkDocumentExist,
+    document_view,
     create_document,
+    delete_document_if_exist,
 } = require("../common/elasticsearch-scraper/util");
 const {
     log,
@@ -225,20 +227,20 @@ async function main() {
         );
     }
     // console.log(`Found ${documents.length} documents`);
-    let count = 0;
 
     console.log(`Filtering existing ${documents.length} documents... please wait...`);
+
     for (let i = 0; i < documents.length; i++) {
         const document = documents[i];
-        let isExist = await checkDocumentExist(document.id);
-        if (!isExist) {
-            count++;
-            await create_document(document);
+        const deleteId = await delete_document_if_exist(document.id)
+
+        const viewResponse = await document_view(document.id);
+        if (!viewResponse) {
+            const createResponse = await create_document(document);
+            console.log(`Document inserted :: id: ${document.id}, title: ${document.title}`)
         }
 
     }
-
-    console.log(`Inserted ${count} new documents`);
 
 }
 

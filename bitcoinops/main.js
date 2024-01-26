@@ -4,9 +4,14 @@ const AdmZip = require('adm-zip');
 const path = require('path');
 const request = require('request');
 const yaml = require('js-yaml');
-const { basename } = require('path');
+const {basename} = require('path');
 const marked = require('marked');
-const { create_batches, index_documents } = require('../common/elasticsearch-scraper/util');
+const {
+    checkDocumentExist,
+    create_document,
+    delete_document_if_exist,
+    document_view
+} = require('../common/elasticsearch-scraper/util');
 
 dotenv.config();
 
@@ -16,9 +21,9 @@ async function download_repo() {
     const URL = "https://github.com/bitcoinops/bitcoinops.github.io/archive/refs/heads/master.zip";
     const dir = path.join(process.env.DATA_DIR, "bitcoinops");
     if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir);
+        fs.mkdirSync(dir, {recursive: true});
     }
-    
+
     if (fs.existsSync(path.join(dir, folder_name))) {
         console.log("Repo already downloaded");
         return;
@@ -138,7 +143,19 @@ async function main() {
 
     console.log(`Parsed ${documents.length} documents`);
 
-    await index_documents(documents);
+
+    for (let i = 0; i < documents.length; i++) {
+        const document = documents[i];
+        const deleteId = await delete_document_if_exist(document.id)
+
+        const viewResponse = await document_view(document.id);
+        if (!viewResponse) {
+            const createResponse = await create_document(document);
+            console.log(`Document inserted :: id: ${document.id}, title: ${document.title}`)
+        }
+
+    }
+
 }
 
 main();

@@ -1,13 +1,13 @@
 import os
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch, NotFoundError, BadRequestError
-from loguru import logger as log
+
 load_dotenv()
 
 es = Elasticsearch(
-        cloud_id=os.getenv("CLOUD_ID"),
-        api_key=os.getenv("USER_PASSWORD")
-    )
+    cloud_id=os.getenv("CLOUD_ID"),
+    api_key=os.getenv("USER_PASSWORD")
+)
 
 
 def create_index(index_name):
@@ -55,14 +55,15 @@ def delete_index(index_name):
     resp = es.indices.delete(index=index_name)
     return resp
 
+
 def document_exist(index_name, doc_id):
     body = {
-        "query" : {
-            "bool":{
-                "must":[
+        "query": {
+            "bool": {
+                "must": [
                     {
-                        "term" : {
-                            "id.keyword" :  doc_id
+                        "term": {
+                            "id.keyword": doc_id
                         }
                     }
                 ]
@@ -72,4 +73,4 @@ def document_exist(index_name, doc_id):
 
     resp = es.count(index=index_name, body=body)
 
-    return resp["count"] > 0 
+    return resp["count"] > 0
