@@ -20,7 +20,11 @@ jobs:
           mkdir /tmp/stackexchange
           python bitcoin.stackexchange.com/main.py
         env:
+            DATA_DIR: /tmp/stackexchange
             ES_ENGINE: ${{ secrets.ES_ENGINE }}
             ES_URL: ${{ secrets.ES_URL }}
             ES_TOKEN: ${{ secrets.ES_TOKEN }}
-            DATA_DIR: /tmp/stackexchange
+            CLOUD_ID: ${{ secrets.CLOUD_ID }}
+            USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+            USERNAME: ${{ secrets.USERNAME }}
+            INDEX: ${{ secrets.INDEX }}
