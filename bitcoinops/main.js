@@ -107,6 +107,7 @@ function parse_post(path, topic = false) {
 
     const stringRepresentation = parsedBody.map(obj => JSON.stringify(obj)).join(', ');
     const frontMatterObj = yaml.load(frontMatter);
+    const indexed_at = new Date().toISOString();
     const document = {
         id: "bitcoinops-" + (topic ? basename(path, '.md') : frontMatterObj.slug),
         title: frontMatterObj.title,
@@ -119,6 +120,7 @@ function parse_post(path, topic = false) {
         type: topic ? 'topic' : frontMatterObj.type,
         language: frontMatterObj.lang,
         authors: ["bitcoinops"],
+        indexed_at: indexed_at
     };
 
     return document;
@@ -146,12 +148,13 @@ async function main() {
 
     for (let i = 0; i < documents.length; i++) {
         const document = documents[i];
+
+        // delete posts with previous logic where '_id' was set on its own and replace them with our logic
         const deleteId = await delete_document_if_exist(document.id)
 
         const viewResponse = await document_view(document.id);
         if (!viewResponse) {
             const createResponse = await create_document(document);
-            console.log(`Document inserted :: id: ${document.id}, title: ${document.title}`)
         }
 
     }
