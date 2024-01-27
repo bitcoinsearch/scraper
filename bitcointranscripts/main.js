@@ -117,6 +117,7 @@ function parse_post(p_path) {
     const frontMatterObj = yaml.load(frontMatter);
     const id = md5(pathWithoutExtension.replace(path.join(process.env.DATA_DIR, "bitcointranscripts", folder_name), '').replaceAll("/", "-")).substring(0, 20);
     const stringParsedBodyRepresentation = parsedBody.map(obj => JSON.stringify(obj)).join(', ');
+    const indexed_at = new Date().toISOString();
     const document = {
         id: "bitcointranscripts-" + id,
         title: frontMatterObj.title,
@@ -130,6 +131,7 @@ function parse_post(p_path) {
         tags: frontMatterObj.tags,
         media: frontMatterObj.media,
         authors: frontMatterObj.speakers,
+        indexed_at: indexed_at,
         transcript_by: frontMatterObj.transcript_by,
     };
 
@@ -155,7 +157,6 @@ async function main() {
         if (!viewResponse) {
             count++;
             const createResponse = await create_document(document);
-            console.log(`Document inserted :: id: ${document.id}, title: ${document.title}`)
         }
 
     }
