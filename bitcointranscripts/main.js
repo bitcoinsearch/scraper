@@ -150,8 +150,8 @@ async function main() {
     for (let i = 0; i < documents.length; i++) {
         const document = documents[i];
 
-        // delete posts with previous logic where '_id' was set on its own and replace them with our logic
-        const deleteId = await delete_document_if_exist(document.id)
+//        // delete posts with previous logic where '_id' was set on its own and replace them with our logic
+//        const deleteId = await delete_document_if_exist(document.id)
 
         const viewResponse = await document_view(document.id);
         if (!viewResponse) {
