@@ -169,7 +169,7 @@ async function create_document(document) {
         id: document.id
     });
 
-    console.log(response._id);
+    console.log(`Document inserted :: id: ${document.id}, title: ${document.title}`)
 }
 
 
