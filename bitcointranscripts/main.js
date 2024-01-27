@@ -155,8 +155,8 @@ async function main() {
 
         const viewResponse = await document_view(document.id);
         if (!viewResponse) {
-            count++;
             const createResponse = await create_document(document);
+            count++;
         }
 
     }

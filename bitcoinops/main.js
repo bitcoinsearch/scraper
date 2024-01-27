@@ -145,7 +145,7 @@ async function main() {
 
     console.log(`Parsed ${documents.length} documents`);
 
-
+    let count = 0;
     for (let i = 0; i < documents.length; i++) {
         const document = documents[i];
 
@@ -155,9 +155,11 @@ async function main() {
         const viewResponse = await document_view(document.id);
         if (!viewResponse) {
             const createResponse = await create_document(document);
+            count++;
         }
 
     }
+    console.log(`Inserted ${count} new documents`);
 
 }
 

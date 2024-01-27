@@ -145,7 +145,7 @@ async function get_documents_from_post(url) {
 
         documents.push(document);
     }
-
+    console.log(`Filtered ${documents.length} posts in ${url}`);
     return {documents, urls};
 }
 
@@ -179,9 +179,8 @@ async function main() {
     }
 
     console.log(`Found ${topics.length} topics`);
-
+    let count = 0;
     const start_index = process.env.START_INDEX ? parseInt(process.env.START_INDEX) : 0;
-
     for (let i = start_index; i < topics.length; i++) {
         const topic = topics[i];
         console.log(`Processing ${i + 1}/${topics.length}`);
@@ -196,11 +195,13 @@ async function main() {
             const viewResponse = await document_view(document.id);
             if (!viewResponse) {
                 const createResponse = await create_document(document);
+                count++;
             }
 
         }
 
     }
+    console.log(`Inserted ${count} new documents`);
 }
 
 main().catch(console.error);

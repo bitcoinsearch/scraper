@@ -229,19 +229,20 @@ async function main() {
     // console.log(`Found ${documents.length} documents`);
 
     console.log(`Filtering existing ${documents.length} documents... please wait...`);
-
+    let count = 0;
     for (let i = 0; i < documents.length; i++) {
         const document = documents[i];
-        const deleteId = await delete_document_if_exist(document.id)
+
+//        // delete posts with previous logic where '_id' was set on its own and replace them with our logic
+//        const deleteId = await delete_document_if_exist(document.id)
 
         const viewResponse = await document_view(document.id);
         if (!viewResponse) {
             const createResponse = await create_document(document);
-            console.log(`Document inserted :: id: ${document.id}, title: ${document.title}`)
+            count++;
         }
-
     }
-
+    console.log(`Inserted ${count} new documents`);
 }
 
 
