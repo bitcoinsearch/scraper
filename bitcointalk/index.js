@@ -13,10 +13,7 @@ const {
     document_view
 } = require('../common/elasticsearch-scraper/util')
 
-
 const BOARD_URL = 'https://bitcointalk.org/index.php?board=6.';
-
-const date = new Date();
 
 authors = ['achow101', 'kanzure', 'Sergio_Demian_Lerner', 'Nicolas Dorier', 'jl2012', 'Peter Todd', 'Gavin Andresen', 'adam3us', 'Pieter Wuille', 'Meni Rosenfeld', 'Mike Hearn', 'wumpus', 'Luke-Jr', 'Matt Corallo', 'jgarzik', 'andytoshi', 'satoshi', 'Cdecker', 'TimRuffing', 'gmaxwell'];
 
@@ -129,19 +126,20 @@ async function get_documents_from_post(url) {
         body = body.text();
 
         const dateJs = new Date(date);
-
+        const indexedAt = new Date().toISOString();
+        
         const id = url.substring(url.indexOf('#msg') + 4);
 
         const document = {
             authors: [author],
             body,
             body_type: 'raw',
-            domain: 'https://bitcointalk.org',
+            domain: 'https://bitcointalk.org/',
             url,
             title,
             id: 'bitcointalk-' + id,
             created_at: dateJs,
-            indexed_at: date.toISOString(),
+            indexed_at: indexedAt,
             type: messageNumber === "#1" ? "topic" : "post",
         }
 
