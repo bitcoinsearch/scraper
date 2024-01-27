@@ -1,4 +1,3 @@
-const BOARD = 'https://bitcointalk.org/index.php?board=6.';
 
 const cheerio = require('cheerio');
 const fs = require('fs');
@@ -14,17 +13,22 @@ const {
     document_view
 } = require('../common/elasticsearch-scraper/util')
 
-const URL = process.env.URL || BOARD;
+
+const BOARD_URL = 'https://bitcointalk.org/index.php?board=6.';
+
+const date = new Date();
+
+authors = ['achow101', 'kanzure', 'Sergio_Demian_Lerner', 'Nicolas Dorier', 'jl2012', 'Peter Todd', 'Gavin Andresen', 'adam3us', 'Pieter Wuille', 'Meni Rosenfeld', 'Mike Hearn', 'wumpus', 'Luke-Jr', 'Matt Corallo', 'jgarzik', 'andytoshi', 'satoshi', 'Cdecker', 'TimRuffing', 'gmaxwell'];
 
 async function fetch_all_topics() {
     if (!fs.existsSync(path.join(process.env.DATA_DIR, 'bitcointalk'))) {
-        fs.mkdirSync(path.join(process.env.DATA_DIR, 'bitcointalk'));
+        fs.mkdirSync(path.join(process.env.DATA_DIR, 'bitcointalk'), {recursive: true});
     }
     let offset = 0;
     const topics = [];
     while (true) {
         console.log(`Downloading page ${offset / 40}...`);
-        const url = URL + offset;
+        const url = BOARD_URL + offset;
         let success = false;
         let tops = [];
         while (!success) {
@@ -93,6 +97,12 @@ async function get_documents_from_post(url) {
 
     for (const tr of trList) {
         const author = $(tr).find('.poster_info > b > a').text();
+
+        if (!authors.includes(author)) {
+            continue;
+        }
+        console.log(`post by : ${author}`)
+
         // text without title attribute
         let date = $(tr).find('.td_headerandpost .smalltext > .edited').text();
         if (date === '') {
@@ -131,6 +141,7 @@ async function get_documents_from_post(url) {
             title,
             id: 'bitcointalk-' + id,
             created_at: dateJs,
+            indexed_at: date.toISOString(),
             type: messageNumber === "#1" ? "topic" : "post",
         }
 
@@ -189,7 +200,7 @@ async function main() {
             }
 
         }
-    
+
     }
 }
 
