@@ -126,8 +126,8 @@ async function get_documents_from_post(url) {
         body = body.text();
 
         const dateJs = new Date(date);
-        const indexedAt = new Date().toISOString();
-        
+        const indexed_at = new Date().toISOString();
+
         const id = url.substring(url.indexOf('#msg') + 4);
 
         const document = {
@@ -139,7 +139,7 @@ async function get_documents_from_post(url) {
             title,
             id: 'bitcointalk-' + id,
             created_at: dateJs,
-            indexed_at: indexedAt,
+            indexed_at: indexed_at,
             type: messageNumber === "#1" ? "topic" : "post",
         }
 
@@ -189,12 +189,13 @@ async function main() {
 
         for (let i = 0; i < documents.length; i++) {
             const document = documents[i];
-            const deleteId = await delete_document_if_exist(document.id)
+
+//            // delete posts with previous logic where '_id' was set on its own and replace them with our logic
+//            const deleteId = await delete_document_if_exist(document.id)
 
             const viewResponse = await document_view(document.id);
             if (!viewResponse) {
                 const createResponse = await create_document(document);
-                console.log(`Document inserted :: id: ${document.id}, title: ${document.title}`)
             }
 
         }
