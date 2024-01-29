@@ -3,28 +3,23 @@ import json
 import re
 import requests
 from datetime import datetime
-
-def get_github_urls(base_url: str) -> list:
-    """
-    get a list of urls 
-    """
-
-    urls = []
-    for chapter in chapters:
-        urls.append(base_url + chapter)
-
-    return urls
+from loguru import logger
 
 
+if __name__ == "__main__":
 
-def parse_chapters(urls):
+    site = 'https://github.com/bitcoinbook/bitcoinbook/blob/develop'
+    chapters = ['/ch01.asciidoc', '/ch02.asciidoc', '/ch03.asciidoc', '/ch04.asciidoc',
+                '/ch05.asciidoc', '/ch06.asciidoc', '/ch07.asciidoc', '/ch08.asciidoc',
+                '/ch09.asciidoc', '/ch10.asciidoc', '/ch11.asciidoc', '/ch12.asciidoc']
+    chapter_links = [f"{site}{chapter}" for chapter in chapters]
 
-    for url in urls:
+    documents = []
+    for url in chapter_links:
         data = requests.get(url).text
-        soup = BeautifulSoup(data,'html.parser')
-        document = {}
+        soup = BeautifulSoup(data, 'html.parser')
         title = soup.find('h2', dir='auto').get_text()
-        body = soup.find('div',id = 'readme').get_text()
+        body = soup.find('div', id='readme').get_text()
         body_type = "md"
         author = "Andreas Antonopoulous"
         chapter_number = ''.join(re.findall(r'\d+', url))
@@ -32,9 +27,9 @@ def parse_chapters(urls):
         tags = ""
         domain = "https://github.com/bitcoinbook/bitcoinbook"
         url = url
-        created_at = "2022-11-15" # date of most recent commit
+        created_at = "2022-11-15"  # date of most recent commit
 
-        document.update({
+        document = {
             "title": title,
             "body": body,
             "body_type": body_type,
@@ -45,27 +40,14 @@ def parse_chapters(urls):
             "url": url,
             "created_at": created_at,
             "indexed_at": datetime.utcnow().isoformat()
-            })
-        print(document.get("id"))
+        }
+
+        logger.info(document.get("id"))
         documents.append(document)
-
-if __name__ == "__main__":
-
-    documents = []
-
-    chapters = ['/ch01.asciidoc','/ch02.asciidoc','/ch03.asciidoc','/ch04.asciidoc',
-            '/ch05.asciidoc','/ch06.asciidoc','/ch07.asciidoc','/ch08.asciidoc',
-            '/ch09.asciidoc','/ch10.asciidoc','/ch11.asciidoc','/ch12.asciidoc']
-
-    site = 'https://github.com/bitcoinbook/bitcoinbook/blob/develop'
-    print("Getting links for bitcoin book")
-    chapter_links = get_github_urls(site)
-    parse_chapters(chapter_links)
-    print ("Number of documents: " + str(len(documents)))
+    print("Number of documents: " + str(len(documents)))
 
     with open("bitcoinbook.json", "w") as f:
-      json.dump(documents, f, indent=4)
+        json.dump(documents, f, indent=4)
 
     # Close the file
     f.close()
-

@@ -5,8 +5,9 @@ const path = require('path');
 const request = require('request');
 const yaml = require('js-yaml');
 const marked = require('marked');
-const { checkDocumentExist, create_document} = require('../common/elasticsearch-scraper/util.js');
+const {delete_document_if_exist, create_document, document_view} = require('../common/elasticsearch-scraper/util.js');
 const md5 = require('md5');
+const { log } = require('console');
 
 dotenv.config();
 
@@ -51,21 +52,25 @@ function parse_posts(dir) {
     let documents = [];
     const files = fs.readdirSync(dir);
     for (const file of files) {
-        if (fs.statSync(path.join(dir, file)).isDirectory()) {
-            if (file === '.github') continue;
-            documents = documents.concat(parse_posts(path.join(dir, file)));
-            continue
+        try{
+            if (fs.statSync(path.join(dir, file)).isDirectory()) {
+                if (file === '.github') continue;
+                documents = documents.concat(parse_posts(path.join(dir, file)));
+                continue
+            }
+    
+            if (dir === path.join(process.env.DATA_DIR, "bitcointranscripts", folder_name)) continue;
+            if (file.startsWith('_')) continue;
+            // Skip if file ends with .??.md (skip translations)
+            if (file.match(/\.([a-z][a-z])\.md$/)) continue;
+            if (!file.endsWith('.md')) continue;
+    
+            console.log(`Parsing ${path.join(dir, file)}...`);
+            const document = parse_post(path.join(dir, file));
+            documents.push(document);
+        }catch{
+            continue;
         }
-
-        if (dir === path.join(process.env.DATA_DIR, "bitcointranscripts", folder_name)) continue;
-        if (file.startsWith('_')) continue;
-        // Skip if file ends with .??.md (skip translations)
-        if (file.match(/\.([a-z][a-z])\.md$/)) continue;
-        if (!file.endsWith('.md')) continue;
-
-        console.log(`Parsing ${path.join(dir, file)}...`);
-        const document = parse_post(path.join(dir, file));
-        documents.push(document);
     }
     return documents;
 }
@@ -112,6 +117,7 @@ function parse_post(p_path) {
     const frontMatterObj = yaml.load(frontMatter);
     const id = md5(pathWithoutExtension.replace(path.join(process.env.DATA_DIR, "bitcointranscripts", folder_name), '').replaceAll("/", "-")).substring(0, 20);
     const stringParsedBodyRepresentation = parsedBody.map(obj => JSON.stringify(obj)).join(', ');
+    const indexed_at = new Date().toISOString();
     const document = {
         id: "bitcointranscripts-" + id,
         title: frontMatterObj.title,
@@ -125,6 +131,7 @@ function parse_post(p_path) {
         tags: frontMatterObj.tags,
         media: frontMatterObj.media,
         authors: frontMatterObj.speakers,
+        indexed_at: indexed_at,
         transcript_by: frontMatterObj.transcript_by,
     };
 
@@ -135,18 +142,25 @@ async function main() {
     await download_repo();
     const dir = path.join(process.env.DATA_DIR, "bitcointranscripts", folder_name);
     const documents = parse_posts(dir);
-    let count = 0;
 
     console.log(`Filtering existing ${documents.length} documents... please wait...`);
+
+    let count = 0;
     for (let i = 0; i < documents.length; i++) {
         const document = documents[i];
-        const isExist = await checkDocumentExist(document.id);
-        if (!isExist) {
+
+//        // delete posts with previous logic where '_id' was set on its own and replace them with our logic
+//        const deleteId = await delete_document_if_exist(document.id)
+
+        const viewResponse = await document_view(document.id);
+        if (!viewResponse) {
+            const createResponse = await create_document(document);
             count++;
-            await create_document(document);
         }
+
     }
     console.log(`Inserted ${count} new documents`);
+
 }
 
 main();

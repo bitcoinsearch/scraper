@@ -9,7 +9,7 @@ from datetime import datetime
 from elastic import create_index, document_add, document_exist, document_view
 from achieve import download_dumps
 
-dotenv_path = os.path.join(os.path.dirname(__file__),'..','.env')
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(dotenv_path)
 
 # Get environment variables for path and index name
@@ -33,6 +33,7 @@ def preprocess_body(text):
     text = html.unescape(text)
     text = text.strip()
     return text
+
 
 def strip_attributes(html):
     soup = BeautifulSoup(html, "html.parser")
@@ -87,17 +88,17 @@ def index_documents(files_path):
                 else:
                     doc['type'] = 'original_post'
 
-                # Check if document already exist
+                # Check if a document already exists
                 resp = document_view(index_name=INDEX, doc_id=doc['id'])
                 if not resp:
-                    resp = document_add(index_name=INDEX, doc=doc, doc_id=doc['id'])
+                    _ = document_add(index_name=INDEX, doc=doc, doc_id=doc['id'])
                     log.success(f'Successfully added! ID: {doc["id"]}, Type:{doc["type"]}')
                 else:
                     log.info(f"Document already exist! ID: {doc['id']}")
 
 
 if __name__ == "__main__":
-    no_new_posts = download_dumps()
+    download_dumps()
     log.info(f"Looking data in folder path: {folder_path}")
     index_documents(folder_path)
     log.info(f'{("-" * 20)}DONE{("-" * 20)}')

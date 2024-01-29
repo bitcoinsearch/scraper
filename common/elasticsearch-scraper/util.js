@@ -150,7 +150,7 @@ async function checkDocumentExist(document_id) {
 }
 
 
-async function create_document(document){
+async function create_document(document) {
     let cloud_id = process.env.CLOUD_ID;
     let username = process.env.USERNAME;
     let api_key = process.env.USER_PASSWORD
@@ -163,12 +163,103 @@ async function create_document(document){
         }
     });
 
-    const response = await  client.index({
+    const response = await client.index({
         index: process.env.INDEX,
-        body: document
+        body: document,
+        id: document.id
     });
 
-    console.log(response);
+    console.log(`Document inserted :: id: ${document.id}, title: ${document.title}`)
+}
+
+
+async function delete_document_if_exist(documentId) {
+    let cloud_id = process.env.CLOUD_ID;
+    let username = process.env.USERNAME;
+    let api_key = process.env.USER_PASSWORD
+    try {
+        const client = new Client({
+            cloud: {
+                id: cloud_id
+            },
+            auth: {
+                apiKey: api_key
+            }
+        });
+
+        const searchResponse = await client.search({
+            index: process.env.INDEX,
+            body: {
+                query: {
+                    bool: {
+                        must: [{
+                            term: {
+                                "id.keyword": documentId
+                            }
+                        }]
+                    }
+                }
+            }
+        });
+
+        const hits = searchResponse.hits.hits;
+        if (hits.length === 0) {
+            console.info(`No documents found with source-id: ${documentId}`);
+            return null;
+        }
+
+        const documentToDeleteId = hits[0]._id;
+        console.info(`Document _id to delete: ${documentToDeleteId}`);
+
+        const deleteResp = await client.delete({
+            index: process.env.INDEX,
+            id: documentToDeleteId
+        });
+
+        if (deleteResp.result === 'deleted') {
+            console.info(`Deleted! '_id': '${documentToDeleteId}'`);
+            return documentToDeleteId;
+        } else {
+            console.info("Failed to delete the document.");
+            return null;
+        }
+    } catch (e) {
+        console.error(e);
+    }
+
+}
+
+async function document_view(docId) {
+    try {
+        let cloud_id = process.env.CLOUD_ID;
+        let username = process.env.USERNAME;
+        let api_key = process.env.USER_PASSWORD
+        const client = new Client({
+            cloud: {
+                id: cloud_id
+            },
+            auth: {
+                apiKey: api_key
+            }
+        });
+        try {
+            const response = await client.get({
+                index: process.env.INDEX,
+                id: docId,
+            });
+            return response;
+
+        } catch (e) {
+            if (e.meta && e.meta.statusCode === 404) {
+                return false;
+            } else {
+                console.error(e)
+            }
+
+        }
+    } catch (e) {
+        console.error(e);
+    }
 }
 
 module.exports = {
@@ -177,4 +268,6 @@ module.exports = {
     fetch_with_retry,
     checkDocumentExist,
     create_document,
+    delete_document_if_exist,
+    document_view,
 };
