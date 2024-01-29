@@ -1,4 +1,3 @@
-const BOARD = 'https://bitcointalk.org/index.php?board=6.';
 
 const cheerio = require('cheerio');
 const fs = require('fs');
@@ -6,26 +5,34 @@ const path = require('path');
 const dotenv = require('dotenv');
 dotenv.config();
 
-const { index_documents, fetch_with_retry } = require('../common/util');
+const {index_documents, fetch_with_retry,} = require('../common/util');
+const {
+    checkDocumentExist,
+    create_document,
+    delete_document_if_exist,
+    document_view
+} = require('../common/elasticsearch-scraper/util')
 
-const URL = process.env.URL || BOARD;
+const BOARD_URL = 'https://bitcointalk.org/index.php?board=6.';
+
+authors = ['achow101', 'kanzure', 'Sergio_Demian_Lerner', 'Nicolas Dorier', 'jl2012', 'Peter Todd', 'Gavin Andresen', 'adam3us', 'Pieter Wuille', 'Meni Rosenfeld', 'Mike Hearn', 'wumpus', 'Luke-Jr', 'Matt Corallo', 'jgarzik', 'andytoshi', 'satoshi', 'Cdecker', 'TimRuffing', 'gmaxwell'];
 
 async function fetch_all_topics() {
     if (!fs.existsSync(path.join(process.env.DATA_DIR, 'bitcointalk'))) {
-        fs.mkdirSync(path.join(process.env.DATA_DIR, 'bitcointalk'));
+        fs.mkdirSync(path.join(process.env.DATA_DIR, 'bitcointalk'), {recursive: true});
     }
     let offset = 0;
     const topics = [];
     while (true) {
-        console.log(`Downloading page ${offset/40}...`);
-        const url = URL + offset;
+        console.log(`Downloading page ${offset / 40}...`);
+        const url = BOARD_URL + offset;
         let success = false;
         let tops = [];
-        while(!success) {
+        while (!success) {
             const response = await fetch(url);
             const text = await response.text();
-            if(response.status !== 200) {
-                console.log(`Error ${response.status} downloading page ${offset/20}`);
+            if (response.status !== 200) {
+                console.log(`Error ${response.status} downloading page ${offset / 20}`);
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 continue;
             }
@@ -87,9 +94,15 @@ async function get_documents_from_post(url) {
 
     for (const tr of trList) {
         const author = $(tr).find('.poster_info > b > a').text();
+
+        if (!authors.includes(author)) {
+            continue;
+        }
+        console.log(`post by : ${author}`)
+
         // text without title attribute
         let date = $(tr).find('.td_headerandpost .smalltext > .edited').text();
-        if(date === '') {
+        if (date === '') {
             date = $(tr).find('.td_headerandpost .smalltext').text();
         }
 
@@ -113,6 +126,7 @@ async function get_documents_from_post(url) {
         body = body.text();
 
         const dateJs = new Date(date);
+        const indexed_at = new Date().toISOString();
 
         const id = url.substring(url.indexOf('#msg') + 4);
 
@@ -120,17 +134,18 @@ async function get_documents_from_post(url) {
             authors: [author],
             body,
             body_type: 'raw',
-            domain: 'https://bitcointalk.org',
+            domain: 'https://bitcointalk.org/',
             url,
             title,
             id: 'bitcointalk-' + id,
             created_at: dateJs,
+            indexed_at: indexed_at,
             type: messageNumber === "#1" ? "topic" : "post",
         }
 
         documents.push(document);
     }
-
+    console.log(`Filtered ${documents.length} posts in ${url}`);
     return {documents, urls};
 }
 
@@ -164,16 +179,29 @@ async function main() {
     }
 
     console.log(`Found ${topics.length} topics`);
-
+    let count = 0;
     const start_index = process.env.START_INDEX ? parseInt(process.env.START_INDEX) : 0;
-
     for (let i = start_index; i < topics.length; i++) {
         const topic = topics[i];
-        console.log(`Processing ${i+1}/${topics.length}`);
+        console.log(`Processing ${i + 1}/${topics.length}`);
         const documents = await fetch_posts(topic);
 
-        await index_documents(documents);
+        for (let i = 0; i < documents.length; i++) {
+            const document = documents[i];
+
+//            // delete posts with previous logic where '_id' was set on its own and replace them with our logic
+//            const deleteId = await delete_document_if_exist(document.id)
+
+            const viewResponse = await document_view(document.id);
+            if (!viewResponse) {
+                const createResponse = await create_document(document);
+                count++;
+            }
+
+        }
+
     }
+    console.log(`Inserted ${count} new documents`);
 }
 
 main().catch(console.error);
