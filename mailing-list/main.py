@@ -44,13 +44,10 @@ def download_dumps(path, page_visited_count, max_page_count=2):
             return
 
         next_page_link = f"{URL}{soup.find('a', {'rel': 'next'}).get('href')}"
-
         for tag in pre_tags[1].find_all('a'):
-
             try:
                 date = tag.next_sibling.strip()[:7]
                 date = date.strip().split('-')
-
                 # date = tag.next_sibling.strip()[:8]
                 if len(date) < 2:
                     continue
@@ -138,16 +135,13 @@ def parse_dumps():
                     "[bitcoindev] ", "").replace("\t", "").strip()
 
                 urls_with_date = get_thread_urls_with_date(soup.find_all('pre'))
-
                 for url, date in urls_with_date:
                     try:
                         year, month = get_year_month(date)
-
                         if year < 2024 or (year == 2024 and month == 1):
                             continue
 
                         href = url.get('href')
-
                         content = soup.find(lambda tag: tag.name == "pre" and tag.find('a', href=href))
 
                         # Scrape Body
@@ -166,6 +160,7 @@ def parse_dumps():
                         # for c in content.find_all(lambda tag: tag.name in {'b', 'u'} or any(
                         #         href_contains_text(tag, text) for text in [href.replace("#", "")[1:],u])):
                         #     c.decompose()
+
                         body_text = preprocess_body_text(content.text)
 
                         # Scraping author
@@ -184,8 +179,7 @@ def parse_dumps():
                         }
                         doc.append(document)
                     except Exception as e:
-                        logger.warning(main_url + "/" + href)
-                        logger.error(traceback.format_exc())
+                        logger.warning(f"Error occurred for url: {main_url}/{href}\n{e}\n{traceback.format_exc()}")
                         continue
     return doc
 
