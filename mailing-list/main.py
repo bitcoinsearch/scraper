@@ -135,14 +135,15 @@ def parse_dumps():
                     "[bitcoindev] ", "").replace("\t", "").strip()
 
                 urls_with_date = get_thread_urls_with_date(soup.find_all('pre'))
-                for url, date in urls_with_date:
+                for index, (url, date) in enumerate(urls_with_date):
                     try:
                         year, month = get_year_month(date)
                         if year < 2024 or (year == 2024 and month == 1):
                             continue
 
                         href = url.get('href')
-                        content = soup.find(lambda tag: tag.name == "pre" and tag.find('a', href=href))
+                        tag_id = url.get('id')
+                        content = soup.find(lambda tag: tag.name == "pre" and tag.find('a', href=f"#{tag_id}"))
 
                         # Scrape Body
                         for c in content.find_all('b'):
@@ -160,26 +161,31 @@ def parse_dumps():
                         # for c in content.find_all(lambda tag: tag.name in {'b', 'u'} or any(
                         #         href_contains_text(tag, text) for text in [href.replace("#", "")[1:],u])):
                         #     c.decompose()
-
                         body_text = preprocess_body_text(content.text)
 
                         # Scraping author
                         author = get_author(body_text)
 
-                        doc_id = f"mailing-list-{year}-{month_dict.get(int(month))}-{href.replace('#', '')}"
+                        doc_id = f"mailing-list-{year}-{month:02d}-{href.replace('#', '')}"
                         document = {
                             "id": doc_id,
-                            "author": [author],
+                            "authors": [author],
                             "title": title,
                             "body": body_text,
                             "body_type": "raw",
                             "created_at": date,
                             "domain": URL,
-                            "url": f"{main_url}/{href}"
+                            "url": main_url,
+                            "thread_url": f"{main_url}/{href}"
                         }
+
+                        if index == 0:
+                            document['type'] = "original_post"
+                        else:
+                            document['type'] = "reply"
                         doc.append(document)
                     except Exception as e:
-                        logger.warning(f"Error occurred for url: {main_url}/{href}\n{e}\n{traceback.format_exc()}")
+                        logger.info(f"{e} \nURL: {main_url}/{href} \n{traceback.format_exc()}")
                         continue
     return doc
 
