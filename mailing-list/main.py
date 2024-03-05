@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from dateutil import tz
 from dotenv import load_dotenv
 from loguru import logger
-from elastic_utils import document_view, document_add
+from elastic_utils import document_view, document_add, document_delete
 
 load_dotenv()
 
@@ -189,8 +189,8 @@ def parse_dumps():
                             "body_type": "raw",
                             "created_at": date,
                             "domain": URL,
-                            "url": main_url,
-                            "thread_url": f"{main_url}{href}"
+                            "thread_url": main_url,
+                            "url": f"{main_url}{href}"
                         }
 
                         if index == 0:
