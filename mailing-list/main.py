@@ -26,11 +26,17 @@ month_dict = {
 
 
 def save_web_page(link, file_name):
-    html = requests.get(f"{URL}{link}")
+    main_url = URL + link
+    html_response = requests.get(f"{URL}{link}")
+
+    soup = BeautifulSoup(html_response.content, 'html.parser')
+    main_url_anchor = soup.new_tag("a", href=main_url.replace('#t', ''), id='main_url')
+    soup.body.append(main_url_anchor)
+
     path = os.path.join(DOWNLOAD_PATH, file_name)
     with open(path, 'w', encoding='utf-8') as file:
         logger.info(f'Downloading {file_name}')
-        file.write(html.text)
+        file.write(str(soup))
 
 
 def download_dumps(path, page_visited_count, max_page_count=2):
@@ -72,19 +78,25 @@ def download_dumps(path, page_visited_count, max_page_count=2):
 
 
 def get_thread_urls_with_date(pre_tags):
+    urls_dates = []
+    date_time_pattern = r'\b\d{4}-\d{2}-\d{2} {1,2}(?:[01]?\d|2[0-3]):[0-5]\d\b'
+
     for pre_tag in reversed(pre_tags):
         if "links below jump to the message on this page" in pre_tag.text:
-            date_time_pattern = r'\b\d{4}-\d{2}-\d{2} {1,2}(?:[01]?\d|2[0-3]):[0-5]\d\b'
-
             anchor_tags = pre_tag.find_all('a', href=lambda href: href and '#' in href)
-            urls_date = []
+
             for anchor in anchor_tags:
-                date = re.search(date_time_pattern, anchor.previous_sibling.text).group()
-                original_datetime = datetime.strptime(date, '%Y-%m-%d %H:%M')
-                original_datetime = original_datetime.replace(tzinfo=tz.tzutc())
-                dt = original_datetime.isoformat(timespec='milliseconds').replace('+00:00', 'Z')
-                urls_date.append((anchor, dt))
-            return urls_date
+                date_search = re.search(date_time_pattern, anchor.previous_sibling.text)
+                if date_search:
+                    date = date_search.group()
+                    original_datetime = datetime.strptime(date, '%Y-%m-%d %H:%M')
+                    original_datetime = original_datetime.replace(tzinfo=tz.tzutc())
+                    dt = original_datetime.isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+                    urls_dates.append((anchor, dt))
+
+    # sort the urls_dates list by datetime in ascending order (earliest first)
+    urls_dates.sort(key=lambda x: x[1])
+    return urls_dates
 
 
 def get_year_month(date):
@@ -122,12 +134,14 @@ def parse_dumps():
     for root, dirs, files in os.walk(DOWNLOAD_PATH):
         for file in reversed(files):
             logger.info(f'parsing : {file}')
-            with open(f'{os.path.join(root, file)}', 'r',
-                      encoding='utf-8') as f:
+            with open(f'{os.path.join(root, file)}', 'r', encoding='utf-8') as f:
                 u = file[9:].replace(".html", "")
-                main_url = f"{URL}{u}"
                 html_content = f.read()
                 soup = BeautifulSoup(html_content, 'html.parser')
+
+                # scrape url
+                main_url = soup.find('a', id='main_url')
+                main_url = main_url.get('href')
 
                 # Scrape title
                 title = soup.find_all('b')[1].text
@@ -176,7 +190,7 @@ def parse_dumps():
                             "created_at": date,
                             "domain": URL,
                             "url": main_url,
-                            "thread_url": f"{main_url}/{href}"
+                            "thread_url": f"{main_url}{href}"
                         }
 
                         if index == 0:
@@ -185,7 +199,7 @@ def parse_dumps():
                             document['type'] = "reply"
                         doc.append(document)
                     except Exception as e:
-                        logger.info(f"{e} \nURL: {main_url}/{href} \n{traceback.format_exc()}")
+                        logger.info(f"{e} \nURL: {main_url}\n{traceback.format_exc()}")
                         continue
     return doc
 

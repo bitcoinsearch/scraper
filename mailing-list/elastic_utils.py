@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch, NotFoundError, BadRequestError
-
+from loguru import logger
 load_dotenv()
 
 es = Elasticsearch(
@@ -44,9 +44,11 @@ def document_update(index_name, doc_id, doc=None, new=None):
     return resp
 
 
-def document_delete(index_name, doc_id):
+def document_delete(index_name, doc_id, verbose=False):
     """Function to delete a specific document."""
     resp = es.delete(index=index_name, id=doc_id)
+    if verbose:
+        logger.info(resp)
     return resp
 
 
