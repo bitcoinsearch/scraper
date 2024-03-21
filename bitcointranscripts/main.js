@@ -115,7 +115,7 @@ function parse_post(p_path) {
 
     const pathWithoutExtension = p_path.replace('.md', '');
     const frontMatterObj = yaml.load(frontMatter);
-    const id = pathWithoutExtension.replace(path.join(process.env.DATA_DIR, "bitcointranscripts", folder_name), '').replaceAll("\\", "+");
+    const id = pathWithoutExtension.replace(path.join(process.env.DATA_DIR, "bitcointranscripts", folder_name), '').replaceAll("\\", "+").replaceAll("/", "+");
     const stringParsedBodyRepresentation = parsedBody.map(obj => JSON.stringify(obj)).join(', ');
     const indexed_at = new Date().toISOString();
     const document = {
