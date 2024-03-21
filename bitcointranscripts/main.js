@@ -115,11 +115,11 @@ function parse_post(p_path) {
 
     const pathWithoutExtension = p_path.replace('.md', '');
     const frontMatterObj = yaml.load(frontMatter);
-    const id = md5(pathWithoutExtension.replace(path.join(process.env.DATA_DIR, "bitcointranscripts", folder_name), '').replaceAll("/", "-")).substring(0, 20);
+    const id = pathWithoutExtension.replace(path.join(process.env.DATA_DIR, "bitcointranscripts", folder_name), '').replaceAll("\\", "+");
     const stringParsedBodyRepresentation = parsedBody.map(obj => JSON.stringify(obj)).join(', ');
     const indexed_at = new Date().toISOString();
     const document = {
-        id: "bitcointranscripts-" + id,
+        id: "bitcointranscripts" + id,
         title: frontMatterObj.title,
         body_formatted: stringParsedBodyRepresentation,
         body: body,
@@ -149,8 +149,8 @@ async function main() {
     for (let i = 0; i < documents.length; i++) {
         const document = documents[i];
 
-//        // delete posts with previous logic where '_id' was set on its own and replace them with our logic
-//        const deleteId = await delete_document_if_exist(document.id)
+        // delete posts with previous logic where '_id' was set on its own and replace them with our logic
+        // const deleteId = await delete_document_if_exist(document.id)
 
         const viewResponse = await document_view(document.id);
         if (!viewResponse) {
