@@ -67,6 +67,11 @@ def index_documents(files_path):
                 with open(file_path, 'r', encoding='utf-8') as json_file:
                     document = json.load(json_file)
 
+                body = preprocess_body(document['raw'])
+                if body == "(post deleted by author)":
+                    log.info(f"Probably, post deleted by an author: {body}")
+                    continue
+
                 # Select required fields
                 doc = {
                     'id': f'delving-bitcoin-{document["topic_id"]}-{document["post_number"]}-{document["id"]}',
@@ -74,7 +79,7 @@ def index_documents(files_path):
                     'thread_url': f"https://delvingbitcoin.org/t/{document['topic_slug']}/{document['topic_id']}",
                     'title': document['topic_title'],
                     'body_type': 'html',
-                    'body': preprocess_body(document['raw']),
+                    'body': body,
                     'body_formatted': strip_attributes_but_urls(document['cooked']),
                     'created_at': document['updated_at'],
                     'domain': "https://delvingbitcoin.org/",
