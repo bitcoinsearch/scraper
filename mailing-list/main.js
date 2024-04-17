@@ -51,6 +51,8 @@ const MONTHS = [
 const days = process.env.DAYS_TO_SUBTRACT || 15;
 let startDate = new Date();
 startDate.setDate(startDate.getDate() - days);
+const currentYear = new Date().getUTCFullYear();
+const currentMonth = new Date().getUTCMonth();
 
 let year = startDate.getUTCFullYear(); // Year to start scrapping with
 let month = startDate.getUTCMonth(); // Month to start scrapping with
@@ -77,8 +79,7 @@ async function download_dumps() {
         const uls = $("ul");
         if (uls.length === 0) {
             console.log("No more data");
-            consecutive_errors++;
-            if (consecutive_errors >= 6)
+             if (year === currentYear && month === currentMonth)
                 break;
 
             month++;
