@@ -144,7 +144,7 @@ function parse_dumps() {
 
         console.log(`Parsing ${file}...`);
 
-        let author = $("b").first().text().;
+        let author = $("b").first().text();
         if(author.includes("at")){
             author = author.split("at")[0].trim()
         }else if(author.includes("At")){
