@@ -6,7 +6,8 @@ from bs4 import BeautifulSoup
 from loguru import logger as log
 from datetime import datetime
 
-from elastic import create_index, document_add, document_exist, document_view
+from common.elasticsearch_utils import document_add, document_view, create_index
+
 from achieve import download_dumps
 
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')

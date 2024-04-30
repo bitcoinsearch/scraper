@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from dateutil import tz
 from dotenv import load_dotenv
 from loguru import logger
-from elastic_utils import document_view, document_add, document_delete
+from common.elasticsearch_utils import document_view, document_add, document_delete
 
 load_dotenv()
 
