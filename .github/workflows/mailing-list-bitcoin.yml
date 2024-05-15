@@ -1,7 +1,7 @@
 name: Bitcoin Mailing list
 on:
-  schedule:
-    - cron: '0 0 * * *' # every day at midnight
+#  schedule:
+#    - cron: '0 0 * * *' # every day at midnight
   workflow_dispatch:
 jobs:
   fetch:
