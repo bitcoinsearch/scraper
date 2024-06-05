@@ -1,9 +1,9 @@
 import asyncio
 import os
 import re
+import traceback
 import zipfile
 from datetime import datetime
-import traceback
 
 import requests
 import yaml
@@ -14,35 +14,45 @@ from common.elasticsearch_utils import upsert_document
 
 load_dotenv()
 
-folder_name = "bitcointranscripts-master"
-index_name = os.getenv('INDEX')
+
+FOLDER_NAME = "bitcointranscripts-master"
+REPO_URL = "https://github.com/bitcointranscripts/bitcointranscripts/archive/refs/heads/master.zip"
+
+INDEX_NAME = os.getenv('INDEX')
+DATA_DIR = os.getenv('DATA_DIR')
+
+# Paths
+DIR_PATH = os.path.join(DATA_DIR, "bitcointranscripts")
+GLOBAL_URL_VARIABLE = os.path.join(DIR_PATH, FOLDER_NAME)
 
 
 def download_repo():
-    URL = "https://github.com/bitcointranscripts/bitcointranscripts/archive/refs/heads/master.zip"
-    data_dir = os.getenv('DATA_DIR')
-    dir_path = os.path.join(data_dir, "bitcointranscripts")
-    os.makedirs(dir_path, exist_ok=True)
+    os.makedirs(DIR_PATH, exist_ok=True)
 
-    if os.path.exists(os.path.join(dir_path, folder_name)):
-        logger.info(f"Repo already downloaded at path: {dir_path}")
+    if os.path.exists(GLOBAL_URL_VARIABLE):
+        logger.info(f"Repo already downloaded at path: {DIR_PATH}")
         return
 
-    logger.info(f"Downloading repo at path: {dir_path}")
-    file_path = os.path.join(dir_path, "master.zip")
+    logger.info(f"Downloading repo at path: {DIR_PATH}")
+    file_path = os.path.join(DIR_PATH, "master.zip")
 
-    # Download the file
-    response = requests.get(URL)
-    with open(file_path, 'wb') as file:
-        file.write(response.content)
+    try:
+        response = requests.get(REPO_URL)
+        response.raise_for_status()
 
-    logger.info(f"Downloaded {URL} to {file_path}")
+        with open(file_path, 'wb') as file:
+            file.write(response.content)
+        logger.info(f"Downloaded {REPO_URL} to {file_path}")
 
-    # Unzip
-    with zipfile.ZipFile(file_path, 'r') as zip_ref:
-        zip_ref.extractall(dir_path)
+        with zipfile.ZipFile(file_path, 'r') as zip_ref:
+            zip_ref.extractall(DIR_PATH)
+        logger.info(f"Unzipped {file_path} to {DIR_PATH}")
 
-    logger.info(f"Unzipped {file_path} to {dir_path}")
+    except requests.RequestException as e:
+        logger.error(f"Failed to download the repo: {e}")
+
+    except zipfile.BadZipFile as e:
+        logger.error(f"Failed to unzip the file: {e}")
 
 
 def parse_posts(directory):
@@ -53,11 +63,28 @@ def parse_posts(directory):
         if current_depth <= root_depth:
             continue
         for file in files:
-            if file.endswith('.md') and not file.startswith('_') and not re.search(r'\.([a-z][a-z])\.md$', file):
+            translated_transcript_pattern = r'\.([a-z][a-z])\.md$'
+            transcript = file.endswith('.md')
+            translated_transcript = re.search(translated_transcript_pattern, file)
+            index_file = file.startswith('_')
+            # if file.endswith('.md') and not file.startswith('_') and not re.search(r'\.([a-z][a-z])\.md$', file):
+            if transcript and not index_file and not translated_transcript:
                 file_path = os.path.join(root, file)
                 document = parse_post(file_path)
                 documents.append(document)
     return documents
+
+
+def parse_markdown(text):
+    # Split the text by the delimiter '---'
+    sections = text.split('---')
+    # If the split results in fewer than 3 parts, front matter or body is missing
+    if len(sections) < 3:
+        raise ValueError("Input text does not contain proper front matter delimiters '---'")
+    # Extract the front matter and body
+    front_matter = sections[1].strip()
+    body = sections[2].strip()
+    return front_matter, body
 
 
 def parse_post(file_path):
@@ -67,21 +94,19 @@ def parse_post(file_path):
     # Remove content between {% %}
     content = re.sub(r'{%.*%}', '', content, flags=re.MULTILINE)
     front_matter, body = parse_markdown(content)
-
     # Extract metadata from front matter using yaml
     metadata = yaml.safe_load(front_matter)
-
-    custom_id = file_path.replace('.md', '').replace(os.path.join(os.getenv('DATA_DIR'), "bitcointranscripts", folder_name), '')
+    url_path = file_path.replace('.md', '').replace(GLOBAL_URL_VARIABLE, '')
 
     document = {
-        'id': "bitcointranscripts" + custom_id.replace("\\", "+").replace("/", "+"),
+        'id': "bitcointranscripts" + url_path.replace("\\", "+").replace("/", "+"),
         'title': metadata['title'],
         'body_formatted': body,
         'body': body,
-        'body_type': "text",
-        'created_at': metadata['date'].strftime('%Y-%m-%dT%H:%M:%S.000Z') if metadata.get('date') else None,
+        'body_type': "markdown",
+        'created_at': (datetime.strptime(metadata['date'], '%Y-%m-%d').strftime('%Y-%m-%dT%H:%M:%S.000Z') if isinstance(metadata.get('date'), str) else None),
         'domain': "https://btctranscripts.com/",
-        'url': "https://btctranscripts.com" + custom_id.replace("\\", "/"),
+        'url': "https://btctranscripts.com" + url_path.replace("\\", "/"),
         'categories': metadata.get('categories', []),
         'tags': metadata.get('tags', []),
         'media': metadata.get('media', ""),
@@ -92,36 +117,9 @@ def parse_post(file_path):
     return document
 
 
-def parse_markdown(text):
-    lines = text.split('\n')
-    in_front_matter = False
-    in_body = False
-    front_matter = []
-    body = []
-
-    for line in lines:
-        if line.startswith('---'):
-            if in_front_matter:
-                in_front_matter = False
-                in_body = True
-                continue
-            if in_body:
-                break
-            in_front_matter = True
-            continue
-
-        if in_front_matter:
-            front_matter.append(line)
-        elif in_body:
-            body.append(line)
-
-    return '\n'.join(front_matter), '\n'.join(body)
-
-
 async def main():
     download_repo()
-    dir_path = os.path.join(os.getenv('DATA_DIR'), "bitcointranscripts", folder_name)
-    documents = parse_posts(dir_path)
+    documents = parse_posts(GLOBAL_URL_VARIABLE)
     logger.info(f"Filtering existing {len(documents)} documents... please wait...")
 
     count = 0
@@ -129,7 +127,7 @@ async def main():
         try:
             # Update the provided fields with those in the existing document,
             # ensuring that any fields not specified in 'doc_body' remain unchanged in the ES document
-            response = upsert_document(index_name=index_name, doc_id=document['id'], doc_body=document)
+            response = upsert_document(index_name=INDEX_NAME, doc_id=document['id'], doc_body=document)
             count += 1
             logger.info(f"Version: {response['_version']}, Result: {response['result']}, ID: {response['_id']}, ")
         except Exception as ex:
