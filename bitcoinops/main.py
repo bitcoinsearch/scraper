@@ -80,7 +80,7 @@ def parse_post(post_file: str, typeof: str):
             "body_type": "markdown",
             "created_at": metadata.get('date').strftime('%Y-%m-%dT%H:%M:%S.000Z') if metadata.get('date') else None,
             "domain": "https://bitcoinops.org/en/",
-            "url": f"https://bitcoinops.org/en/topics/{custom_id}" if typeof == "topic" else f"https://bitcoinops.org${metadata['permalink']}",
+            "url": f"https://bitcoinops.org/en/topics/{custom_id}" if typeof == "topic" else f"https://bitcoinops.org{metadata['permalink']}",
             "type": "topic" if typeof == "topic" else metadata['type'],
             "language": metadata.get('lang', 'en'),
             "authors": ["bitcoinops"],
@@ -113,17 +113,22 @@ async def main():
     await download_repo()
     all_posts = dir_walk(os.path.join(DIR_PATH, POST_DIR), "posts")
     all_topics = dir_walk(os.path.join(DIR_PATH, TOPIC_DIR), "topic")
-    cnt = 0
+    count_new = 0
+    count_updated = 0
     all_posts.extend(all_topics)
     for post in all_posts:
         try:
             res = upsert_document(index_name=INDEX_NAME, doc_id=post['id'], doc_body=post)
-            cnt += 1
             logger.info(f"Version-{res['_version']}, Result-{res['result']}, ID-{res['_id']}")
+            if res['result'] == 'created':
+                count_new += 1
+            if res['result'] == 'updated':
+                count_updated += 1
         except Exception as e:
             logger.error(f"Error: {e}")
             logger.warning(post)
-    logger.info(f"Total Post Inserted/Updated-{cnt}")
+    logger.info(f"Inserted {count_new} new documents")
+    logger.info(f"Updated {count_updated} documents")
 
 
 if __name__ == '__main__':
