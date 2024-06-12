@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import traceback
 from datetime import datetime
 
 from bs4 import BeautifulSoup
@@ -162,12 +163,17 @@ def main() -> None:
         logger.info(f"Processing {i + 1}/{len(topics)}")
         documents = fetch_posts(topic)
         for document in documents:
-            res = upsert_document(index_name=os.getenv('INDEX'), doc_id=document['id'], doc_body=document)
-            logger.info("Version-{}, Result-{}, ID-{}".format(res['_version'], res['result'], res['_id']))
-            if res['result'] == 'created':
-                new_ids.add(res['_id'])
-            if res['result'] == 'updated':
-                updated_ids.add(res['_id'])
+            try:
+                res = upsert_document(index_name=os.getenv('INDEX'), doc_id=document['id'], doc_body=document)
+                logger.info(f"Version-{res['_version']}, Result-{res['result']}, ID-{res['_id']}")
+                if res['result'] == 'created':
+                    new_ids.add(res['_id'])
+                if res['result'] == 'updated':
+                    updated_ids.add(res['_id'])
+            except Exception as ex:
+                logger.error(f"{ex} \n{traceback.format_exc()}")
+                logger.warning(document)
+
     logger.info(f"Inserted {len(new_ids)} new documents")
     logger.info(f"Updated {len(updated_ids)} documents")
 

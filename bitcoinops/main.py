@@ -113,22 +113,22 @@ async def main():
     await download_repo()
     all_posts = dir_walk(os.path.join(DIR_PATH, POST_DIR), "posts")
     all_topics = dir_walk(os.path.join(DIR_PATH, TOPIC_DIR), "topic")
-    count_new = 0
-    count_updated = 0
+    new_ids = set()
+    updated_ids = set()
     all_posts.extend(all_topics)
     for post in all_posts:
         try:
             res = upsert_document(index_name=INDEX_NAME, doc_id=post['id'], doc_body=post)
             logger.info(f"Version-{res['_version']}, Result-{res['result']}, ID-{res['_id']}")
             if res['result'] == 'created':
-                count_new += 1
+                new_ids.add(res['_id'])
             if res['result'] == 'updated':
-                count_updated += 1
+                updated_ids.add(res['_id'])
         except Exception as e:
             logger.error(f"Error: {e}")
             logger.warning(post)
-    logger.info(f"Inserted {count_new} new documents")
-    logger.info(f"Updated {count_updated} documents")
+    logger.info(f"Inserted {len(new_ids)} new documents")
+    logger.info(f"Updated {len(updated_ids)} documents")
 
 
 if __name__ == '__main__':

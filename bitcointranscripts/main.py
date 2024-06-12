@@ -67,7 +67,6 @@ def parse_posts(directory):
             transcript = file.endswith('.md')
             translated_transcript = re.search(translated_transcript_pattern, file)
             index_file = file.startswith('_')
-            # if file.endswith('.md') and not file.startswith('_') and not re.search(r'\.([a-z][a-z])\.md$', file):
             if transcript and not index_file and not translated_transcript:
                 file_path = os.path.join(root, file)
                 document = parse_post(file_path)
@@ -122,19 +121,24 @@ async def main():
     documents = parse_posts(GLOBAL_URL_VARIABLE)
     logger.info(f"Filtering existing {len(documents)} documents... please wait...")
 
-    count = 0
+    new_ids = set()
+    updated_ids = set()
     for document in documents:
         try:
             # Update the provided fields with those in the existing document,
             # ensuring that any fields not specified in 'doc_body' remain unchanged in the ES document
-            response = upsert_document(index_name=INDEX_NAME, doc_id=document['id'], doc_body=document)
-            count += 1
-            logger.info(f"Version: {response['_version']}, Result: {response['result']}, ID: {response['_id']}, ")
+            res = upsert_document(index_name=INDEX_NAME, doc_id=document['id'], doc_body=document)
+            logger.info(f"Version: {res['_version']}, Result: {res['result']}, ID: {res['_id']}")
+            if res['result'] == 'created':
+                new_ids.add(res['_id'])
+            if res['result'] == 'updated':
+                updated_ids.add(res['_id'])
         except Exception as ex:
             logger.error(f"{ex} \n{traceback.format_exc()}")
             logger.warning(document)
 
-    logger.info(f"Inserted/Updated {count} documents")
+    logger.info(f"Inserted {len(new_ids)} new documents")
+    logger.info(f"Updated {len(updated_ids)} documents")
 
 
 if __name__ == '__main__':
