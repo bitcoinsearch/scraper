@@ -1,7 +1,9 @@
 import os
+
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch, NotFoundError, BadRequestError
 from loguru import logger
+
 load_dotenv()
 
 es = Elasticsearch(
@@ -20,14 +22,14 @@ def create_index(index_name):
 
 
 def document_add(index_name, doc, doc_id=None):
-    """Funtion to add a document by providing index_name,
+    """Function to add a document by providing index_name,
     document type, document contents as doc and document id."""
     resp = es.index(index=index_name, body=doc, id=doc_id)
     return resp
 
 
 def document_view(index_name, doc_id):
-    """Function to view document."""
+    """Function to view a document."""
     try:
         resp = es.get(index=index_name, id=doc_id)
     except NotFoundError:
@@ -72,7 +74,36 @@ def document_exist(index_name, doc_id):
             }
         }
     }
-
     resp = es.count(index=index_name, body=body)
-
     return resp["count"] > 0
+
+
+def upsert_document(index_name, doc_id, doc_body):
+    """
+    Upserts a document into the specified Elasticsearch index.
+
+    Args:
+        es (Elasticsearch): The Elasticsearch client instance.
+        index_name (str): The name of the Elasticsearch index.
+        doc_id (str): The ID of the document.
+        doc_body (dict): The body of the document containing fields to insert or update.
+
+    Returns:
+        dict: Response from Elasticsearch.
+    """
+    # Script for updating only provided fields
+    script = {
+        "source": "ctx._source.putAll(params)",
+        "params": doc_body
+    }
+
+    # Complete request body including the script and the upsert document
+    request_body = {
+        "scripted_upsert": True,
+        "script": script,
+        "upsert": doc_body
+    }
+
+    # Perform the upsert operation
+    response = es.update(index=index_name, id=doc_id, body=request_body)
+    return response

@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from dateutil import tz
 from dotenv import load_dotenv
 from loguru import logger
-from elastic_utils import document_view, document_add, document_delete
+from common.elasticsearch_utils import document_view, document_add, document_delete
 
 load_dotenv()
 
@@ -17,7 +17,8 @@ INDEX = os.getenv("INDEX")
 BASE_DIR = os.getenv("DATA_DIR", ".")
 DOWNLOAD_PATH = os.path.join(BASE_DIR, "mailing-list/bitcoin-dev")
 
-URL = "https://gnusha.org/pi/bitcoindev/"
+ORIGINAL_URL = "https://gnusha.org/pi/bitcoindev/"
+CUSTOM_URL = "https://mailing-list.bitcoindevs.xyz/bitcoindev/"
 
 month_dict = {
     1: "Jan", 2: "Feb", 3: "March", 4: "April", 5: "May", 6: "June",
@@ -26,8 +27,8 @@ month_dict = {
 
 
 def save_web_page(link, file_name):
-    main_url = URL + link
-    html_response = requests.get(f"{URL}{link}")
+    main_url = ORIGINAL_URL + link
+    html_response = requests.get(f"{ORIGINAL_URL}{link}")
 
     soup = BeautifulSoup(html_response.content, 'html.parser')
     main_url_anchor = soup.new_tag("a", href=main_url.replace('#t', ''), id='main_url')
@@ -49,7 +50,7 @@ def download_dumps(path, page_visited_count, max_page_count=2):
         if len(pre_tags) < 1:
             return
 
-        next_page_link = f"{URL}{soup.find('a', {'rel': 'next'}).get('href')}"
+        next_page_link = f"{ORIGINAL_URL}{soup.find('a', {'rel': 'next'}).get('href')}"
         for tag in pre_tags[1].find_all('a'):
             try:
                 date = tag.next_sibling.strip()[:7]
@@ -188,7 +189,7 @@ def parse_dumps():
                             "body": body_text,
                             "body_type": "raw",
                             "created_at": date,
-                            "domain": URL,
+                            "domain": CUSTOM_URL,
                             "thread_url": main_url,
                             "url": f"{main_url}{href}"
                         }
@@ -199,7 +200,7 @@ def parse_dumps():
                             document['type'] = "reply"
                         doc.append(document)
                     except Exception as e:
-                        logger.info(f"{e} \nURL: {main_url}\n{traceback.format_exc()}")
+                        logger.info(f"{e} \nORIGINAL_URL: {main_url}\n{traceback.format_exc()}")
                         continue
     return doc
 
@@ -219,6 +220,6 @@ if __name__ == "__main__":
     if not os.path.exists(DOWNLOAD_PATH):
         os.makedirs(DOWNLOAD_PATH)
 
-    download_dumps(URL, page_visited_count=0)
+    download_dumps(ORIGINAL_URL, page_visited_count=0)
     documents = parse_dumps()
     index_documents(documents)
