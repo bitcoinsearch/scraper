@@ -99,6 +99,7 @@ def parse_post(file_path):
     # Extract metadata from front matter using yaml
     metadata = yaml.safe_load(front_matter)
     url_path = file_path.replace('.md', '').replace(GLOBAL_URL_VARIABLE, '')
+    transcript_by = metadata.get('transcript_by', "")
 
     document = {
         'id': "bitcointranscripts" + url_path.replace("\\", "+").replace("/", "+"),
@@ -114,7 +115,8 @@ def parse_post(file_path):
         'media': metadata.get('media', ""),
         'authors': metadata.get('speakers', []),
         'indexed_at': datetime.now().isoformat(),
-        'transcript_by': metadata.get('transcript_by', "")
+        'transcript_by': transcript_by,
+        'needs_review': "Yes" if "--needs-review" in transcript_by else "No"
     }
     return document
 
