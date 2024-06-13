@@ -1,6 +1,7 @@
 import asyncio
 import os
 import re
+import sys
 import traceback
 import zipfile
 from datetime import datetime
@@ -9,6 +10,8 @@ import requests
 import yaml
 from dotenv import load_dotenv
 from loguru import logger
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.elasticsearch_utils import upsert_document
 

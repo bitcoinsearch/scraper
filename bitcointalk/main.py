@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import time
 import traceback
 from datetime import datetime
@@ -8,6 +9,8 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from loguru import logger
 from requests import request
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.elasticsearch_utils import upsert_document
 

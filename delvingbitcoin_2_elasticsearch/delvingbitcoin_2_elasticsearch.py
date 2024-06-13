@@ -1,10 +1,14 @@
-import os
-import json
-from dotenv import load_dotenv
 import html
-from bs4 import BeautifulSoup
-from loguru import logger as log
+import json
+import os
+import sys
 from datetime import datetime
+
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from loguru import logger as log
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.elasticsearch_utils import document_add, document_view, create_index
 

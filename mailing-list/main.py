@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import traceback
 import urllib.request
 from datetime import datetime
@@ -9,7 +10,10 @@ from bs4 import BeautifulSoup
 from dateutil import tz
 from dotenv import load_dotenv
 from loguru import logger
-from common.elasticsearch_utils import document_view, document_add, document_delete
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from common.elasticsearch_utils import document_view, document_add
 
 load_dotenv()
 
@@ -110,7 +114,8 @@ def get_year_month(date):
 def get_author(text):
     from_user = re.search(r'From:\s*(.+?)\s+\@', text).group()
     # to_user = re.search(r'To:\s*(.+)', text).group()
-    author = from_user.replace("From: ", "").replace("@", "").replace("'", "").replace("via Bitcoin Development Mailing List", '').strip()
+    author = from_user.replace("From: ", "").replace("@", "").replace("'", "").replace(
+        "via Bitcoin Development Mailing List", '').strip()
     return author
 
 
