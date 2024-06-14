@@ -98,25 +98,26 @@ def parse_post(file_path):
     front_matter, body = parse_markdown(content)
     # Extract metadata from front matter using yaml
     metadata = yaml.safe_load(front_matter)
-    url_path = file_path.replace('.md', '').replace(GLOBAL_URL_VARIABLE, '')
+    url_path = os.path.normpath(file_path.replace('.md', '').replace(GLOBAL_URL_VARIABLE, ''))
     transcript_by = metadata.get('transcript_by', "")
 
     document = {
-        'id': "bitcointranscripts" + url_path.replace("\\", "+").replace("/", "+"),
+        'id': "bitcointranscripts" + url_path.replace(os.sep, "+"),
         'title': metadata['title'],
         'body_formatted': body,
         'body': body,
         'body_type': "markdown",
         'created_at': (datetime.strptime(metadata['date'], '%Y-%m-%d').strftime('%Y-%m-%dT%H:%M:%S.000Z') if isinstance(metadata.get('date'), str) else None),
         'domain': "https://btctranscripts.com/",
-        'url': "https://btctranscripts.com" + url_path.replace("\\", "/"),
+        'url': "https://btctranscripts.com" + url_path.replace(os.sep, "/"),
         'categories': metadata.get('categories', []),
         'tags': metadata.get('tags', []),
         'media': metadata.get('media', ""),
         'authors': metadata.get('speakers', []),
         'indexed_at': datetime.now().isoformat(),
         'transcript_by': transcript_by,
-        'needs_review': "Yes" if "--needs-review" in transcript_by else "No"
+        'needs_review': "Yes" if "--needs-review" in transcript_by else "No",
+        'transcript_source': url_path.split(os.sep)[1]
     }
     return document
 
@@ -133,11 +134,12 @@ async def main():
             # Update the provided fields with those in the existing document,
             # ensuring that any fields not specified in 'doc_body' remain unchanged in the ES document
             res = upsert_document(index_name=INDEX_NAME, doc_id=document['id'], doc_body=document)
-            logger.info(f"Version: {res['_version']}, Result: {res['result']}, ID: {res['_id']}")
             if res['result'] == 'created':
+                logger.success(f"Version: {res['_version']}, Result: {res['result']}, ID: {res['_id']}")
                 new_ids.add(res['_id'])
             if res['result'] == 'updated':
                 updated_ids.add(res['_id'])
+                logger.info(f"Version: {res['_version']}, Result: {res['result']}, ID: {res['_id']}")
         except Exception as ex:
             logger.error(f"{ex} \n{traceback.format_exc()}")
             logger.warning(document)
