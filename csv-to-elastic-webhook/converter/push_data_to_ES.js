@@ -16,7 +16,7 @@ function postSheetDataToElasticsearch() {
     const postData = {};
     headers.forEach((header, index) => {
       const value = row[index];
-      if (header === 'created_at') {
+      if (header === 'created_at' || header === 'indexed_at') {
         if (value instanceof Date && !isNaN(value)) {
           postData[header] = value.toISOString();
         } else if (typeof value === 'string' && value.trim() !== '') {
