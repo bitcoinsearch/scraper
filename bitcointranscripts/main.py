@@ -116,7 +116,7 @@ def parse_post(file_path):
         'authors': metadata.get('speakers', []),
         'indexed_at': datetime.now().isoformat(),
         'transcript_by': transcript_by,
-        'needs_review': "Yes" if "--needs-review" in transcript_by else "No",
+        'needs_review': "--needs-review" in transcript_by,
         'transcript_source': url_path.split(os.sep)[1]
     }
     return document
