@@ -163,13 +163,19 @@ async function create_document(document) {
         }
     });
 
-    const response = await client.index({
-        index: process.env.INDEX,
-        body: document,
-        id: document.id
-    });
+    try {
+        const response = await client.index({
+            index: process.env.INDEX,
+            body: document,
+            id: document.id,
+            refresh: true // Ensure the document is immediately searchable
+        });
 
-    console.log(`Document inserted :: id: ${document.id}, title: ${document.title}`)
+        console.log(`Document processed :: result: ${response.result}, version: ${response._version}, id: ${response._id}`);
+    } catch (error) {
+        console.error(`Failed to process document :: id: ${document.id}, title: ${document.title}`);
+        console.error(error);
+    }
 }
 
 
@@ -262,12 +268,63 @@ async function document_view(docId) {
     }
 }
 
+
+async function update_document(document) {
+    let cloud_id = process.env.CLOUD_ID;
+    let api_key = process.env.USER_PASSWORD;
+    const client = new Client({
+        cloud: {
+            id: cloud_id
+        },
+        auth: {
+            apiKey: api_key
+        }
+    });
+
+    try {
+        // Check if the document exists
+        const existsResponse = await client.exists({
+            index: process.env.INDEX,
+            id: document.id
+        });
+
+        if (existsResponse) {
+            // If the document exists, update it with the new values
+            const response = await client.update({
+                index: process.env.INDEX,
+                id: document.id,
+                body: {
+                    doc: document,
+                    doc_as_upsert: true // If the document does not exist, create it
+                },
+                refresh: true // Ensure the document is immediately searchable
+            });
+
+            console.log(`Document updated :: result: ${response.result}, version: ${response._version}, id: ${response._id}`);
+        } else {
+            // If the document does not exist, create a new one
+            const response = await client.index({
+                index: process.env.INDEX,
+                body: document,
+                id: document.id,
+                refresh: true // Ensure the document is immediately searchable
+            });
+
+            console.log(`Document created :: result: ${response.result}, version: ${response._version}, id: ${response._id}`);
+        }
+    } catch (error) {
+        console.error(`Failed to process document :: id: ${document.id}, title: ${document.title}`);
+        console.error(error);
+    }
+}
+
 module.exports = {
     create_batches,
     index_documents,
     fetch_with_retry,
     checkDocumentExist,
     create_document,
+    update_document,
     delete_document_if_exist,
     document_view,
 };

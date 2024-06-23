@@ -9,6 +9,7 @@ dotenv.config();
 
 const {
     create_batches,
+    update_document,
     document_view,
     create_document,
     delete_document_if_exist,
@@ -29,7 +30,7 @@ if (URL === "https://lists.linuxfoundation.org/pipermail/bitcoin-dev/") {
 }
 
 console.log(
-    `NAME: ${NAME}\nURL: ${URL}`
+    `NAME: ${NAME} || URL: ${URL}`
 );
 
 
@@ -174,13 +175,13 @@ function parse_dumps() {
             body_type: "raw",
             created_at: date,
             domain: URL,
-            url: `${URL}${fileDate}/${fileName}`,
+            thread_url: `${URL}${fileDate}/${fileName}`,
         };
 
         if (!threads[document.title]) {
             threads[document.title] = {
                 id: document.id,
-                url: document.url,
+                thread_url: document.thread_url,
             };
         }
 
@@ -188,7 +189,7 @@ function parse_dumps() {
             document.type = "original_post";
         } else {
             document.type = "reply";
-            document.thread_url = threads[document.title].url;
+            document.url = threads[document.title].thread_url;
         }
 
         documents.push(document);
@@ -242,11 +243,8 @@ async function main() {
 //        // delete posts with previous logic where '_id' was set on its own and replace them with our logic
 //        const deleteId = await delete_document_if_exist(document.id)
 
-        const viewResponse = await document_view(document.id);
-        if (!viewResponse) {
-            const createResponse = await create_document(document);
-            count++;
-        }
+        const response = await update_document(document);
+        count++;
     }
     console.log(`Inserted ${count} new documents`);
 }
