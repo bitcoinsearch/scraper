@@ -187,6 +187,7 @@ function parse_dumps() {
 
         if (threads[document.title].id === document.id) {
             document.type = "original_post";
+            document.url = threads[document.title].thread_url;
         } else {
             document.type = "reply";
             document.url = threads[document.title].thread_url;
