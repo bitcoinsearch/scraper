@@ -175,22 +175,23 @@ function parse_dumps() {
             body_type: "raw",
             created_at: date,
             domain: URL,
-            thread_url: `${URL}${fileDate}/${fileName}`,
+            url: `${URL}${fileDate}/${fileName}`,
         };
 
         if (!threads[document.title]) {
             threads[document.title] = {
                 id: document.id,
-                thread_url: document.thread_url,
+                thread_url: document.url,
             };
         }
 
         if (threads[document.title].id === document.id) {
             document.type = "original_post";
             document.url = threads[document.title].thread_url;
+            document.thread_url = threads[document.title].thread_url;
         } else {
             document.type = "reply";
-            document.url = threads[document.title].thread_url;
+            document.thread_url = threads[document.title].thread_url;
         }
 
         documents.push(document);
