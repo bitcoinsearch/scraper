@@ -2,7 +2,6 @@ import json
 import os
 import sys
 import time
-import traceback
 from datetime import datetime
 
 from bs4 import BeautifulSoup
@@ -13,6 +12,7 @@ from requests import request
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.elasticsearch_utils import upsert_document
+from common.scraper_log_utils import log_csv
 
 load_dotenv()
 
@@ -146,39 +146,66 @@ def fetch_posts(url: str):
 
 
 def main() -> None:
-    filename = os.path.join(os.getenv('DATA_DIR'), 'bitcointalk', 'topics.json')
-    topics = []
-
-    if not os.path.exists(filename):
-        topics = fetch_all_topics()
-        with open(filename, 'w') as f:
-            json.dump(topics, f)
-    else:
-        with open(filename, 'r') as f:
-            topics = json.load(f)
-
-    logger.info(f"Found {len(topics)} topics")
-    new_ids = set()
+    inserted_ids = set()
     updated_ids = set()
-    start_index = int(os.getenv('START_INDEX', 0))
-    for i in range(start_index, len(topics)):
-        topic = topics[i]
-        logger.info(f"Processing {i + 1}/{len(topics)}")
-        documents = fetch_posts(topic)
-        for document in documents:
-            try:
-                res = upsert_document(index_name=os.getenv('INDEX'), doc_id=document['id'], doc_body=document)
-                logger.info(f"Version-{res['_version']}, Result-{res['result']}, ID-{res['_id']}")
-                if res['result'] == 'created':
-                    new_ids.add(res['_id'])
-                if res['result'] == 'updated':
-                    updated_ids.add(res['_id'])
-            except Exception as ex:
-                logger.error(f"{ex} \n{traceback.format_exc()}")
-                logger.warning(document)
+    no_changes_ids = set()
+    error_occurred = False
+    error_message = "---"
 
-    logger.info(f"Inserted {len(new_ids)} new documents")
-    logger.info(f"Updated {len(updated_ids)} documents")
+    try:
+        filename = os.path.join(os.getenv('DATA_DIR'), 'bitcointalk', 'topics.json')
+        topics = []
+
+        if not os.path.exists(filename):
+            topics = fetch_all_topics()
+            with open(filename, 'w') as f:
+                json.dump(topics, f)
+        else:
+            with open(filename, 'r') as f:
+                topics = json.load(f)
+
+        logger.info(f"Found {len(topics)} topics")
+
+        start_index = int(os.getenv('START_INDEX', 0))
+        for i in range(start_index, len(topics)):
+            topic = topics[i]
+            try:
+                logger.info(f"Processing {i + 1}/{len(topics)}")
+                documents = fetch_posts(topic)
+                for document in documents:
+                    try:
+                        res = upsert_document(index_name=os.getenv('INDEX'), doc_id=document['id'], doc_body=document)
+                        if res['result'] == 'created':
+                            inserted_ids.add(res['_id'])
+                        elif res['result'] == 'updated':
+                            updated_ids.add(res['_id'])
+                        elif res['result'] == 'noop':
+                            no_changes_ids.add(res['_id'])
+
+                    except Exception as e:
+                        logger.error(f"Error upserting document ID-{document['id']}: {e}")
+                        logger.warning(document)
+            except Exception as e:
+                logger.error(f"Error processing topic {i + 1}/{len(topics)}: {e}")
+    except Exception as main_e:
+        logger.error(f"Main Error: {main_e}")
+        error_occurred = True
+        error_message = str(main_e)
+    finally:
+        log_csv(
+                scraper_name="BitcoinTalk",
+                inserted=inserted_count,
+                updated=updated_count,
+                no_changes=no_change_count,
+                error=str(error_occurred),
+                error_log=error_message
+            )
+
+    logger.info(f"Inserted: {inserted_count}")
+    logger.info(f"Updated: {updated_count}")
+    logger.info(f"No changed: {no_change_count}")
+    logger.info(f"Error Occurred: {error_occurred}")
+    logger.info(f"Error Message: {error_message}")
 
 
 if __name__ == "__main__":

@@ -107,3 +107,21 @@ def upsert_document(index_name, doc_id, doc_body):
     # Perform the upsert operation
     response = es.update(index=index_name, id=doc_id, body=request_body)
     return response
+
+
+def get_domain_counts(index_name, domain):
+    """Function to get the total counts for the given 'domain' field from Elasticsearch index."""
+    body = {
+        "query": {
+            "term": {
+                "domain.keyword": domain
+            }
+        }
+    }
+
+    try:
+        resp = es.count(index=index_name, body=body)
+        return resp['count']
+    except Exception as e:
+        logger.error(f"Error fetching domain counts: {e}")
+        return None

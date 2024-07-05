@@ -4,6 +4,7 @@ import sys
 import traceback
 import urllib.request
 from datetime import datetime
+from tqdm import tqdm
 
 import requests
 from bs4 import BeautifulSoup
@@ -13,7 +14,8 @@ from loguru import logger
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from common.elasticsearch_utils import document_view, document_add
+from common.elasticsearch_utils import upsert_document
+from common.scraper_log_utils import log_csv
 
 load_dotenv()
 
@@ -40,14 +42,14 @@ def save_web_page(link, file_name):
 
     path = os.path.join(DOWNLOAD_PATH, file_name)
     with open(path, 'w', encoding='utf-8') as file:
-        logger.info(f'Downloading {file_name}')
+        # logger.info(f'Downloading {file_name}')
         file.write(str(soup))
 
 
 def download_dumps(path, page_visited_count, max_page_count=2):
     if page_visited_count > max_page_count: return
     page_visited_count += 1
-    logger.info(f"Page {page_visited_count}: {path}")
+    logger.info(f"Downloading data... | Page {page_visited_count}: {path}")
     with urllib.request.urlopen(f"{path}") as f:
         soup = BeautifulSoup(f, "html.parser")
         pre_tags = soup.find_all('pre')
@@ -55,7 +57,7 @@ def download_dumps(path, page_visited_count, max_page_count=2):
             return
 
         next_page_link = f"{ORIGINAL_URL}{soup.find('a', {'rel': 'next'}).get('href')}"
-        for tag in pre_tags[1].find_all('a'):
+        for tag in tqdm(pre_tags[1].find_all('a')):
             try:
                 date = tag.next_sibling.strip()[:7]
                 date = date.strip().split('-')
@@ -77,7 +79,6 @@ def download_dumps(path, page_visited_count, max_page_count=2):
                 logger.error(e)
                 logger.error(tag)
                 continue
-        logger.info('----------------------------------------------------------\n')
         if next_page_link:
             download_dumps(next_page_link, page_visited_count)
 
@@ -137,9 +138,10 @@ def preprocess_body_text(text):
 
 def parse_dumps():
     doc = []
+    logger.info("Parsing files...")
     for root, dirs, files in os.walk(DOWNLOAD_PATH):
-        for file in reversed(files):
-            logger.info(f'parsing : {file}')
+        for file in tqdm(reversed(files)):
+            # logger.info(f'parsing : {file}')
             with open(f'{os.path.join(root, file)}', 'r', encoding='utf-8') as f:
                 u = file[9:].replace(".html", "")
                 html_content = f.read()
@@ -196,7 +198,8 @@ def parse_dumps():
                             "created_at": date,
                             "domain": CUSTOM_URL,
                             "thread_url": main_url,
-                            "url": f"{main_url}{href}"
+                            "url": f"{main_url}{href}",
+                            'indexed_at': datetime.now().isoformat()
                         }
 
                         if index == 0:
@@ -211,14 +214,45 @@ def parse_dumps():
 
 
 def index_documents(docs):
-    for doc in docs:
+    inserted_ids = set()
+    updated_ids = set()
+    no_changes_ids = set()
+    error_occurred = False
+    error_message = "---"
+    try:
+        for doc in tqdm(docs):
+            try:
+                res = upsert_document(index_name=os.getenv('INDEX'), doc_id=doc['id'], doc_body=doc)
+                if res['result'] == 'created':
+                    inserted_ids.add(res['_id'])
+                elif res['result'] == 'updated':
+                    updated_ids.add(res['_id'])
+                elif res['result'] == 'noop':
+                    no_changes_ids.add(res['_id'])
 
-        resp = document_view(index_name=INDEX, doc_id=doc['id'])
-        if not resp:
-            _ = document_add(index_name=INDEX, doc=doc, doc_id=doc['id'])
-            logger.success(f'Successfully added! ID: {doc["id"]}')
-        else:
-            logger.info(f"Document already exist! ID: {doc['id']}")
+            except Exception as e:
+                logger.error(f"Error upserting document ID-{doc['id']}: {e}")
+                logger.warning(doc)
+
+    except Exception as main_e:
+        logger.error(f"Main Error: {main_e}")
+        error_occurred = True
+        error_message = str(main_e)
+    finally:
+        log_csv(
+            scraper_domain=CUSTOM_URL,
+            inserted=len(inserted_ids),
+            updated=len(updated_ids),
+            no_changes=len(no_changes_ids),
+            error=str(error_occurred),
+            error_log=error_message
+        )
+
+    logger.info(f"Inserted: {len(inserted_ids)}")
+    logger.info(f"Updated: {len(updated_ids)}")
+    logger.info(f"No changed: {len(no_changes_ids)}")
+    logger.info(f"Error Occurred: {error_occurred}")
+    logger.info(f"Error Message: {error_message}")
 
 
 if __name__ == "__main__":

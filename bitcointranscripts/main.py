@@ -5,6 +5,7 @@ import sys
 import traceback
 import zipfile
 from datetime import datetime
+from tqdm import tqdm
 
 import requests
 import yaml
@@ -12,11 +13,10 @@ from dotenv import load_dotenv
 from loguru import logger
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+from common.scraper_log_utils import log_csv
 from common.elasticsearch_utils import upsert_document
 
 load_dotenv()
-
 
 FOLDER_NAME = "bitcointranscripts-master"
 REPO_URL = "https://github.com/bitcointranscripts/bitcointranscripts/archive/refs/heads/master.zip"
@@ -59,13 +59,14 @@ def download_repo():
 
 
 def parse_posts(directory):
+    logger.info(f"parsing posts from: {directory}")
     documents = []
     root_depth = directory.rstrip(os.sep).count(os.sep)
     for root, dirs, files in os.walk(directory):
         current_depth = root.rstrip(os.sep).count(os.sep)
         if current_depth <= root_depth:
             continue
-        for file in files:
+        for file in tqdm(files):
             translated_transcript_pattern = r'\.([a-z][a-z])\.md$'
             transcript = file.endswith('.md')
             translated_transcript = re.search(translated_transcript_pattern, file)
@@ -107,7 +108,8 @@ def parse_post(file_path):
         'body_formatted': body,
         'body': body,
         'body_type': "markdown",
-        'created_at': (datetime.strptime(metadata['date'], '%Y-%m-%d').strftime('%Y-%m-%dT%H:%M:%S.000Z') if isinstance(metadata.get('date'), str) else None),
+        'created_at': (datetime.strptime(metadata['date'], '%Y-%m-%d').strftime('%Y-%m-%dT%H:%M:%S.000Z') if isinstance(
+            metadata.get('date'), str) else None),
         'domain': "https://btctranscripts.com/",
         'url': "https://btctranscripts.com" + url_path.replace(os.sep, "/"),
         'categories': metadata.get('categories', []),
@@ -123,29 +125,48 @@ def parse_post(file_path):
 
 
 async def main():
-    download_repo()
-    documents = parse_posts(GLOBAL_URL_VARIABLE)
-    logger.info(f"Filtering existing {len(documents)} documents... please wait...")
-
-    new_ids = set()
+    inserted_ids = set()
     updated_ids = set()
-    for document in documents:
-        try:
-            # Update the provided fields with those in the existing document,
-            # ensuring that any fields not specified in 'doc_body' remain unchanged in the ES document
-            res = upsert_document(index_name=INDEX_NAME, doc_id=document['id'], doc_body=document)
-            if res['result'] == 'created':
-                logger.success(f"Version: {res['_version']}, Result: {res['result']}, ID: {res['_id']}")
-                new_ids.add(res['_id'])
-            if res['result'] == 'updated':
-                updated_ids.add(res['_id'])
-                logger.info(f"Version: {res['_version']}, Result: {res['result']}, ID: {res['_id']}")
-        except Exception as ex:
-            logger.error(f"{ex} \n{traceback.format_exc()}")
-            logger.warning(document)
+    no_changes_ids = set()
+    error_occurred = False
+    error_message = "---"
 
-    logger.info(f"Inserted {len(new_ids)} new documents")
-    logger.info(f"Updated {len(updated_ids)} documents")
+    try:
+        download_repo()
+        documents = parse_posts(GLOBAL_URL_VARIABLE)
+        logger.info(f"Filtering existing {len(documents)} documents... please wait...")
+
+        for document in tqdm(documents):
+            try:
+                res = upsert_document(index_name=INDEX_NAME, doc_id=document['id'], doc_body=document)
+                if res['result'] == 'created':
+                    inserted_ids.add(res['_id'])
+                elif res['result'] == 'updated':
+                    updated_ids.add(res['_id'])
+                elif res['result'] == 'noop':
+                    no_changes_ids.add(res['_id'])
+            except Exception as ex:
+                logger.error(f"{ex} \n{traceback.format_exc()}")
+                logger.warning(document)
+    except Exception as main_e:
+        logger.error(f"Main Error: {main_e}")
+        error_occurred = True
+        error_message = str(main_e)
+    finally:
+        log_csv(
+            scraper_domain="https://btctranscripts.com/",
+            inserted=len(inserted_ids),
+            updated=len(updated_ids),
+            no_changes=len(no_changes_ids),
+            error=str(error_occurred),
+            error_log=error_message
+        )
+
+    logger.info(f"Inserted: {len(inserted_ids)}")
+    logger.info(f"Updated: {len(updated_ids)}")
+    logger.info(f"No changed: {len(no_changes_ids)}")
+    logger.info(f"Error Occurred: {error_occurred}")
+    logger.info(f"Error Message: {error_message}")
 
 
 if __name__ == '__main__':
