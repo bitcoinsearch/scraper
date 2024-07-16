@@ -1,7 +1,8 @@
 import os
 
 from dotenv import load_dotenv
-from elasticsearch import Elasticsearch, NotFoundError, BadRequestError
+from elasticsearch import BadRequestError
+from elasticsearch import Elasticsearch, NotFoundError
 from loguru import logger
 
 load_dotenv()
@@ -107,3 +108,42 @@ def upsert_document(index_name, doc_id, doc_body):
     # Perform the upsert operation
     response = es.update(index=index_name, id=doc_id, body=request_body)
     return response
+
+
+def fetch_data_based_on_domain(index, domain):
+    logger.info(f"looking for URL: {domain}")
+    output_list = []
+
+    if es.ping():
+        query = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "term":
+                                {
+                                    "domain.keyword": str(domain)
+                                }
+                        }
+                    ]
+                }
+            }
+        }
+
+        # Initialize the scroll
+        scroll_response = es.search(index=index, body=query, size=10000, scroll='5m')
+        scroll_id = scroll_response['_scroll_id']
+        results = scroll_response['hits']['hits']
+
+        while len(results) > 0:
+            for result in results:
+                output_list.append(result)
+
+            # Fetch the next batch of results
+            scroll_response = es.scroll(scroll_id=scroll_id, scroll='5m')
+            scroll_id = scroll_response['_scroll_id']
+            results = scroll_response['hits']['hits']
+        return output_list
+    else:
+        logger.warning('Could not connect to Elasticsearch')
+        return None
