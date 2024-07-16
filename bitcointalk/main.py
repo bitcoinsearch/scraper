@@ -22,6 +22,29 @@ authors = ['achow101', 'kanzure', 'Sergio_Demian_Lerner', 'Nicolas Dorier', 'jl2
            'adam3us', 'Pieter Wuille', 'Meni Rosenfeld', 'Mike Hearn', 'wumpus', 'Luke-Jr', 'Matt Corallo', 'jgarzik',
            'andytoshi', 'satoshi', 'Cdecker', 'TimRuffing', 'gmaxwell']
 
+AUTHOR_SYNONYMS_JSON_FILE_PATH = "authors_synonyms.json"
+
+
+def get_author_synonyms(json_file_path):
+    with open(json_file_path, 'r') as f:
+        try:
+            synonym_mapping = json.load(f)
+            logger.info(f"JSON file loaded successfully with # of authors: {len(synonym_mapping)}")
+        except Exception as ex:
+            synonym_mapping = {}
+            logger.info(f"Error loading JSON file: {json_file_path}\n{str(ex)}")
+
+    # invert the mapping so each alias points to the primary name
+    inverted_mapping = {}
+    for primary_name, aliases in synonym_mapping.items():
+        for alias in aliases:
+            inverted_mapping[alias] = primary_name
+
+    return inverted_mapping
+
+
+AUTHOR_SYNONYMS_MAPPING = get_author_synonyms(AUTHOR_SYNONYMS_JSON_FILE_PATH)
+
 
 def fetch_all_topics() -> list:
     data_dir = os.getenv('DATA_DIR')
@@ -87,6 +110,9 @@ def get_documents_from_post(url: str) -> dict:
 
         if author not in authors:
             continue
+
+        # update the author's name as per on authors_synonyms.json
+        author = AUTHOR_SYNONYMS_MAPPING.get(author, author)
 
         logger.info(f"Post by: {author}")
         date_text = tr.select_one('.td_headerandpost .smalltext').text.strip()
