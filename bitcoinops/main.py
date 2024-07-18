@@ -1,6 +1,5 @@
 import asyncio
 import os
-import re
 import sys
 import zipfile
 from datetime import datetime
@@ -13,6 +12,7 @@ from loguru import logger
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.elasticsearch_utils import upsert_document
+from common.utils import parse_markdown
 
 load_dotenv()
 
@@ -58,21 +58,11 @@ async def download_repo():
         logger.error(f"Failed to unzip the file: {e}")
 
 
-def parse_markdowns(content: str):
-    sections = re.split(r'---\n', content)
-    if len(sections) < 3:
-        raise ValueError("Input text does not contain proper front matter delimiters '---'")
-    front_matter = sections[1].strip()
-    body = sections[2].strip()
-    return front_matter, body
-
-
 def parse_post(post_file: str, typeof: str):
     try:
         with open(post_file, 'r', encoding='utf-8') as file:
             content = file.read()
-        content = re.sub(r'{%.*%}', '', content, flags=re.MULTILINE)
-        front_matter, body = parse_markdowns(content)
+        front_matter, body = parse_markdown(content)
         metadata = yaml.safe_load(front_matter)
         custom_id = os.path.basename(post_file).replace('.md', '') if typeof == 'topic' else metadata['slug']
         document = {
