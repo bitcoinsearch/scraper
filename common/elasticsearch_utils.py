@@ -1,7 +1,9 @@
 import os
+import time
 
 from dotenv import load_dotenv
-from elasticsearch import Elasticsearch, NotFoundError, BadRequestError
+from elasticsearch import BadRequestError
+from elasticsearch import Elasticsearch, NotFoundError
 from loguru import logger
 
 load_dotenv()
@@ -107,3 +109,55 @@ def upsert_document(index_name, doc_id, doc_body):
     # Perform the upsert operation
     response = es.update(index=index_name, id=doc_id, body=request_body)
     return response
+
+
+def get_domain_query(url):
+    if isinstance(url, list):
+        domain_query = {"terms": {"domain.keyword": url}}
+    else:
+        domain_query = {"term": {"domain.keyword": url}}
+    return domain_query
+
+
+def extract_data_from_es(index, domain):
+    logger.info(f"looking for URL(s): {domain}")
+    output_list = []
+    start_time = time.time()
+
+    if es.ping():
+        logger.success("connected to the ElasticSearch")
+
+        domain_query = get_domain_query(domain)
+
+        query = {
+            "query": {
+                "bool": {
+                    "must": [
+                        domain_query
+                    ]
+                }
+            }
+        }
+
+        # Initialize the scroll
+        scroll_response = es.search(index=index, body=query, size=10000, scroll='5m')
+        scroll_id = scroll_response['_scroll_id']
+        results = scroll_response['hits']['hits']
+
+        # Dump the documents into the json file
+        while len(results) > 0:
+            for result in results:
+                output_list.append(result)
+
+            # Fetch the next batch of results
+            scroll_response = es.scroll(scroll_id=scroll_id, scroll='5m')
+            scroll_id = scroll_response['_scroll_id']
+            results = scroll_response['hits']['hits']
+
+        logger.info(
+            f"dumping of '{index}' data completed in {time.time() - start_time:.2f} seconds.")
+
+        return output_list
+    else:
+        logger.warning('could not connect to Elasticsearch')
+        return None
