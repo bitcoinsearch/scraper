@@ -161,3 +161,42 @@ def extract_data_from_es(index, domain):
     else:
         logger.warning('could not connect to Elasticsearch')
         return None
+
+
+def update_authors_names_from_es(index, old_author, new_author):
+    if es.ping():
+        script = {
+            "source": f"""
+                for (int i = 0; i < ctx._source.authors.size(); i++) {{
+                    if (ctx._source.authors[i] == '{old_author}') {{
+                        ctx._source.authors[i] = '{new_author}';
+                    }}
+                }}
+            """
+        }
+
+        query = {
+            "bool": {
+                "must": [
+                    {
+                        "term": {
+                            "authors.keyword": old_author
+                        }
+                    }
+                ]
+            }
+        }
+
+        response = es.update_by_query(
+            index=index,
+            body={
+                "script": script,
+                "query": query
+            }
+        )
+        logger.success(f"Updated {response['total']} documents: '{old_author}' --> '{new_author}'")
+        return response
+    else:
+        logger.warning('could not connect to Elasticsearch')
+        return None
+
