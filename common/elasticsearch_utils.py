@@ -1,8 +1,10 @@
 import os
+import time
 
 from dotenv import load_dotenv
 from elasticsearch import BadRequestError
 from elasticsearch import Elasticsearch, NotFoundError
+from elasticsearch.exceptions import ConflictError
 from loguru import logger
 
 load_dotenv()
@@ -110,7 +112,7 @@ def upsert_document(index_name, doc_id, doc_body):
     return response
 
 
-def update_authors_names_from_es(index, old_author, new_author):
+def update_authors_names_from_es(index, old_author, new_author, max_retries=3, retry_delay=2):
     if es.ping():
         script = {
             "source": f"""
@@ -134,15 +136,26 @@ def update_authors_names_from_es(index, old_author, new_author):
             }
         }
 
-        response = es.update_by_query(
-            index=index,
-            body={
-                "script": script,
-                "query": query
-            }
-        )
-        logger.success(f"Updated {response['total']} documents: '{old_author}' --> '{new_author}'")
-        return response
+        attempt = 0
+        while attempt < max_retries:
+            try:
+                response = es.update_by_query(
+                    index=index,
+                    body={
+                        "script": script,
+                        "query": query
+                    }
+                )
+                logger.success(f"Updated {response['total']} documents: '{old_author}' --> '{new_author}'")
+                return response
+            except ConflictError as ex:
+                attempt += 1
+                if attempt < max_retries:
+                    logger.warning(f"Version conflict occurred. Retry {attempt}/{max_retries}...")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"Failed to update documents after {max_retries} retries: {ex}")
+                    raise
     else:
-        logger.warning('could not connect to Elasticsearch')
+        logger.warning('Could not connect to Elasticsearch')
         return None
