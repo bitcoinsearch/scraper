@@ -15,6 +15,7 @@ from loguru import logger
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common.scraper_log_utils import log_csv
 from common.elasticsearch_utils import upsert_document
+from common.utils import parse_markdown
 
 load_dotenv()
 
@@ -78,24 +79,10 @@ def parse_posts(directory):
     return documents
 
 
-def parse_markdown(text):
-    # Split the text by the delimiter '---'
-    sections = text.split('---')
-    # If the split results in fewer than 3 parts, front matter or body is missing
-    if len(sections) < 3:
-        raise ValueError("Input text does not contain proper front matter delimiters '---'")
-    # Extract the front matter and body
-    front_matter = sections[1].strip()
-    body = sections[2].strip()
-    return front_matter, body
-
-
 def parse_post(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    # Remove content between {% %}
-    content = re.sub(r'{%.*%}', '', content, flags=re.MULTILINE)
     front_matter, body = parse_markdown(content)
     # Extract metadata from front matter using yaml
     metadata = yaml.safe_load(front_matter)

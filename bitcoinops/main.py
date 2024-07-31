@@ -1,10 +1,9 @@
 import asyncio
 import os
-import re
 import sys
 import zipfile
 from datetime import datetime
-from tqdm import tqdm
+
 import requests
 import yaml
 from dotenv import load_dotenv
@@ -13,7 +12,7 @@ from loguru import logger
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.elasticsearch_utils import upsert_document
-from common.scraper_log_utils import log_csv
+from common.utils import parse_markdown
 
 load_dotenv()
 
@@ -59,21 +58,11 @@ async def download_repo():
         logger.error(f"Failed to unzip the file: {e}")
 
 
-def parse_markdowns(content: str):
-    sections = re.split(r'---\n', content)
-    if len(sections) < 3:
-        raise ValueError("Input text does not contain proper front matter delimiters '---'")
-    front_matter = sections[1].strip()
-    body = sections[2].strip()
-    return front_matter, body
-
-
 def parse_post(post_file: str, typeof: str):
     try:
         with open(post_file, 'r', encoding='utf-8') as file:
             content = file.read()
-        content = re.sub(r'{%.*%}', '', content, flags=re.MULTILINE)
-        front_matter, body = parse_markdowns(content)
+        front_matter, body = parse_markdown(content)
         metadata = yaml.safe_load(front_matter)
         custom_id = os.path.basename(post_file).replace('.md', '') if typeof == 'topic' else metadata['slug']
         document = {
@@ -114,49 +103,25 @@ def dir_walk(extracted_dir: str, typeof: str):
 
 
 async def main():
-    inserted_ids = set()
+    await download_repo()
+    all_posts = dir_walk(os.path.join(DIR_PATH, POST_DIR), "posts")
+    all_topics = dir_walk(os.path.join(DIR_PATH, TOPIC_DIR), "topic")
+    new_ids = set()
     updated_ids = set()
-    no_changes_ids = set()
-    error_occurred = False
-    error_message = "---"
-
-    try:
-        await download_repo()
-        all_posts = dir_walk(os.path.join(DIR_PATH, POST_DIR), "posts")
-        all_topics = dir_walk(os.path.join(DIR_PATH, TOPIC_DIR), "topic")
-        all_posts.extend(all_topics)
-        for post in tqdm(all_posts):
-            try:
-                res = upsert_document(index_name=INDEX_NAME, doc_id=post['id'], doc_body=post)
-                if res['result'] == 'created':
-                    inserted_ids.add(res['_id'])
-                elif res['result'] == 'updated':
-                    updated_ids.add(res['_id'])
-                elif res['result'] == 'noop':
-                    no_changes_ids.add(res['_id'])
-            except Exception as e:
-                logger.error(f"Error: {e}")
-                logger.warning(post)
-
-    except Exception as main_e:
-        logger.error(f"Main Error: {main_e}")
-        error_occurred = True
-        error_message = str(main_e)
-    finally:
-        log_csv(
-            scraper_domain="https://bitcoinops.org/en/",
-            inserted=len(inserted_ids),
-            updated=len(updated_ids),
-            no_changes=len(no_changes_ids),
-            error=str(error_occurred),
-            error_log=error_message
-        )
-
-    logger.info(f"Inserted: {len(inserted_ids)}")
-    logger.info(f"Updated: {len(updated_ids)}")
-    logger.info(f"No changed: {len(no_changes_ids)}")
-    logger.info(f"Error Occurred: {error_occurred}")
-    logger.info(f"Error Message: {error_message}")
+    all_posts.extend(all_topics)
+    for post in all_posts:
+        try:
+            res = upsert_document(index_name=INDEX_NAME, doc_id=post['id'], doc_body=post)
+            logger.info(f"Version-{res['_version']}, Result-{res['result']}, ID-{res['_id']}")
+            if res['result'] == 'created':
+                new_ids.add(res['_id'])
+            if res['result'] == 'updated':
+                updated_ids.add(res['_id'])
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            logger.warning(post)
+    logger.info(f"Inserted {len(new_ids)} new documents")
+    logger.info(f"Updated {len(updated_ids)} documents")
 
 
 if __name__ == '__main__':

@@ -1,0 +1,28 @@
+name: Author Synonyms
+on:
+  schedule:
+    - cron: "30 0 * * *" # every day at 00:30 AM UTC
+  workflow_dispatch:
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run script
+        run: |
+          python update_authors_synonyms.py
+        env:
+            ES_ENGINE: ${{ secrets.ES_ENGINE }}
+            ES_URL: ${{ secrets.ES_URL }}
+            ES_TOKEN: ${{ secrets.ES_TOKEN }}
+            CLOUD_ID: ${{ secrets.CLOUD_ID }}
+            USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+            USERNAME: ${{ secrets.USERNAME }}
+            INDEX: ${{ secrets.INDEX }}
