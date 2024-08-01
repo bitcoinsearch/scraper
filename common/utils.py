@@ -3,7 +3,7 @@ import re
 def parse_markdown(text):
     """Parses a markdown text to extract YAML front matter and the document body"""
     # Remove content between {% %}
-    content = re.sub(r'{%.*%}', '', content, flags=re.MULTILINE)
+    text = re.sub(r'{%.*%}', '', text, flags=re.MULTILINE)
     # Define a regular expression pattern to match the front matter between `---\n` delimiters
     pattern = re.compile(r'^---\s*$(.*?)^---\s*$', re.DOTALL | re.MULTILINE)
     match = pattern.search(text)
