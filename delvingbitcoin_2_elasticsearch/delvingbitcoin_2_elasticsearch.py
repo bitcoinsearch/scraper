@@ -13,7 +13,7 @@ from loguru import logger as log
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.elasticsearch_utils import create_index, upsert_document
-from common.scraper_log_utils import log_csv
+from common.scraper_log_utils import scraper_log_csv
 from achieve import download_dumps
 
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
@@ -66,8 +66,7 @@ def index_documents(files_path):
     inserted_ids = set()
     updated_ids = set()
     no_changes_ids = set()
-    error_occurred = False
-    error_message = "---"
+    error_message = None
 
     try:
         # Iterate through files in the specified path
@@ -129,25 +128,12 @@ def index_documents(files_path):
                 log.error(error_log)
 
     except Exception as main_e:
-        log.error(f"Main Error: {main_e}")
-        error_occurred = True
-        error_message = str(main_e)
+        error_message = f"error: {main_e}\n{traceback.format_exc()}"
 
     finally:
-        log_csv(
-            scraper_domain="https://delvingbitcoin.org/",
-            inserted=len(inserted_ids),
-            updated=len(updated_ids),
-            no_changes=len(no_changes_ids),
-            error=str(error_occurred),
-            error_log=error_message
-        )
-
-    log.info(f"Inserted: {len(inserted_ids)}")
-    log.info(f"Updated: {len(updated_ids)}")
-    log.info(f"No changed: {len(no_changes_ids)}")
-    log.info(f"Error Occurred: {error_occurred}")
-    log.info(f"Error Message: {error_message}")
+        scraper_log_csv(f"delvingbitcoin.csv", scraper_domain="https://delvingbitcoin.org/",
+                        inserted_docs=len(inserted_ids),
+                        updated_docs=len(updated_ids), no_changes_docs=len(no_changes_ids), error=error_message)
 
 
 if __name__ == "__main__":

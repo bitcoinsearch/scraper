@@ -12,7 +12,7 @@ from utils import download_dump, extract_dump, parse_posts, parse_users, strip_t
 load_dotenv()
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common.scraper_log_utils import log_csv
+from common.scraper_log_utils import scraper_log_csv
 from common.elasticsearch_utils import upsert_document
 
 if __name__ == "__main__":
@@ -129,22 +129,9 @@ if __name__ == "__main__":
         logger.info(f"All Documents updated successfully!")
 
     except Exception as main_e:
-        logger.error(f"Main Error: {main_e}")
-        error_occurred = True
-        error_message = str(main_e)
+        error_message = f"error: {main_e}\n{traceback.format_exc()}"
 
     finally:
-        log_csv(
-            scraper_domain="https://bitcoin.stackexchange.com",
-            inserted=len(inserted_ids),
-            updated=len(updated_ids),
-            no_changes=len(no_changes_ids),
-            error=str(error_occurred),
-            error_log=error_message
-        )
-
-    logger.info(f"Inserted: {len(inserted_ids)}")
-    logger.info(f"Updated: {len(updated_ids)}")
-    logger.info(f"No changed: {len(no_changes_ids)}")
-    logger.info(f"Error Occurred: {error_occurred}")
-    logger.info(f"Error Message: {error_message}")
+        scraper_log_csv(f"bitcoin_stackexchange.csv", scraper_domain="https://bitcoin.stackexchange.com",
+                        inserted_docs=len(inserted_ids),
+                        updated_docs=len(updated_ids), no_changes_docs=len(no_changes_ids), error=error_message)

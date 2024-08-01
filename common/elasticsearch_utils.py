@@ -159,3 +159,21 @@ def update_authors_names_from_es(index, old_author, new_author, max_retries=3, r
     else:
         logger.warning('Could not connect to Elasticsearch')
         return None
+
+
+def get_domain_counts(index_name, domain):
+    """Function to get the total counts for the given 'domain' field from Elasticsearch index."""
+    body = {
+        "query": {
+            "term": {
+                "domain.keyword": domain
+            }
+        }
+    }
+
+    try:
+        resp = es.count(index=index_name, body=body)
+        return resp['count']
+    except Exception as e:
+        logger.error(f"Error fetching domain counts: {e}")
+        return None

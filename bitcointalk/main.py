@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import time
+import traceback
 from datetime import datetime
 
 from bs4 import BeautifulSoup
@@ -12,7 +13,7 @@ from requests import request
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.elasticsearch_utils import upsert_document
-from common.scraper_log_utils import log_csv
+from common.scraper_log_utils import scraper_log_csv
 
 load_dotenv()
 
@@ -149,8 +150,7 @@ def main() -> None:
     inserted_ids = set()
     updated_ids = set()
     no_changes_ids = set()
-    error_occurred = False
-    error_message = "---"
+    error_message = None
 
     try:
         filename = os.path.join(os.getenv('DATA_DIR'), 'bitcointalk', 'topics.json')
@@ -188,24 +188,10 @@ def main() -> None:
             except Exception as e:
                 logger.error(f"Error processing topic {i + 1}/{len(topics)}: {e}")
     except Exception as main_e:
-        logger.error(f"Main Error: {main_e}")
-        error_occurred = True
-        error_message = str(main_e)
+        error_message = f"error: {main_e}\n{traceback.format_exc()}"
     finally:
-        log_csv(
-                scraper_name="BitcoinTalk",
-                inserted=inserted_count,
-                updated=updated_count,
-                no_changes=no_change_count,
-                error=str(error_occurred),
-                error_log=error_message
-            )
-
-    logger.info(f"Inserted: {inserted_count}")
-    logger.info(f"Updated: {updated_count}")
-    logger.info(f"No changed: {no_change_count}")
-    logger.info(f"Error Occurred: {error_occurred}")
-    logger.info(f"Error Message: {error_message}")
+        scraper_log_csv(f"bitcoin_talk.csv", scraper_domain=BOARD_URL, inserted_docs=len(inserted_ids),
+                        updated_docs=len(updated_ids), no_changes_docs=len(no_changes_ids), error=error_message)
 
 
 if __name__ == "__main__":

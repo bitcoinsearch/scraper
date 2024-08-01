@@ -44,6 +44,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "updated scraper logs"
+            git commit -m "stackexchange: updated scraper logs"
             git push
           fi

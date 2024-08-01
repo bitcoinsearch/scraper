@@ -33,10 +33,9 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "updated scraper logs"
+            git commit -m "bitcointalk: updated scraper logs"
             git push
           fi
-
         env:
             ES_ENGINE: ${{ secrets.ES_ENGINE }}
             ES_URL: ${{ secrets.ES_URL }}
