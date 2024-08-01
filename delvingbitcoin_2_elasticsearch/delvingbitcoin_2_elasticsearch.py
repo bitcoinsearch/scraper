@@ -2,7 +2,9 @@ import html
 import json
 import os
 import sys
+import traceback
 from datetime import datetime
+from tqdm import tqdm
 
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
@@ -10,8 +12,8 @@ from loguru import logger as log
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from common.elasticsearch_utils import document_add, document_view, create_index
-
+from common.elasticsearch_utils import create_index, upsert_document
+from common.scraper_log_utils import scraper_log_csv
 from achieve import download_dumps
 
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
@@ -61,50 +63,77 @@ def strip_attributes_but_urls(html):
 
 
 def index_documents(files_path):
-    # Iterate through files in the specified path
-    for root, dirs, files in os.walk(files_path):
-        for file in files:
-            if file.endswith('.json'):
-                file_path = os.path.join(root, file)
-                log.info(f'Fetching document from file: {file_path}')
+    inserted_ids = set()
+    updated_ids = set()
+    no_changes_ids = set()
+    error_message = None
 
-                # Load JSON data from file
-                with open(file_path, 'r', encoding='utf-8') as json_file:
-                    document = json.load(json_file)
+    try:
+        # Iterate through files in the specified path
+        for root, dirs, files in os.walk(files_path):
+            try:
+                for file in tqdm(files):
+                    if file.endswith('.json'):
+                        file_path = os.path.join(root, file)
+                        try:
+                            log.info(f'Fetching document from file: {file_path}')
+                            # Load JSON data from file
+                            with open(file_path, 'r', encoding='utf-8') as json_file:
+                                document = json.load(json_file)
 
-                body = preprocess_body(document['raw'])
-                if body == "(post deleted by author)":
-                    log.info(f"Probably, post deleted by an author: {body}")
-                    continue
+                            body = preprocess_body(document['raw'])
+                            if body == "(post deleted by author)":
+                                log.info(f"Probably, post deleted by an author: {body}")
+                                continue
 
-                # Select required fields
-                doc = {
-                    'id': f'delving-bitcoin-{document["topic_id"]}-{document["post_number"]}-{document["id"]}',
-                    'authors': [document['username']],
-                    'thread_url': f"https://delvingbitcoin.org/t/{document['topic_slug']}/{document['topic_id']}",
-                    'title': document['topic_title'],
-                    'body_type': 'html',
-                    'body': body,
-                    'body_formatted': strip_attributes_but_urls(document['cooked']),
-                    'created_at': document['updated_at'],
-                    'domain': "https://delvingbitcoin.org/",
-                    'url': f"https://delvingbitcoin.org/t/{document['topic_slug']}/{document['topic_id']}",
-                    "indexed_at": datetime.utcnow().isoformat()
-                }
+                            # Select required fields
+                            doc = {
+                                'id': f'delving-bitcoin-{document["topic_id"]}-{document["post_number"]}-{document["id"]}',
+                                'authors': [document['username']],
+                                'thread_url': f"https://delvingbitcoin.org/t/{document['topic_slug']}/{document['topic_id']}",
+                                'title': document['topic_title'],
+                                'body_type': 'html',
+                                'body': body,
+                                'body_formatted': strip_attributes_but_urls(document['cooked']),
+                                'created_at': document['updated_at'],
+                                'domain': "https://delvingbitcoin.org/",
+                                'url': f"https://delvingbitcoin.org/t/{document['topic_slug']}/{document['topic_id']}",
+                                "indexed_at": datetime.utcnow().isoformat()
+                            }
 
-                if document['post_number'] != 1:
-                    doc['url'] += f'/{document["post_number"]}'
-                    doc['type'] = 'reply'
-                else:
-                    doc['type'] = 'original_post'
+                            if document['post_number'] != 1:
+                                doc['url'] += f'/{document["post_number"]}'
+                                doc['type'] = 'reply'
+                            else:
+                                doc['type'] = 'original_post'
+                            try:
+                                res = upsert_document(index_name=os.getenv('INDEX'), doc_id=doc['id'],
+                                                      doc_body=doc)
+                                if res['result'] == 'created':
+                                    inserted_ids.add(res['_id'])
+                                elif res['result'] == 'updated':
+                                    updated_ids.add(res['_id'])
+                                elif res['result'] == 'noop':
+                                    no_changes_ids.add(res['_id'])
+                            except Exception as ex:
+                                log.error(f"{ex} \n{traceback.format_exc()}")
+                                log.warning(document)
 
-                # Check if a document already exists
-                resp = document_view(index_name=INDEX, doc_id=doc['id'])
-                if not resp:
-                    _ = document_add(index_name=INDEX, doc=doc, doc_id=doc['id'])
-                    log.success(f'Successfully added! ID: {doc["id"]}, Type:{doc["type"]}')
-                else:
-                    log.info(f"Document already exist! ID: {doc['id']}")
+                        except Exception as ex:
+                            error_log = f"{ex}\n{traceback.format_exc()}"
+                            log.error(error_log)
+                            log.warning(file_path)
+            except Exception as ex:
+                error_log = f"{ex}\n{traceback.format_exc()}"
+                log.error(error_log)
+
+    except Exception as main_e:
+        error_message = f"error: {main_e}\n{traceback.format_exc()}"
+
+    finally:
+        scraper_log_csv(f"delvingbitcoin.csv", scraper_domain="https://delvingbitcoin.org/",
+                        inserted_docs=len(inserted_ids),
+                        updated_docs=len(updated_ids), no_changes_docs=len(no_changes_ids), error=error_message)
 
 
 if __name__ == "__main__":

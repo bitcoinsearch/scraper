@@ -1,9 +1,11 @@
 import asyncio
 import os
+import re
 import sys
+import traceback
 import zipfile
 from datetime import datetime
-
+from tqdm import tqdm
 import requests
 import yaml
 from dotenv import load_dotenv
@@ -12,6 +14,7 @@ from loguru import logger
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.elasticsearch_utils import upsert_document
+from common.scraper_log_utils import scraper_log_csv
 from common.utils import parse_markdown
 
 load_dotenv()
@@ -103,25 +106,34 @@ def dir_walk(extracted_dir: str, typeof: str):
 
 
 async def main():
-    await download_repo()
-    all_posts = dir_walk(os.path.join(DIR_PATH, POST_DIR), "posts")
-    all_topics = dir_walk(os.path.join(DIR_PATH, TOPIC_DIR), "topic")
-    new_ids = set()
+    inserted_ids = set()
     updated_ids = set()
-    all_posts.extend(all_topics)
-    for post in all_posts:
-        try:
-            res = upsert_document(index_name=INDEX_NAME, doc_id=post['id'], doc_body=post)
-            logger.info(f"Version-{res['_version']}, Result-{res['result']}, ID-{res['_id']}")
-            if res['result'] == 'created':
-                new_ids.add(res['_id'])
-            if res['result'] == 'updated':
-                updated_ids.add(res['_id'])
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            logger.warning(post)
-    logger.info(f"Inserted {len(new_ids)} new documents")
-    logger.info(f"Updated {len(updated_ids)} documents")
+    no_changes_ids = set()
+    error_message = None
+
+    try:
+        await download_repo()
+        all_posts = dir_walk(os.path.join(DIR_PATH, POST_DIR), "posts")
+        all_topics = dir_walk(os.path.join(DIR_PATH, TOPIC_DIR), "topic")
+        all_posts.extend(all_topics)
+        for post in tqdm(all_posts):
+            try:
+                res = upsert_document(index_name=INDEX_NAME, doc_id=post['id'], doc_body=post)
+                if res['result'] == 'created':
+                    inserted_ids.add(res['_id'])
+                elif res['result'] == 'updated':
+                    updated_ids.add(res['_id'])
+                elif res['result'] == 'noop':
+                    no_changes_ids.add(res['_id'])
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                logger.warning(post)
+
+    except Exception as main_e:
+        error_message = f"error: {main_e}\n{traceback.format_exc()}"
+    finally:
+        scraper_log_csv(f"bitcoinops.csv", scraper_domain="https://bitcoinops.org/en/", inserted_docs=len(inserted_ids),
+                        updated_docs=len(updated_ids), no_changes_docs=len(no_changes_ids), error=error_message)
 
 
 if __name__ == '__main__':

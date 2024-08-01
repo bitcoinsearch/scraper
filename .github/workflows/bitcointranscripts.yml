@@ -21,6 +21,21 @@ jobs:
         run: |
           mkdir /tmp/data
           python bitcointranscripts/main.py
+
+      - name: Configure Git
+        run: |
+          git config user.email "${{ secrets.GIT_AUTHOR_EMAIL }}"
+          git config user.name "${{ secrets.GIT_AUTHOR_NAME }}"
+
+      - name: Add and commit changes
+        run: |
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "bitcointranscripts: updated scraper logs"
+            git push
+          fi
         env:
             ES_ENGINE: ${{ secrets.ES_ENGINE }}
             ES_URL: ${{ secrets.ES_URL }}
