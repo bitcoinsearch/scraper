@@ -1,17 +1,16 @@
 from typing import List, Optional
-
 from langchain.prompts import PromptTemplate
-from langchain_anthropic import ChatAnthropic
-from langchain_community.chat_models import ChatOllama
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.runnables import RunnableParallel
+from langchain_openai import ChatOpenAI, AzureChatOpenAI
+from langchain_mistralai import ChatMistralAI
+from langchain_anthropic import ChatAnthropic
+from langchain_groq import ChatGroq
 from langchain_fireworks import ChatFireworks
 from langchain_google_vertexai import ChatVertexAI
-from langchain_groq import ChatGroq
-from langchain_mistralai import ChatMistralAI
-from langchain_openai import ChatOpenAI, AzureChatOpenAI
+from langchain_community.chat_models import ChatOllama
 from tqdm import tqdm
-
+from ..utils.logging import get_logger
 from .base_node import BaseNode
 from ..prompts import TEMPLATE_CHUNKS, TEMPLATE_NO_CHUNKS, TEMPLATE_MERGE, TEMPLATE_CHUNKS_MD, TEMPLATE_NO_CHUNKS_MD, \
     TEMPLATE_MERGE_MD

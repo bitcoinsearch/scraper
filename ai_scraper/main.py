@@ -55,10 +55,7 @@ def get_script_from_llm(chunks, prompt, state, model_config, url):
     prompt += "main(url=globals().get('url'), filename=globals().get('filename'))"
 
     graph = CustomScraperGraph(prompt=prompt, config=model_config, source=url)
-    # Define the state
-    state = {"user_prompt": str(prompt), "chunks": chunks}
-
-    generate_answer_node = GenerateScraperNode(
+    generate_scraper_node = GenerateScraperNode(
         input="user_prompt & (relevant_chunks | parsed_doc | doc | chunks)",
         output=["answer"],
         node_config={
@@ -76,7 +73,10 @@ def get_script_from_llm(chunks, prompt, state, model_config, url):
         # Execute the generate answer node
         for _ in range(3):
             try:
-                state = generate_answer_node.execute(state)
+                # Define the state
+                state = {"user_prompt": str(prompt), "chunks": chunks}
+                json.dump(chunks, open("chunks.json", "w"), indent=4)
+                state = generate_scraper_node.execute(state)
                 # Retrieve the generated answer from the state
                 result = state["answer"]
                 result = "\n".join(result.split("\n")[1:-1])
@@ -95,6 +95,8 @@ def get_script_from_llm(chunks, prompt, state, model_config, url):
         result_json = json.load(open(filename))
         os.remove(filename)
         os.makedirs("generated_scripts", exist_ok=True)
+        with open("generated_scripts/" + site_name + ".py", "w") as f:
+            f.write(result)
         print("filename = ", filename)
     except Exception as e:
         traceback.print_exc()
@@ -140,6 +142,8 @@ def call_scrapegraph_script_generator(prompt, url, model_config):
         result_json = json.load(open(filename))
         os.remove(filename)
         os.makedirs("generated_scripts", exist_ok=True)
+        with open("generated_scripts/" + site_name + ".py", "w") as f:
+            f.write(result)
         print("filename = ", filename)
     except Exception as e:
         traceback.print_exc()
@@ -722,7 +726,7 @@ if __name__ == '__main__':
             # "chunk_size": 8192,
         },
         "embeddings": {
-            "model": "gpt-4o-mini",
+            "model": "text-embedding-3-small",
             # "model_provider": "openai",
             # "base_url":
             # "http://localhost:11434",  # Not needed for online models/services
@@ -773,15 +777,20 @@ if __name__ == '__main__':
 
         # "https://github.com/bitcoinbook/bitcoinbook": []
         # "https://veintiuno.world/evento/bitcoin-farmers-market-2025-03-23/": [],
-        "https://bitcoin.stackexchange.com/questions/123792/is-it-possible-to-spend-unconfirmed-utxo": []
+        # "https://bitcoin.stackexchange.com/questions/123792/is-it-possible-to-spend-unconfirmed-utxo": [],
+        # "https://stackoverflow.com/questions/2081586/web-scraping-with-python": [],
+        # "https://aviation.stackexchange.com/questions/106435/is-there-any-video-of-an-air-to-air-missile-shooting-down-an-aircraft": [],
+        "https://politics.stackexchange.com/questions/88817/why-does-russia-strike-electric-power-in-ukraine": []
     }
 
     for link in links:
         scrape_conf = {link: urls_to_scrape["link"]}
         if "stackexchange" in link or "stackoverflow" in link:
             scrape_conf[link]["datapoints"].extend([
-                "question", "question content", "answers", "accepted_answers", "highest_voted_answer",
-                "comments", "user_statistics", ".Get full question content with all paragraphs."
+                "question", "question content", "answers", "accepted_answer_indicator_exists", "accepted_answer",
+                "highest_voted_ans",
+                "comments", "user_statistics", ".Get full question content with all paragraphs.",
+                "\nIf some answer or it's parent has classes like 'accepted-answer', 'js-accepted-answer', 'js-accepted-answer-indicator' or something similar, even in a parent div, then it is accepted answer\n. Get text from that whole div. Accepted answer is mandatory."
             ])
         results = run_tasks(scrape_conf, model_config)
         links[link] = results[0]

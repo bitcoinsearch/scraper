@@ -5,7 +5,7 @@ As the scraping agent, extract and format the following values into a JSON objec
 #######################################
 
 1. If 'type', 'section', or 'subsection' appear, extract values for each distinct type/section/subsection as specified in the context.
-2. Ensure the JSON is valid and correctly formatted. If the content contains some escape sequences, which are invalid for json, like \\e, convert it to \\\\e.
+2. Ensure the JSON is valid and correctly formatted.
 3. Combine values with same keys.
 4. Extract and include the article's author and publication date if present in the text, else NA.
 5. Maintain consistent key structure for nested values or list of objects. If 1st object in list has keys 'a' and 'b', all objects in list should have it.
@@ -33,6 +33,7 @@ EXAMPLE OUTPUT:
     "answers": ["this is a pen", " This is ldf ... sdf ... \n ... sdfsdfkjskf\n"]
 }}
 """
+
 
 get_tags_prompt = """
 From these list of tags and classes, mention which tag and class might contain some information related to {}. Here are the tags:
