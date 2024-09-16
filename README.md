@@ -1,18 +1,21 @@
-# Welcome to the scraper!
+# Welcome to the Scraper
 
 This project is designed to automate the process of gathering information from a variety of key Bitcoin-related sources.
-It leverages GitHub Actions to schedule nightly cron jobs, ensuring that the most up-to-date content is captured from each source according to a defined frequency.
+It leverages GitHub Actions to schedule nightly cron jobs, ensuring that the most up-to-date content is captured from
+each source according to a defined frequency.
 The scraped data are then stored in an Elasticsearch index.
 
 Below is a detailed breakdown of the sources scraped and the schedule for each:
 
 Daily at 00:00 AM UTC
+
 - [Lightning Mailing List](https://lists.linuxfoundation.org/pipermail/lightning-dev/) ([cron](.github/workflows/mailing-list-lightning.yml), [source](mailing-list))
 - [New Bitcoin Mailing List](https://gnusha.org/pi/bitcoindev/) ([cron](.github/workflows/mailing-list-bitcoin-new.yml), [source](mailing-list/main.py))
 - [Bitcoin Mailing List](https://lists.linuxfoundation.org/pipermail/bitcoin-dev/) ([cron](.github/workflows/mailing-list-bitcoin.yml), [source](mailing-list))
 - [Delving Bitcoin](https://delvingbitcoin.org/) ([cron](.github/workflows/delving-bitcoin.yml), [source](delvingbitcoin_2_elasticsearch))
 
 Weekly
+
 - [bitcoin.stackexchange](https://bitcoin.stackexchange.com/) ([cron](.github/workflows/stackexchange.yml), [source](bitcoin.stackexchange.com))
 - Bitcoin Talk Forum ([cron](.github/workflows/bitcointalk.yml), [source](bitcointalk))
     - only the [Development & Technical Discussion Board](https://bitcointalk.org/index.php?board=6.0)
@@ -20,49 +23,109 @@ Weekly
 - [Bitcoin Transcript](https://btctranscripts.com/) ([cron](.github/workflows/bitcointranscripts.yml), [source](bitcointranscripts))
 - [Bitcoin Optech](https://bitcoinops.org/) ([cron](.github/workflows/bitcoinops.yml), [source](bitcoinops))
 
-Additionally, for on-demand scraping tasks, we utilize a Scrapybot, details of which can be found in the [Scrapybot section](#scrapybot) below.
+## Prerequisites
 
-## Setup
+Before you begin, ensure you have following installed:
 
-You need an env file to indicate where you are pushing the data.
+- [Python 3.8+](https://www.python.org/downloads/)
+- [Node.js 14+](https://nodejs.org/)
+- [pip](https://pip.pypa.io/en/stable/)
+- [yarn](https://classic.yarnpkg.com/en/docs/install/)
+- [Elasticsearch](https://www.elastic.co/downloads/elasticsearch)
+- [virtualenv](https://virtualenv.pypa.io/en/latest/)
 
-1. Copy `cp .env.sample .env`
-2. run `cd common && yarn install && cd ../mailing-list && yarn install && cd ..`
-3. To scrape a mailing list run `node mailing-list/main.js` with additional env vars like `URL='https://lists.linuxfoundation.org/pipermail/bitcoin-dev/'` and `NAME='bitcoin'`
-3a. Or you can do something like `cd bitcoin.stackexchange.com && pip install -r requirements.txt && cd .. && python3 bitcoin.stackexchange.com/main.py`
+## Setup Instructions
 
-You should be calling the scrapers from the root dir because they use the common dir.
+1. **Clone this repository**
+    ```bash
+    https://github.com/bitcoinsearch/scraper.git
+   cd bitcoin-scrapers
+   ```
 
-## Scrapybot 
+2. **Create a virtual environment**
+    ```bash
+   python -m venv venv
+   ```
+3. **Activate the virtual environment**
+    - **Windows:**
+      ```bash
+      venv\Scripts\activate
+      ```
+    - **MacOS/Linux:**
+      ```bash
+      source venv/bin/activate
+      ```
+4. **Install the required Python packages**
+    ```bash
+   pip install -r requirements.txt
+   ```
+5. **Create .env file from env.sample file**
+    ```bash
+    cp .env.sample .env
+    ```
+   Open the .env file and provide the necessary values for the following variables:
+    - `DATA_DIR`: Path to store temporary files.
+    - `DAYS_TO_SUBTRACT`: Number of days to subtract from today's date to determine the date range for scraping and downloading documents for mailing list.
+    - `URL`: For mailing list scraper, use one of these URLs:
+       1. https://lists.linuxfoundation.org/pipermail/lightning-dev/
+       2. https://lists.linuxfoundation.org/pipermail/bitcoin-dev/  
+    - `CLOUD_ID`: Your Elasticsearch cloud ID. This is required for connecting to your Elasticsearch cluster.
+    - `USERNAME`: The username for your Elasticsearch instance.
+    - `USER_PASSWORD`: The API key or password associated with the `USERNAME` in Elasticsearch.
+    - `INDEX`: The name of the index where documents will be stored in Elasticsearch.
 
-We have implemented a variety of crawlers (spiders), each designed for a specific website of interest.
-You can find all the spiders in the [`scrapybot/scrapybot/spiders`](scrapybot/scrapybot/spiders) directory.
 
-This section explains how to run the scrapers in the `scrapybot` folder.
+6. **Node.js Packages/Dependencies installation**
 
-To run a crawler using scrapybot, for example `rusty`, which will scrape the site `https://rusty.ozlabs.org`, switch to the root directory(where there is this README file) and run these commands from your terminal:
-- `pip install -r requirements.txt && cd scrapybot`
-- `scrapy crawl rusty -O rusty.json`
-
-The above commands will install scrapy dependencies, then run the `rusty` spider(one of the crawlers) and store the collected document in `rusty.json` file in the `scrapybot` project directory.
-
-The same procedure can be applied to any of the crawlers in the `scrapybot/spiders` directory.
-There is also a script in `scrapybot` directory called `scraper.sh` which can run all the spiders at once.
+   Run below command to install required packages for node.js scrapers.
+   ```bash
+   cd common && yarn install && cd ../mailing-list && yarn install && cd ..   
+   ```
 
 
-### Sending the output to elastic search
+## Running Scrapers
+   To run a specific scraper, use the respective command listed below:
+1. [bitcoin.stackexchange.com](bitcoin.stackexchange.com)
+   ```bash
+   python .\bitcoin.stackexchange.com\main.py
+   ```
+2. [bitcoinbook](bitcoinbook)
+   ```bash
+   python .\bitcoinbook\main.py
+   ```
+3. [bitcoinops](bitcoinops)
+   ```bash
+   python .\bitcoinops\main.py
+   ```
+4. [bitcointalk](bitcointalk)
+   ```bash
+   python .\bitcointalk\main.py
+   ```
+5. [bitcointranscripts](bitcointranscripts)
+   ```bash
+   python .\bitcointranscripts\main.py
+   ```
+6. [delvingbitcoin_2_elasticsearch](delvingbitcoin_2_elasticsearch)
+   ```bash
+   python .\delvingbitcoin_2_elasticsearch\delvingbitcoin_2_elasticsearch.py
+   ```
+7. [mailing-list](mailing-list)
 
-- create an `example.ini` file inside the `scrapybot` directory with the following contents
-```
-[ELASTIC]
-cloud_id = `your_cloud_id` 
-user = `your_elasticsearch_username`
-password =  `your_elasticsearch_password`
-```
-- inside the `pipelines.py file` in the `scrapybot` directory, read the above file to load your elasticsearch credentials with the line below:
-```
-config.read("/path/to/your/example.ini") - replace what's in quotes with your actual `ini` file
-```
+
+   - To run the mailing list scrapers, use the following commands based on the type of documents you want to scrape:
+     - **For Linux Foundation Documents**
+       
+         Ensure that the `URL` environment variable is set to the appropriate mailing list URL (e.g., `https://lists.linuxfoundation.org/pipermail/lightning-dev/` or `https://lists.linuxfoundation.org/pipermail/bitcoin-dev/`). 
+         Run the following command:
+         ```bash
+        node mailing-list/main.js
+         ``` 
+     - **For New Bitcoin Dev** 
+        Use the following command to run the Bitcoin Dev scraper:
+        ```bash
+        python .\mailing-list\main.py
+        ```
+
 
 ## Other quirks
 
