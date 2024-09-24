@@ -1,0 +1,11 @@
+{
+    "llm": {
+        "model": "gpt-4o-mini",
+        "model_provider": "openai",
+        "temperature": 0.0
+    },
+    "embeddings": {
+        "model": "text-embedding-3-small"
+    },
+    "library": "BeautifulSoup"
+}

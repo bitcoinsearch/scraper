@@ -3,11 +3,13 @@ SmartScraperGraph Module
 """
 
 from typing import Optional
-
+import logging
 from pydantic import BaseModel
-from scrapegraphai.graphs import AbstractGraph
 from scrapegraphai.graphs import BaseGraph
+from scrapegraphai.graphs import AbstractGraph
+
 from scrapegraphai.nodes import (
+    FetchNode,
     ParseNode,
     GenerateAnswerNode
 )
@@ -56,6 +58,7 @@ class CustomScraperGraph(AbstractGraph):
         super().__init__(prompt, config, source, schema)
 
         self.input_key = "url" if source is not None and source.startswith("http") else "local_dir"
+
 
     def _create_graph(self) -> BaseGraph:
         """

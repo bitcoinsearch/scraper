@@ -2,10 +2,10 @@
 GenerateScraperNode Module
 """
 from typing import List, Optional
-
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
 from langchain_core.runnables import RunnableParallel
+from scrapegraphai.utils.logging import get_logger
 from scrapegraphai.nodes.base_node import BaseNode
 from tqdm import tqdm
 
@@ -58,7 +58,6 @@ USER QUESTION: {question}
 SCHEMA INSTRUCTIONS: {schema_instructions}
 """
 
-
 class GenerateScraperNode(BaseNode):
     """
     Generates a python script for scraping a website using the specified library.
@@ -81,13 +80,13 @@ class GenerateScraperNode(BaseNode):
     """
 
     def __init__(
-            self,
-            input: str,
-            output: List[str],
-            library: str,
-            website: str,
-            node_config: Optional[dict] = None,
-            node_name: str = "GenerateScraper",
+        self,
+        input: str,
+        output: List[str],
+        library: str,
+        website: str,
+        node_config: Optional[dict] = None,
+        node_name: str = "GenerateScraper",
     ):
         super().__init__(node_name, "node", input, output, 2, node_config)
 
@@ -157,13 +156,13 @@ class GenerateScraperNode(BaseNode):
                     "schema_instructions": format_instructions,
                 },
             )
-            chain_name = f"chunk{i + 1}"
+            chain_name = f"chunk{i+1}"
             chains_dict[chain_name] = prompt | self.llm_model | StrOutputParser()
         async_runner = RunnableParallel(**chains_dict)
 
-        batch_results = async_runner.invoke({"question": user_prompt})
+        batch_results =  async_runner.invoke({"question": user_prompt})
         merge_prompt = PromptTemplate(
-            template=TEMPLATE_MERGE,
+            template = TEMPLATE_MERGE ,
             input_variables=["context", "question"],
             # partial_variables={"format_instructions": format_instructions},
         )

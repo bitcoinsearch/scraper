@@ -1,17 +1,20 @@
 import copy
 import datetime
-import hashlib
 import json
 import os
 import re
-import string
 import sys
 import traceback
-from collections import defaultdict, abc
-
+import pickle
+import string
+import requests
+import subprocess
+import hashlib
 import tldextract
-
+from collections import defaultdict, abc
+from scraper_generator_custom_node import GenerateScraperNode
 from scraper_generator_custom_node import *
+from scraper_generator_custom_node import TEMPLATE_MERGE, TEMPLATE_NO_CHUNKS, TEMPLATE_CHUNKS
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -20,13 +23,13 @@ from scrapegraphai.graphs import ScriptCreatorGraph
 from common.elasticsearch_utils import upsert_document
 
 from bs4 import BeautifulSoup
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch, NotFoundError
+from loguru import logger
 from scraper_prompts import base_prompt, get_tags_prompt
 from custom_graph import CustomScraperGraph
 import dateutil
 
 from dotenv import load_dotenv
-
 load_dotenv()
 
 INDEX = os.getenv("INDEX")
@@ -37,6 +40,13 @@ es = Elasticsearch(
     api_key=os.getenv("USER_PASSWORD")
 )
 
+# res = es.search(index=os.getenv("INDEX"), body = {
+#     'size' : 5,
+#     "sort": { "timestamp": "desc"},
+#     'query': {
+#         'match_all' : {}
+#     }
+# })
 
 def build_scrapegraph_prompt(extraction_config):
     prompt = base_prompt.format(", ".join(extraction_config["datapoints"]))
@@ -69,7 +79,7 @@ def get_script_from_llm(chunks, prompt, state, model_config, url):
     site_name = tldextract.extract(url)
     site_name = site_name.subdomain + '.' + site_name.domain + '.' + site_name.suffix
     site_name = site_name.strip('.')
-    if not os.path.exists("generated_scripts/" + site_name + ".py"):
+    if True or not os.path.exists("generated_scripts/"+site_name+".py"):
         # Execute the generate answer node
         for _ in range(3):
             try:
@@ -81,21 +91,21 @@ def get_script_from_llm(chunks, prompt, state, model_config, url):
                 result = state["answer"]
                 result = "\n".join(result.split("\n")[1:-1])
                 result = re.sub(r'[\"\']output.json[\"\']', "filename", result)
-                result = re.sub(r'\"?\'?' + url + r'\"?\'?', "url", result)
+                result = re.sub(r'\"?\'?'+ url + r'\"?\'?', "url", result)
                 result_json = exec(result, {'filename': filename, "url": url})
             except Exception as e:
                 print("RETYING ::", e, flush=True)
                 prompt += "\nThis code generates error.\n" + result + "\nWrite code such that this is avoided " + traceback.format_exc()
                 continue
     else:
-        with open("generated_scripts/" + site_name + ".py") as f:
+        with open("generated_scripts/"+site_name+".py") as f:
             result = f.read()
             result_json = exec(result, {'filename': filename, "url": url})
     try:
         result_json = json.load(open(filename))
         os.remove(filename)
         os.makedirs("generated_scripts", exist_ok=True)
-        with open("generated_scripts/" + site_name + ".py", "w") as f:
+        with open("generated_scripts/"+site_name+".py", "w") as f:
             f.write(result)
         print("filename = ", filename)
     except Exception as e:
@@ -119,7 +129,7 @@ def call_scrapegraph_script_generator(prompt, url, model_config):
     site_name = tldextract.extract(url)
     site_name = site_name.subdomain + '.' + site_name.domain + '.' + site_name.suffix
     site_name = site_name.strip('.')
-    if not os.path.exists("generated_scripts/" + site_name + ".py"):
+    if not os.path.exists("generated_scripts/"+site_name+".py"):
         # Create the script creator graph
         for _ in range(3):
             try:
@@ -128,21 +138,21 @@ def call_scrapegraph_script_generator(prompt, url, model_config):
                 result = script_creator.run()
                 result = "\n".join(result.split("\n")[1:-1])
                 result = re.sub(r'[\"\']output.json[\"\']', "filename", result)
-                result = re.sub(r'\"?\'?' + url + r'\"?\'?', "url", result)
+                result = re.sub(r'\"?\'?'+ url + r'\"?\'?', "url", result)
                 result_json = exec(result, {'filename': filename, "url": url})
             except Exception as e:
                 print("RETYING ::", e, flush=True)
                 prompt += "\nThis code generates error.\n" + result + "\nWrite code such that this is avoided " + traceback.format_exc()
                 continue
     else:
-        with open("generated_scripts/" + site_name + ".py") as f:
+        with open("generated_scripts/"+site_name+".py") as f:
             result = f.read()
             result_json = exec(result, {'filename': filename, "url": url})
     try:
         result_json = json.load(open(filename))
         os.remove(filename)
         os.makedirs("generated_scripts", exist_ok=True)
-        with open("generated_scripts/" + site_name + ".py", "w") as f:
+        with open("generated_scripts/"+site_name+".py", "w") as f:
             f.write(result)
         print("filename = ", filename)
     except Exception as e:
@@ -158,11 +168,11 @@ def sanitize_html_for_json(body_html):
 
 def fetch_data(url, extraction_config, model_config):
     fetch_node = FetchNode(
-        input="url",
+        input="url", 
         output=["fetched_content", "link_urls", "image_urls"],
         node_config={
             "llm_model": model_config["llm"],
-            "force": False,  # extraction_config.get("markdown", False),  # Convert to Markdown
+            "force": False,  #extraction_config.get("markdown", False),  # Convert to Markdown
             "cut": extraction_config.get("clean_html", True),  # Cleanup html
             # "loader_kwargs": {},
         }
@@ -216,7 +226,7 @@ def fetch_data(url, extraction_config, model_config):
 
     results = {
         "body_formatted": body,
-        "body": body_html,  # getattr(fetched_content[0], "page_content", None),
+        "body": body_html, #getattr(fetched_content[0], "page_content", None),
         "link_urls": link_urls,
         "image_urls": image_urls
     }
@@ -227,7 +237,7 @@ def parse_data_for_llm(state):
     parse_node = ParseNode(
         input="fetched_content",
         output=["chunks"],
-        node_config={"verbose": True, "parse_html": False},  # "chunk_size": 8192,}
+        node_config={"verbose": True, "parse_html": False}, # "chunk_size": 8192,}
         node_name="Parse"
     )
     state = parse_node.execute(state)
@@ -276,7 +286,7 @@ def get_all_classes(soup):
             # if tag has attribute of class
             if i.has_attr("class"):
                 if len(i['class']) != 0:
-                    tag_class_list.append(tag + ": " + " ".join(i['class']))
+                    tag_class_list.append(tag + ": " +" ".join(i['class']))
     return tag_class_list
 
 
@@ -303,13 +313,13 @@ def get_probable_tags(all_tag_classes, keys_to_extract):
         probable_tags = [i.strip().strip('`').strip() for i in probable_tags]
         # print("PROBABLE TAGS =", probable_tags)
         probable_tags = [i for i in probable_tags if ':' in i and i.split(':')[-1] in all_tag_classes]
-        key_tag_mapping = {i: [j.split(':')[-1] for j in probable_tags] for i in keys_to_extract}
+        key_tag_mapping = {i:[j.split(':')[-1] for j in probable_tags] for i in keys_to_extract}
         return key_tag_mapping
     return {}
 
 
 def get_text_from_tags(soup, key_tag_mapping):
-    key_values = {i: [] for i in key_tag_mapping}
+    key_values = {i:[] for i in key_tag_mapping}
     for key, tags in key_tag_mapping.items():
         for tag in tags:
             result = soup.find_all(
@@ -325,7 +335,7 @@ def postprocess_llm_results(llm_results, html_body):
     """
     if isinstance(llm_results, dict):
         processed_dict = {}
-        for k, v in llm_results.items():
+        for k,v in llm_results.items():
             if v is None:
                 processed_dict[k] = v
             if isinstance(v, str):
@@ -352,7 +362,7 @@ def postprocess_llm_results(llm_results, html_body):
     return llm_results
 
 
-def flatten_llm_results(llm_results, output_dict=None):
+def flatten_llm_results(llm_results, output_dict = None):
     if output_dict is None:
         output_dict = {}
     # if isinstance(llm_results, dict):
@@ -360,25 +370,25 @@ def flatten_llm_results(llm_results, output_dict=None):
     # else:
     #     print(llm_results)
     if isinstance(llm_results, dict):
-        for k, v in llm_results.items():
+        for k,v in llm_results.items():
             if isinstance(v, str):
                 if k not in output_dict:
                     output_dict[k] = v
                 elif type(output_dict[k]) == type(v):
-                    if k in ["author", "writer", "published by", "time", "published date", "created_at"]:
+                    if k in ["author", "writer", "published by", "time","published date", "created_at"]:
                         # Replace only if previous value invalid as these are either at the top or bottom of the page
                         if len(output_dict[k].strip(string.punctuation +
                                                     " ")) == 0 or output_dict[k] in [
-                            "NA", "na", "None", "null"
-                        ]:
+                                                        "NA", "na", "None", "null"
+                                                    ]:
                             output_dict[k] = v
                         elif len(v.strip(string.punctuation +
-                                         " ")) >= 0 and v not in [
-                            "NA", "na", "None", "null"
-                        ]:
+                                                    " ")) >= 0 and v not in [
+                                                        "NA", "na", "None", "null"
+                                                    ]:
                             # Add as key_<count>
                             k_similar = [i for i in output_dict.keys() if i.startswith(k)]
-                            output_dict[f"{k}_{len(k_similar) + 1}"] = v
+                            output_dict[f"{k}_{len(k_similar)+1}"] = v
                     else:
                         # for other keys, keep the one with max length
                         output_dict[k] = v if len(v) > len(output_dict[k]) else output_dict[k]
@@ -391,7 +401,7 @@ def flatten_llm_results(llm_results, output_dict=None):
                         output_dict[k].extend(v)
                     else:
                         k_similar = [i for i in output_dict.keys() if i.startswith(k)]
-                        output_dict[f"{k}_{len(k_similar) + 1}"] = v
+                        output_dict[f"{k}_{len(k_similar)+1}"] = v
                 else:
                     k_strs, flat_list, flat_dict = flatten_llm_results(v, output_dict)
                     if len(k_strs) > 0:
@@ -401,13 +411,13 @@ def flatten_llm_results(llm_results, output_dict=None):
                             output_dict[k].extend(k_strs)
                         else:
                             k_similar = [i for i in output_dict.keys() if i.startswith(k)]
-                            output_dict[f"{k}_{len(k_similar) + 1}"] = k_strs
+                            output_dict[f"{k}_{len(k_similar)+1}"] = k_strs
                     if len(flat_list) > 0:
                         if k not in output_dict:
                             output_dict[k] = flat_list
                         else:
                             k_similar = [i for i in output_dict.keys() if i.startswith(k)]
-                            output_dict[f"{k}_{len(k_similar) + 1}"] = flat_list
+                            output_dict[f"{k}_{len(k_similar)+1}"] = flat_list
                     if len(flat_dict) > 0:
                         for k_, v_ in flat_dict.items():
                             if k_ not in output_dict:
@@ -416,7 +426,7 @@ def flatten_llm_results(llm_results, output_dict=None):
                                 output_dict[f"{k_}_{k}"] = v_
                             else:
                                 k_similar = [i for i in output_dict.keys() if i.startswith(f"{k_}_{k}")]
-                                output_dict[f"{k_}_{k}_{len(k_similar) + 1}"] = v_
+                                output_dict[f"{k_}_{k}_{len(k_similar)+1}"] = v_
             elif isinstance(v, dict):
                 flatten_llm_results(v, output_dict)
 
@@ -429,17 +439,17 @@ def flatten_llm_results(llm_results, output_dict=None):
         k_strs = [i for i in llm_results if isinstance(i, str) if len(i) > 0]
         k_dicts = [flatten_llm_results(i, {}) for i in llm_results if isinstance(i, dict) if len(i) > 0]
         k_lists = [flatten_llm_results(i, {}) for i in llm_results if isinstance(i, list) if len(i) > 0]
-
+        
         flat_dict = defaultdict(list)
         for i in k_dicts:
-            for k, v in i.items():
+            for k,v in i.items():
                 flat_dict[k].append(v)
-        for k, v in flat_dict.items():
-            if k in ["author", "writer", "published by", "time", "published date", "created_at"]:
+        for k,v in flat_dict.items():
+            if k in ["author", "writer", "published by", "time","published date", "created_at"]:
                 v = [
                     i for i in v
                     if (not isinstance(i, str)) or len(i.strip(string.punctuation +
-                                                               " ")) >= 0  # and v not in ["NA", "na", "None", "null"]
+                                   " ")) >= 0 #and v not in ["NA", "na", "None", "null"]
                 ]
                 try:
                     if len(set(v)) > 0:
@@ -448,7 +458,7 @@ def flatten_llm_results(llm_results, output_dict=None):
                     raise
             else:
                 flat_dict[k] = v
-        flat_dict = {k: v for k, v in flat_dict.items() if len(v) > 0}
+        flat_dict = {k:v for k,v in flat_dict.items() if len(v) > 0}
         flat_list = [j for i in k_lists for j in i]
         return k_strs, flat_list, flat_dict
     return output_dict
@@ -456,7 +466,7 @@ def flatten_llm_results(llm_results, output_dict=None):
 
 def sanitize_nested_values(response_document):
     if isinstance(response_document, dict):
-        for k, v in response_document.items():
+        for k,v in response_document.items():
             # For a dictionary, sanity check all the values inside through sanitize_values function
             if isinstance(v, dict):
                 response_document[k] = v = sanitize_values(v)
@@ -492,13 +502,13 @@ def sanitize_values(response_document: dict):
     if "created_at" not in response_document:
         for i in possible_keys:
             if response_document[i] not in [
-                "", "NA", None, "None", "null", "na"
+                    "", "NA", None, "None", "null", "na"
             ]:
                 try:
                     response_document[
                         "created_at"] = datetime.datetime.strftime(
-                        dateutil.parser.parse(response_document[i]),
-                        "%Y-%m-%d")
+                            dateutil.parser.parse(response_document[i]),
+                            "%Y-%m-%d")
                     if "created_at" in response_document["llm_results"]:
                         response_document["llm_results"][
                             "created_at"] = response_document["created_at"]
@@ -513,6 +523,9 @@ def sanitize_values(response_document: dict):
                 if i in response_document["llm_results"]:
                     response_document["llm_results"][i] = response_document[i]
             except:
+                _ = response_document.pop(i)
+                if i in response_document["llm_results"]:
+                    _ = response_document["llm_results"].pop(i)
                 continue
         else:
             response_document[i] = None
@@ -585,9 +598,9 @@ def main(url, extraction_config, model_config):
             for k, v in script_res_json.items()
             if v not in ["", "NA", "na", "None", "null"]
         }
-    for k, v in script_res_json.items():
+    for k,v in script_res_json.items():
         if v is not None and v not in ["", "NA", "na", "None", "null"]:
-            prompt = prompt.replace(k + ", ", "")
+            prompt = prompt.replace(k+", ", "")
     # except:
     #     with open("temp_script.py", "w") as f:
     #         f.write(script_res_temp)
@@ -597,7 +610,7 @@ def main(url, extraction_config, model_config):
 
     # Reload as json as some elements are tuples instead of lists
     llm_results = json.loads(json.dumps(llm_results))
-
+    
     if isinstance(llm_results, list):
         llm_results = [i for i in llm_results if len(i) > 0]
     elif isinstance(llm_results, dict):
@@ -609,7 +622,7 @@ def main(url, extraction_config, model_config):
 
     response_document["llm_results"] = postprocess_llm_results(
         llm_results, response_document["body"])
-
+    
     response_document["llm_results"] = flatten_llm_results(
         response_document["llm_results"])
 
@@ -621,9 +634,9 @@ def main(url, extraction_config, model_config):
 
     if isinstance(response_document["llm_results"], (list, tuple)) and len(
             response_document["llm_results"]) > 0 and isinstance(
-        response_document["llm_results"][0], dict):
+                response_document["llm_results"][0], dict):
         response_document["llm_results"] = response_document["llm_results"][0]
-
+    
     for main_key in ["author", "title", "created_at"]:
         if main_key in response_document["llm_results"] and isinstance(response_document["llm_results"], dict):
             if isinstance(response_document["llm_results"][main_key], list):
@@ -635,7 +648,7 @@ def main(url, extraction_config, model_config):
                 if main_key == "title":
                     response_document[main_key] = response_document.get("title_html", "NA")
     # print(response_document["title"])
-
+    
     if response_document.get("created_at", None) is None:
         if "published/created date" in response_document["llm_results"]:
             if isinstance(response_document["llm_results"]["published/created date"], (list, tuple)):
@@ -644,18 +657,18 @@ def main(url, extraction_config, model_config):
                     key=lambda x: len(x))[-1]
             elif isinstance(response_document["llm_results"]["published/created date"], str):
                 response_document["created_at"] = response_document["llm_results"]["published/created date"]
-
+    
     # response_document["llm_results"] = [i for i in response_document["llm_results"] if len(i)>0]
-
+    
     if len(response_document["llm_results"]) > 0 and isinstance(response_document["llm_results"], dict):
         try:
-            for k, v in response_document["llm_results"].items():
+            for k,v in response_document["llm_results"].items():
                 if k not in response_document:
                     response_document[k] = v
         except Exception as e:
             traceback.print_exc()
             print(response_document["url"], response_document["llm_results"])
-
+    
     # Reload as json as some elements are tuples instead of lists
     response_document = json.loads(json.dumps(response_document))
     if isinstance(response_document["llm_results"], list):
@@ -671,8 +684,8 @@ def main(url, extraction_config, model_config):
 
     response_document["id"] = re.sub(r'[' + string.punctuation + ']', '-',
                                      url.split("://")[-1]) + '_' + hashlib.md5(
-        bytes(str(datetime.datetime.now()),
-              encoding="utf8")).hexdigest()[:5]
+                                         bytes(str(datetime.datetime.now()),
+                                               encoding="utf8")).hexdigest()[:5]
     response_document = json.loads(json.dumps(response_document))
 
     response_document = sanitize_values(response_document)
@@ -701,99 +714,103 @@ def run_tasks(urls_to_scrape, model_config):
 if __name__ == '__main__':
     urls_to_scrape = os.getenv("SCRAPE_CONFIG_PATH")
     model_config = os.getenv("MODEL_CONFIG_PATH")
-    # assert urls_to_scrape and model_config, \
-    #     f"both urls_to_scrape and model_config should be present. Found {urls_to_scrape} and {model_config}"
-    # urls_to_scrape = json.load(open(urls_to_scrape))
-    # model_config = json.load(open(model_config))
-    # links = {}
-    # for link in urls_to_scrape:
-    #     scrape_conf = {link: urls_to_scrape[link]}
+    assert urls_to_scrape and model_config, \
+        f"both urls_to_scrape and model_config should be present. Found {urls_to_scrape} and {model_config}"
+    urls_to_scrape = json.load(open(urls_to_scrape))
+    model_config = json.load(open(model_config))
+    links = {}
+    for link in urls_to_scrape:
+        scrape_conf = {link: urls_to_scrape[link]}
+        results = run_tasks(scrape_conf, model_config)
+        links[link] = results[0]
+        # print(results)
+    # pickle.dump(results, open("json_results.pkl", "wb"))
+    json.dump(links, open("all_link_results.json", "w"), indent=4)
+
+    # model_config = config = {
+    #     "llm": {
+    #         "model": "gpt-4o-mini",
+    #         "model_provider": "openai",
+    #         "temperature": 0.0,
+    #         # "format": "json",
+    #         # "base_url":
+    #         # "http://localhost:11434",  # Not needed for online models/services
+    #         # "model_tokens": 8192,
+    #         # "chunk_size": 8192,
+    #     },
+    #     "embeddings": {
+    #         "model": "text-embedding-3-small",
+    #         # "model_provider": "openai",
+    #         # "base_url":
+    #         # "http://localhost:11434",  # Not needed for online models/services
+    #         # "model_tokens": 2048,
+    #         # "chunk_size": 2048,
+    #     },
+    #     "library": "BeautifulSoup"
+    # }
+    # urls_to_scrape = {
+    #     "link": {
+    #         "datapoints": [
+    #             "title", "author", "authors", "published/created date", "created_at",
+    #             "topics", 
+    #         ]
+    #     }
+    # }
+    # # loop = asyncio.get_event_loop()
+    # # results = loop.run_until_complete(
+    # links = {
+    #     # "https://bitcointalk.org/index.php?topic=935898.0": [],
+    #     # "https://bitcoincore.reviews/": [],
+    #     # "https://ark-protocol.org/": [],
+    #     # "https://armantheparman.com/op_return/":[],
+    #     # "https://blog.casa.io/bitcoin-multisig-hardware-signing-performance/": [],
+    #     # "https://bitcoinmagazine.com/": [],
+    #     # "https://blog.lopp.net/who-controls-bitcoin-core/": [],
+    #     # "https://blog.lopp.net/empty-bitcoin-blocks-full-mempool": [],
+    #     # "https://bitcoin.stackexchange.com/questions/122300/error-validating-transaction-transaction-orphaned-missing-reference-testnet": [],
+    #     # "https://bitcoinops.org/en/newsletters/2024/08/09/": [],
+        
+    #     # "https://blog.lopp.net/how-many-bitcoin-seed-phrases-are-only-one-repeated-word/": [],
+    #     # "https://armantheparman.com/": [],
+    #     # "https://armantheparman.com/parmanvault/": [],
+    #     # "https://bitcoinmagazine.com/culture/breaking-down-dirty-coin-the-documentary-that-shatters-bitcoin-mining-myths": [],
+    #     # "https://bitcoinmagazine.com/business/river-a-bitcoin-brokerage-built-from-the-ground-up": [],
+    #     "https://www.podpage.com/citadeldispatch/citadel-dispatch-e43-bitcoin-for-beginners-with-bitcoinq_a/": [],
+    #     # "https://www.reddit.com/user/nullc/": [],
+    #     "https://public-sonic.fantom.network/address/0x5470cDA2Fb7200d372242b951DE63b9dC4A6a8A2": [],
+        
+    #     "https://VEINTIUNO.world": [],
+        
+    #     "https://bitcoin.stackexchange.com/questions/111395/what-is-the-weight-of-a-p2tr-input": [],
+    #     "https://docs.lightning.engineering/": [],
+
+    #     "https://www.lopp.net/bitcoin-information.html": [],
+    #     # "https://learnmeabitcoin.com": [],
+    #     # "https://en.bitcoin.it/": [],
+        
+    #     "https://github.com/bitcoinbook/bitcoinbook": [],
+    #     "https://veintiuno.world/evento/bitcoin-farmers-market-2025-03-23/": [],
+    #     "https://bitcoin.stackexchange.com/questions/123792/is-it-possible-to-spend-unconfirmed-utxo": [],
+    #     "https://stackoverflow.com/questions/2081586/web-scraping-with-python": [],
+    #     "https://aviation.stackexchange.com/questions/106435/is-there-any-video-of-an-air-to-air-missile-shooting-down-an-aircraft": [],
+    #     "https://politics.stackexchange.com/questions/88817/why-does-russia-strike-electric-power-in-ukraine": []
+    # }
+
+    # for link in links:
+    #     # print("LINK222222222 ==", link, "stackexchange" in link or "stackoverflow" in link)
+    #     scrape_conf = {link: copy.deepcopy(urls_to_scrape["link"])}
+    #     if "stackexchange" in link or "stackoverflow" in link:
+    #         print("LINK ==", link)
+    #         scrape_conf[link]["datapoints"].extend([
+    #             "question", "question content", "answers", "accepted_answer_indicator_exists", "accepted_answer",
+    #             # "highest_voted_ans",
+    #             "comments", "user_statistics", ".Get full question content with all paragraphs.",
+    #             "\nIf some answer or it's parent has classes like 'accepted-answer', 'js-accepted-answer', 'js-accepted-answer-indicator' or something similar, even in a parent div, then it is accepted answer\n. Get text from that whole div. Accepted answer is mandatory."
+    #         ])
     #     results = run_tasks(scrape_conf, model_config)
     #     links[link] = results[0]
     #     # print(results)
     # # pickle.dump(results, open("json_results.pkl", "wb"))
     # json.dump(links, open("all_link_results.json", "w"), indent=4)
 
-    model_config = config = {
-        "llm": {
-            "model": "gpt-4o-mini",
-            "model_provider": "openai",
-            "temperature": 0.0,
-            # "format": "json",
-            # "base_url":
-            # "http://localhost:11434",  # Not needed for online models/services
-            # "model_tokens": 8192,
-            # "chunk_size": 8192,
-        },
-        "embeddings": {
-            "model": "text-embedding-3-small",
-            # "model_provider": "openai",
-            # "base_url":
-            # "http://localhost:11434",  # Not needed for online models/services
-            # "model_tokens": 2048,
-            # "chunk_size": 2048,
-        },
-        "library": "BeautifulSoup"
-    }
-    urls_to_scrape = {
-        "link": {
-            "datapoints": [
-                "title", "author", "authors", "published/created date", "created_at",
-                "topics",
-            ]
-        }
-    }
-    # loop = asyncio.get_event_loop()
-    # results = loop.run_until_complete(
-    links = {
-        # "https://bitcointalk.org/index.php?topic=935898.0": [],
-        # "https://bitcoincore.reviews/": [],
-        # "https://ark-protocol.org/": [],
-        # "https://armantheparman.com/op_return/":[],
-        # "https://blog.casa.io/bitcoin-multisig-hardware-signing-performance/": [],
-        # "https://bitcoinmagazine.com/": [],
-        # "https://blog.lopp.net/who-controls-bitcoin-core/": [],
-        # "https://blog.lopp.net/empty-bitcoin-blocks-full-mempool": [],
-        # "https://bitcoin.stackexchange.com/questions/122300/error-validating-transaction-transaction-orphaned-missing-reference-testnet": [],
-        # "https://bitcoinops.org/en/newsletters/2024/08/09/": [],
 
-        # "https://blog.lopp.net/how-many-bitcoin-seed-phrases-are-only-one-repeated-word/": [],
-        # "https://armantheparman.com/": [],
-        # "https://armantheparman.com/parmanvault/": [],
-        # "https://bitcoinmagazine.com/culture/breaking-down-dirty-coin-the-documentary-that-shatters-bitcoin-mining-myths": [],
-        # "https://bitcoinmagazine.com/business/river-a-bitcoin-brokerage-built-from-the-ground-up": [],
-        # "https://www.podpage.com/citadeldispatch/citadel-dispatch-e43-bitcoin-for-beginners-with-bitcoinq_a/": [],
-        # # "https://www.reddit.com/user/nullc/": [],
-        # "https://public-sonic.fantom.network/address/0x5470cDA2Fb7200d372242b951DE63b9dC4A6a8A2": [],
-
-        # "https://VEINTIUNO.world": [],
-
-        # "https://bitcoin.stackexchange.com/questions/111395/what-is-the-weight-of-a-p2tr-input": [],
-        # "https://docs.lightning.engineering/": [],
-
-        # "https://www.lopp.net/bitcoin-information.html": [],
-        # # "https://learnmeabitcoin.com": [],
-        # # "https://en.bitcoin.it/": [],
-
-        # "https://github.com/bitcoinbook/bitcoinbook": []
-        # "https://veintiuno.world/evento/bitcoin-farmers-market-2025-03-23/": [],
-        # "https://bitcoin.stackexchange.com/questions/123792/is-it-possible-to-spend-unconfirmed-utxo": [],
-        # "https://stackoverflow.com/questions/2081586/web-scraping-with-python": [],
-        # "https://aviation.stackexchange.com/questions/106435/is-there-any-video-of-an-air-to-air-missile-shooting-down-an-aircraft": [],
-        "https://politics.stackexchange.com/questions/88817/why-does-russia-strike-electric-power-in-ukraine": []
-    }
-
-    for link in links:
-        scrape_conf = {link: urls_to_scrape["link"]}
-        if "stackexchange" in link or "stackoverflow" in link:
-            scrape_conf[link]["datapoints"].extend([
-                "question", "question content", "answers", "accepted_answer_indicator_exists", "accepted_answer",
-                "highest_voted_ans",
-                "comments", "user_statistics", ".Get full question content with all paragraphs.",
-                "\nIf some answer or it's parent has classes like 'accepted-answer', 'js-accepted-answer', 'js-accepted-answer-indicator' or something similar, even in a parent div, then it is accepted answer\n. Get text from that whole div. Accepted answer is mandatory."
-            ])
-        results = run_tasks(scrape_conf, model_config)
-        links[link] = results[0]
-        # print(results)
-    # pickle.dump(results, open("json_results.pkl", "wb"))
-    json.dump(links, open("all_link_results.json", "w"), indent=4)
