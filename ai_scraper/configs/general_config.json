@@ -1,15 +1,68 @@
 {
-    "https://bitcointalk.org/index.php?topic=935898.0": {
+    "https://github.com/satoshilabs/slips": {
         "datapoints": [
             "title", "author", "published/created date", "created_at",
             "topics"
         ]
     },
-    "https://bitcoin.stackexchange.com/questions/122300/error-validating-transaction-transaction-orphaned-missing-reference-testnet": {
+    "https://blog.lopp.net/who-controls-bitcoin-core-/": {
         "datapoints": [
             "title", "author", "published/created date", "created_at",
-            "topics", "question", "question content", "answers", "answer votes", "comments",
-                "user_statistics", ".Get full question content with all paragraphs."
+            "topics"
+        ]
+    },
+    "https://blog.lopp.net/empty-bitcoin-blocks-full-mempool/": {
+        "datapoints": [
+            "title", "author", "published/created date", "created_at",
+            "topics"
+        ]
+    },
+    "https://blog.keys.casa/bitcoin-multisig-hardware-signing-performance/": {
+        "datapoints": [
+            "title", "author", "published/created date", "created_at",
+            "topics"
+        ]
+    },
+    "https://blog.lopp.net/how-to-run-bitcoin-as-a-tor-hidden-service-on-ubuntu/": {
+        "datapoints": [
+            "title", "author", "published/created date", "created_at",
+            "topics"
+        ]
+    },
+    "https://armantheparman.com/op_return/": {
+        "datapoints": [
+            "title", "author", "published/created date", "created_at",
+            "topics"
+        ]
+    },
+    "https://blog.lopp.net/how-many-bitcoin-confirmations-is-enough/": {
+        "datapoints": [
+            "title", "author", "published/created date", "created_at",
+            "topics"
+        ]
+    },
+    "https://blog.lopp.net/2022-bitcoin-node-performance-tests/": {
+        "datapoints": [
+            "title", "author", "published/created date", "created_at",
+            "topics"
+        ]
+    },
+    "https://ark-protocol.org/": {
+        "datapoints": [
+            "title", "author", "published/created date", "created_at",
+            "topics"
+        ]
+    },
+    "https://bitcoinmagazine.com/": {
+        "datapoints": [
+            "title", "author", "published/created date", "created_at",
+            "topics"
+        ]
+    },
+    "https://bitcoincore.reviews": {
+        "datapoints": [
+            "title", "author", "published/created date", "created_at",
+            "topics"
         ]
     }
 }

@@ -129,7 +129,8 @@ def call_scrapegraph_script_generator(prompt, url, model_config):
     site_name = tldextract.extract(url)
     site_name = site_name.subdomain + '.' + site_name.domain + '.' + site_name.suffix
     site_name = site_name.strip('.')
-    if not os.path.exists("generated_scripts/"+site_name+".py"):
+    # if not os.path.exists("generated_scripts/"+site_name+".py"):
+    if True:  # Generate a new script everytime
         # Create the script creator graph
         for _ in range(3):
             try:
@@ -144,7 +145,7 @@ def call_scrapegraph_script_generator(prompt, url, model_config):
                 print("RETYING ::", e, flush=True)
                 prompt += "\nThis code generates error.\n" + result + "\nWrite code such that this is avoided " + traceback.format_exc()
                 continue
-    else:
+    else:  # If script already exists, use that.
         with open("generated_scripts/"+site_name+".py") as f:
             result = f.read()
             result_json = exec(result, {'filename': filename, "url": url})
@@ -726,91 +727,3 @@ if __name__ == '__main__':
         # print(results)
     # pickle.dump(results, open("json_results.pkl", "wb"))
     json.dump(links, open("all_link_results.json", "w"), indent=4)
-
-    # model_config = config = {
-    #     "llm": {
-    #         "model": "gpt-4o-mini",
-    #         "model_provider": "openai",
-    #         "temperature": 0.0,
-    #         # "format": "json",
-    #         # "base_url":
-    #         # "http://localhost:11434",  # Not needed for online models/services
-    #         # "model_tokens": 8192,
-    #         # "chunk_size": 8192,
-    #     },
-    #     "embeddings": {
-    #         "model": "text-embedding-3-small",
-    #         # "model_provider": "openai",
-    #         # "base_url":
-    #         # "http://localhost:11434",  # Not needed for online models/services
-    #         # "model_tokens": 2048,
-    #         # "chunk_size": 2048,
-    #     },
-    #     "library": "BeautifulSoup"
-    # }
-    # urls_to_scrape = {
-    #     "link": {
-    #         "datapoints": [
-    #             "title", "author", "authors", "published/created date", "created_at",
-    #             "topics", 
-    #         ]
-    #     }
-    # }
-    # # loop = asyncio.get_event_loop()
-    # # results = loop.run_until_complete(
-    # links = {
-    #     # "https://bitcointalk.org/index.php?topic=935898.0": [],
-    #     # "https://bitcoincore.reviews/": [],
-    #     # "https://ark-protocol.org/": [],
-    #     # "https://armantheparman.com/op_return/":[],
-    #     # "https://blog.casa.io/bitcoin-multisig-hardware-signing-performance/": [],
-    #     # "https://bitcoinmagazine.com/": [],
-    #     # "https://blog.lopp.net/who-controls-bitcoin-core/": [],
-    #     # "https://blog.lopp.net/empty-bitcoin-blocks-full-mempool": [],
-    #     # "https://bitcoin.stackexchange.com/questions/122300/error-validating-transaction-transaction-orphaned-missing-reference-testnet": [],
-    #     # "https://bitcoinops.org/en/newsletters/2024/08/09/": [],
-        
-    #     # "https://blog.lopp.net/how-many-bitcoin-seed-phrases-are-only-one-repeated-word/": [],
-    #     # "https://armantheparman.com/": [],
-    #     # "https://armantheparman.com/parmanvault/": [],
-    #     # "https://bitcoinmagazine.com/culture/breaking-down-dirty-coin-the-documentary-that-shatters-bitcoin-mining-myths": [],
-    #     # "https://bitcoinmagazine.com/business/river-a-bitcoin-brokerage-built-from-the-ground-up": [],
-    #     "https://www.podpage.com/citadeldispatch/citadel-dispatch-e43-bitcoin-for-beginners-with-bitcoinq_a/": [],
-    #     # "https://www.reddit.com/user/nullc/": [],
-    #     "https://public-sonic.fantom.network/address/0x5470cDA2Fb7200d372242b951DE63b9dC4A6a8A2": [],
-        
-    #     "https://VEINTIUNO.world": [],
-        
-    #     "https://bitcoin.stackexchange.com/questions/111395/what-is-the-weight-of-a-p2tr-input": [],
-    #     "https://docs.lightning.engineering/": [],
-
-    #     "https://www.lopp.net/bitcoin-information.html": [],
-    #     # "https://learnmeabitcoin.com": [],
-    #     # "https://en.bitcoin.it/": [],
-        
-    #     "https://github.com/bitcoinbook/bitcoinbook": [],
-    #     "https://veintiuno.world/evento/bitcoin-farmers-market-2025-03-23/": [],
-    #     "https://bitcoin.stackexchange.com/questions/123792/is-it-possible-to-spend-unconfirmed-utxo": [],
-    #     "https://stackoverflow.com/questions/2081586/web-scraping-with-python": [],
-    #     "https://aviation.stackexchange.com/questions/106435/is-there-any-video-of-an-air-to-air-missile-shooting-down-an-aircraft": [],
-    #     "https://politics.stackexchange.com/questions/88817/why-does-russia-strike-electric-power-in-ukraine": []
-    # }
-
-    # for link in links:
-    #     # print("LINK222222222 ==", link, "stackexchange" in link or "stackoverflow" in link)
-    #     scrape_conf = {link: copy.deepcopy(urls_to_scrape["link"])}
-    #     if "stackexchange" in link or "stackoverflow" in link:
-    #         print("LINK ==", link)
-    #         scrape_conf[link]["datapoints"].extend([
-    #             "question", "question content", "answers", "accepted_answer_indicator_exists", "accepted_answer",
-    #             # "highest_voted_ans",
-    #             "comments", "user_statistics", ".Get full question content with all paragraphs.",
-    #             "\nIf some answer or it's parent has classes like 'accepted-answer', 'js-accepted-answer', 'js-accepted-answer-indicator' or something similar, even in a parent div, then it is accepted answer\n. Get text from that whole div. Accepted answer is mandatory."
-    #         ])
-    #     results = run_tasks(scrape_conf, model_config)
-    #     links[link] = results[0]
-    #     # print(results)
-    # # pickle.dump(results, open("json_results.pkl", "wb"))
-    # json.dump(links, open("all_link_results.json", "w"), indent=4)
-
-
