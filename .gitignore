@@ -2,6 +2,10 @@
 delvingbitcoin_2_elasticsearch\archive
 venv/
 archive
+.venv
+__pycache__
+common/node_modules
+.env
 
 node_modules
 __pycache__

@@ -1,8 +1,6 @@
-import json
-
 import requests
 from bs4 import BeautifulSoup
-
+import json
 
 def main(url, filename):
     response = requests.get(url)
@@ -13,7 +11,6 @@ def main(url, filename):
     published_date = "NA"
     topics = []
 
-    # Example extraction logic (this will depend on the actual HTML structure)
     author_tag = soup.find('meta', attrs={'name': 'author'})
     if author_tag and 'content' in author_tag.attrs:
         author = author_tag['content']
@@ -22,10 +19,10 @@ def main(url, filename):
     if date_tag and 'datetime' in date_tag.attrs:
         published_date = date_tag['datetime']
 
-    # Assuming topics are in a specific tag, e.g., <meta name="keywords">
-    topics_tag = soup.find('meta', attrs={'name': 'keywords'})
-    if topics_tag and 'content' in topics_tag.attrs:
-        topics = topics_tag['content'].split(',')
+    topics_tags = soup.find_all('a', class_='topic-link')
+    for tag in topics_tags:
+        if tag.string:
+            topics.append(tag.string.strip())
 
     data = {
         "title": title,
@@ -35,7 +32,6 @@ def main(url, filename):
     }
 
     with open(filename, 'w') as json_file:
-        json.dump(data, json_file, ensure_ascii=False, indent=4)
-
+        json.dump(data, json_file, indent=4)
 
 main(url=url, filename=filename)

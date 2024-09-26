@@ -1,4 +1,4 @@
-name: General Scraper
+name: AI Scraper
 on:
 #  schedule:
 #    - cron: '35 12 * * *' # every day at midnight

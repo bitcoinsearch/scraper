@@ -40,13 +40,6 @@ es = Elasticsearch(
     api_key=os.getenv("USER_PASSWORD")
 )
 
-# res = es.search(index=os.getenv("INDEX"), body = {
-#     'size' : 5,
-#     "sort": { "timestamp": "desc"},
-#     'query': {
-#         'match_all' : {}
-#     }
-# })
 
 def build_scrapegraph_prompt(extraction_config):
     """
@@ -103,7 +96,7 @@ def get_script_from_llm(chunks, prompt, model_config, url):
     site_name = tldextract.extract(url)
     site_name = site_name.subdomain + '.' + site_name.domain + '.' + site_name.suffix
     site_name = site_name.strip('.')
-    if True or not os.path.exists("generated_scripts/"+site_name+".py"):
+    if True or not os.path.exists("ai_scraper/generated_scripts/"+site_name+".py"):
         # Execute the generate answer node
         for _ in range(3):
             try:
@@ -122,14 +115,14 @@ def get_script_from_llm(chunks, prompt, model_config, url):
                 prompt += "\nThis code generates error.\n" + result + "\nWrite code such that this is avoided " + traceback.format_exc()
                 continue
     else:
-        with open("generated_scripts/"+site_name+".py") as f:
+        with open("ai_scraper/generated_scripts/"+site_name+".py") as f:
             result = f.read()
             result_json = exec(result, {'filename': filename, "url": url})
     try:
         result_json = json.load(open(filename))
         os.remove(filename)
-        os.makedirs("generated_scripts", exist_ok=True)
-        with open("generated_scripts/"+site_name+".py", "w") as f:
+        os.makedirs("ai_scraper/generated_scripts", exist_ok=True)
+        with open("ai_scraper/generated_scripts/"+site_name+".py", "w") as f:
             f.write(result)
         print("filename = ", filename)
     except Exception as e:
@@ -153,7 +146,7 @@ def call_scrapegraph_script_generator(prompt, url, model_config):
     site_name = tldextract.extract(url)
     site_name = site_name.subdomain + '.' + site_name.domain + '.' + site_name.suffix
     site_name = site_name.strip('.')
-    # if not os.path.exists("generated_scripts/"+site_name+".py"):
+    # if not os.path.exists("ai_scraper/generated_scripts/"+site_name+".py"):
     if True:  # Generate a new script everytime
         # Create the script creator graph
         for _ in range(3):
@@ -170,14 +163,14 @@ def call_scrapegraph_script_generator(prompt, url, model_config):
                 prompt += "\nThis code generates error.\n" + result + "\nWrite code such that this is avoided " + traceback.format_exc()
                 continue
     else:  # If script already exists, use that.
-        with open("generated_scripts/"+site_name+".py") as f:
+        with open("ai_scraper/generated_scripts/"+site_name+".py") as f:
             result = f.read()
             result_json = exec(result, {'filename': filename, "url": url})
     try:
         result_json = json.load(open(filename))
         os.remove(filename)
-        os.makedirs("generated_scripts", exist_ok=True)
-        with open("generated_scripts/"+site_name+".py", "w") as f:
+        os.makedirs("ai_scraper/generated_scripts", exist_ok=True)
+        with open("ai_scraper/generated_scripts/"+site_name+".py", "w") as f:
             f.write(result)
         print("filename = ", filename)
     except Exception as e:
@@ -388,6 +381,15 @@ def postprocess_llm_results(llm_results, html_body):
 
 
 def flatten_llm_results(llm_results, output_dict = None):
+    """Remove nesting and add data to the parent data structure if possible
+    
+    Args:
+        llm_results (dict): dict containing results from llm
+        output_dict (None, optional): input dictionary in which data is to be stored. ()
+    
+    Returns:
+        dict: flattened dictionary
+    """
     if output_dict is None:
         output_dict = {}
     # if isinstance(llm_results, dict):
@@ -490,6 +492,14 @@ def flatten_llm_results(llm_results, output_dict = None):
 
 
 def sanitize_nested_values(response_document):
+    """Recursively sanitize data types of values by calling sanitize_values
+    
+    Args:
+        response_document (list/dict): extracted data to be sanitized
+    
+    Returns:
+        list/dict: sanitized data structure
+    """
     if isinstance(response_document, dict):
         for k,v in response_document.items():
             # For a dictionary, sanity check all the values inside through sanitize_values function
@@ -505,6 +515,16 @@ def sanitize_nested_values(response_document):
 
 
 def sanitize_values(response_document: dict):
+    """Verify datatypes for some values
+    Either remove the value of select best/first match for correct data type.
+    Eg: "author" should be string and dates should be date type
+    
+    Args:
+        response_document (dict): extracted data to be sanitized
+    
+    Returns:
+        dict: response document with corrected data
+    """
     if not isinstance(response_document, dict):
         return response_document
     # Add llm_results as a key as if called from sanitize_nested_values,
@@ -591,6 +611,16 @@ def sanitize_values(response_document: dict):
 
 
 def main(url, extraction_config, model_config):
+    """Driver function that extracts data from one url
+    
+    Args:
+        url (str): url to extract data from
+        extraction_config (dict): configuration dict for the url containing list of datapoints
+        model_config (dict): dict with model parameters required by scrapegraphai
+    
+    Returns:
+        dict: response with required datapoints to be inserted in elasticsearch
+    """
     # created_at, title, body, url, indexed_at, authors, id
     # Create base graph to get some llm parameters
     print(url)
@@ -631,7 +661,7 @@ def main(url, extraction_config, model_config):
     #         f.write(script_res_temp)
 
     llm_results = get_answers_from_llm(parsed_chunks, prompt, state, model_config)
-    # llm_results = response_document["llm_results"] = json.load(open("llm_results.json"))
+    # llm_results = response_document["llm_results"] = json.load(open("llm_results.json"))  # This is for testing postprocessing
 
     # Reload as json as some elements are tuples instead of lists
     llm_results = json.loads(json.dumps(llm_results))
@@ -673,7 +703,7 @@ def main(url, extraction_config, model_config):
                 if main_key == "title":
                     response_document[main_key] = response_document.get("title_html", "NA")
     # print(response_document["title"])
-    
+
     if response_document.get("created_at", None) is None:
         if "published/created date" in response_document["llm_results"]:
             if isinstance(response_document["llm_results"]["published/created date"], (list, tuple)):
@@ -721,19 +751,30 @@ def main(url, extraction_config, model_config):
 
 
 def run_tasks(urls_to_scrape, model_config):
+    """Takes input and model configs, passes them through scraper individually and inserts responses
+    in elasticsearch
+    
+    Args:
+        urls_to_scrape (dict): mapping of url to scraping config
+        model_config (dict): model configuration as required by scrapegraphai
+    
+    Returns:
+        list: list of results for each url
+    """
     tasks = []
     for url, metadata in urls_to_scrape.items():
         tasks.append(main(url, metadata, model_config))
     # results = await asyncio.gather(*tasks)
-    json.dump(tasks, open("result.json", "w"), indent=4)
+    # json.dump(tasks, open("result.json", "w"), indent=4)
     for i in tasks:
         try:
             upsert_document(INDEX, i["id"], i)
             print("URL: ", i["url"], "|", i["id"])
         except:
-            json.dump(i, open("error_llm_results.json", "w"), indent=4)
+            json.dump(i, open("ai_scraper/others/error_llm_results.json", "w"), indent=4)
             raise
     return tasks
+
 
 
 if __name__ == '__main__':
@@ -750,4 +791,4 @@ if __name__ == '__main__':
         links[link] = results[0]
         # print(results)
     # pickle.dump(results, open("json_results.pkl", "wb"))
-    json.dump(links, open("all_link_results.json", "w"), indent=4)
+    # json.dump(links, open("ai_scraper/others/all_link_results.json", "w"), indent=4)
