@@ -5,13 +5,18 @@
 
 
 # useful for handling different item types with a single interface
-import configparser
 import os
 import re
+
+from loguru import logger
 import sys
 
+logger.remove()  # Remove default logger
+logger.add(sys.stdout, level="INFO")  # Set logger to INFO or DEBUG level, depending on what you need
+
 from bs4 import BeautifulSoup
-from elasticsearch import Elasticsearch
+from dotenv import load_dotenv
+from elasticsearch import Elasticsearch, NotFoundError
 from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -19,14 +24,12 @@ spiders_dir = os.path.join(current_dir, 'spiders')
 
 sys.path.append(spiders_dir)
 
-from utils import strip_tags
-
-config = configparser.ConfigParser()
-config.read("config.ini")
+load_dotenv()
+INDEX = os.getenv("INDEX")
 
 es = Elasticsearch(
-    cloud_id=config["ELASTIC"]["cloud_id"],
-    basic_auth=(config["ELASTIC"]["user"], config["ELASTIC"]["password"]),
+    cloud_id=os.getenv("CLOUD_ID"),
+    api_key=os.getenv("USER_PASSWORD")
 )
 
 
@@ -77,6 +80,18 @@ def extract_bip_number(body_formatted):
         return None
 
 
+def es_add_document_if_not_exists(doc):
+    doc_id = doc['id']
+    try:
+        resp = es.get(index=INDEX, id=doc_id)
+        logger.info(f"Document already exist! ID: {doc['id']}")
+    except NotFoundError:
+        _ = es.index(index=INDEX, body=doc, id=doc_id)
+        logger.info(f'Successfully added! ID: {doc["id"]}, Type:{doc["type"]}')
+    except Exception as e:
+        logger.error(f'Error occurred: {str(e)}')
+
+
 class ElasticsearchPipeline:
     def process_item(self, item, spider):
         def parse_title(chunk: str) -> str:
@@ -105,31 +120,17 @@ class ElasticsearchPipeline:
         if spider.name in ["bolts", "btcphilosophy", "grokkingbtc", "lndocs",
                            "programmingbtc", "bips", "blips", "andreasbooks",
                            "bitmex"]:
-            # Split this first for the body_formatted
-            splitter = return_splitter(item['body_type'],
-                                       2000)  # 2000 character limit
-            chunks = splitter.split_text(item['body_formatted'])
 
-            if len(chunks) > 1:
-                for i, chunk in enumerate(chunks):
-                    if chunk in ["<article>",
-                                 "<article><div>"]:  # Manually filterting btcphilosophy case
-                        continue
-                    title = parse_title(chunk)
-                    body = strip_tags(chunk)
-                    document = {**item, 'title': title, 'body_formatted': chunk,
-                                'body': body}
-                    es.index(index=config["ELASTIC"]["index"],
-                             document=document)
+            if spider.name in ['andreasbooks', 'btcphilosophy',
+                               'grokkingbtc',
+                               'programmingbtc']:
+                delim_end = item['title'].find(']')
+                title = item['title']
+                item = {**item, 'title': title[1:delim_end] + ':' + title[
+                                                                    delim_end + 1:]}
+                es_add_document_if_not_exists(doc=item)
             else:
-                if spider.name in ['andreasbooks', 'btcphilosophy',
-                                   'grokkingbtc',
-                                   'programmingbtc']:
-                    delim_end = item['title'].find(']')
-                    title = item['title']
-                    item = {**item, 'title': title[1:delim_end] + ':' + title[
-                                                                        delim_end + 1:]}
-                es.index(index=config["ELASTIC"]["index"], document=item)
+                es_add_document_if_not_exists(doc=item)
         else:
-            es.index(index=config["ELASTIC"]["index"], document=item)
+            es_add_document_if_not_exists(doc=item)
         return item

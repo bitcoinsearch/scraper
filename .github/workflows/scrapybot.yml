@@ -1,0 +1,43 @@
+name: Scrapybot
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Schedule to run daily at 2:00 AM UTC
+  workflow_dispatch:      # Manual trigger of the workflow
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Make scraper.sh executable and run it
+      - name: Run scraper
+        run: |
+          chmod +x scrapybot/scraper.sh
+          ./scrapybot/scraper.sh
+
+        env:
+            ES_ENGINE: ${{ secrets.ES_ENGINE }}
+            ES_URL: ${{ secrets.ES_URL }}
+            ES_TOKEN: ${{ secrets.ES_TOKEN }}
+            CLOUD_ID: ${{ secrets.CLOUD_ID }}
+            USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+            USERNAME: ${{ secrets.USERNAME }}
+            INDEX: ${{ secrets.INDEX }}
+            DATA_DIR: /tmp/data

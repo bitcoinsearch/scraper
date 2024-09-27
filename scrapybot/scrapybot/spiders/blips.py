@@ -1,11 +1,11 @@
-from datetime import datetime
-from bs4 import BeautifulSoup
 import json
+from datetime import datetime
 
-from .utils import get_details, strip_tags, strip_attributes, convert_to_iso_datetime
-import uuid
+from bs4 import BeautifulSoup
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
+
+from .utils import get_details, strip_tags, strip_attributes, convert_to_iso_datetime
 
 
 class BlipsSpider(CrawlSpider):
@@ -31,7 +31,7 @@ class BlipsSpider(CrawlSpider):
         details = BeautifulSoup(article, "html.parser").find("code").text
         details = details.split("\n")
         blip_info = get_details(details[:-1])
-        item["id"] = "blips-" + str(uuid.uuid4())
+        item["id"] = f"blips-{blip_info['bLIP']}"
         item["title"] = blip_info.get("Title")
 
         if not item["title"]:
