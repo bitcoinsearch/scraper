@@ -1,0 +1,3 @@
+[development]
+test_mode = True
+mock_output_excluded_fields = body, body_formatted

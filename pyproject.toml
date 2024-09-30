@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "scraper"
+version = "0.1.0"
+description = "Scraper is designed to automate the process of gathering information from a variety of key Bitcoin-related sources. It leverages GitHub Actions to schedule nightly cron jobs, ensuring that the most up-to-date content is captured from each source according to a defined frequency. The scraped data are then stored in an Elasticsearch index."
+authors = ["kouloumos <kouloumosa@gmail.com>", "urvish patel <urvishp80@gmail.com>"] 
+readme = "README.md"
+packages = [{include = "scraper"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+click = "^8.1.7"
+pyyaml = "^6.0.2"
+elasticsearch = "^8.15.0"
+pydantic = "^2.9.1"
+gitpython = "^3.1.43"
+loguru = "^0.7.2"
+python-dotenv = "^1.0.1"
+aiohttp = "^3.10.5"
+
+
+[tool.poetry.group.dev.dependencies]
+jupyter = "^1.1.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+scraper = "scraper.cli:cli"
+playground = "scraper.run_jupyter:main"
+
