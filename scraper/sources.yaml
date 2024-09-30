@@ -1,0 +1,23 @@
+github:
+  - name: BIPs
+    domain: https://github.com/bitcoin/bips
+    url: https://github.com/bitcoin/bips.git
+  - name: BOLTs
+    domain: https://github.com/lightning/bolts
+    url: https://github.com/lightning/bolts.git
+  - name: BLIPs
+    domain: https://github.com/lightning/blips
+    url: https://github.com/lightning/blips.git
+  - name: BitcoinOps
+    domain: https://bitcoinops.org
+    url: https://github.com/bitcoinops/bitcoinops.github.io.git
+    directories: 
+      _posts/en: post
+      _topics/en: topic
+  - name: BitcoinTranscripts
+    domain: https://btctranscripts.com
+    url: https://github.com/bitcointranscripts/bitcointranscripts.git
+web:
+  - name: bitcointalk
+    domain: https://bitcointalk.org/
+    url: https://bitcointalk.org/
