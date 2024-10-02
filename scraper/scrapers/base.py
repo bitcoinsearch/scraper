@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 
 from scraper.models import MetadataDocument, ScrapedDocument, SourceConfig
-from scraper.outputs.abstract_output import AbstractOutput
+from scraper.outputs import AbstractOutput
+from scraper.processors import ProcessorManager
 
 
 class BaseScraper(ABC):
@@ -11,26 +12,25 @@ class BaseScraper(ABC):
     This class defines the common interface and shared functionality
     for all concrete scraper implementations. It handles basic operations
     like interfacing with the output handler.
-
-    Attributes:
-        config (SourceConfig): Configuration for the scraper.
-        output (AbstractOutput): Handler for outputting scraped data.
     """
 
     def __init__(
         self,
         config: SourceConfig,
         output: AbstractOutput,
+        processor_manager: ProcessorManager,
     ):
         """
         Initialize the BaseScraper with configuration and output handler.
 
         Args:
-            config: Configuration for the scraper.
+            config (SourceConfig): Configuration for the scraper.
             output (AbstractOutput): Handler for outputting scraped data.
+            processor_manager (ProcessorManager): Manager for processors.
         """
         self.config = config
         self.output = output
+        self.processor_manager = processor_manager
 
     @abstractmethod
     async def scrape(self):
@@ -41,16 +41,27 @@ class BaseScraper(ABC):
         """
         pass
 
-    async def index_document(self, document: ScrapedDocument):
+    async def process_and_index_document(self, document: ScrapedDocument):
         """
-        Index the scraped documents using the output handler.
+        Process a single document through the processor manager and index it.
+
+        This method applies all registered processors to the document and then
+        indexes the processed document using the output handler.
 
         Args:
-            documents (List[ScrapedDocument]): List of documents to index.
+            document (ScrapedDocument): The document to process and index.
         """
-        await self.output.index_document(document)
+        processed_doc = await self.processor_manager.process_document(document)
+        await self.output.index_document(processed_doc)
 
     async def run(self):
+        """
+        Run the scraper within the context of the output handler.
+
+        This method sets up the output context and calls the scrape method.
+        It ensures that the output handler is properly initialized and cleaned up,
+        even if an exception occurs during scraping.
+        """
         async with self.output:
             await self.scrape()
 

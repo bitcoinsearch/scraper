@@ -4,7 +4,7 @@ import yaml
 from dotenv import load_dotenv
 from typing import Dict, List, Optional
 
-from scraper.registry import output_registry, scraper_registry
+from scraper.registry import output_registry, scraper_registry, processor_registry
 from scraper.models import SourceConfig
 
 
@@ -90,6 +90,10 @@ class Settings:
     def registered_scraper_types(self):
         return scraper_registry.get_all()
 
+    @property
+    def registered_processor_types(self):
+        return processor_registry.get_all()
+
     def get_config_overview(self):
         overview = "Configuration Settings:\n"
         overview += f"PROFILE: {self.PROFILE}\n"
@@ -128,6 +132,13 @@ class Settings:
         return self._get_env_variable(
             "API_KEY",
             "API_KEY is not set in the environment or .env file. Please set it to use Elasticsearch.",
+        )
+
+    @property
+    def OPENAI_API_KEY(self):
+        return self._get_env_variable(
+            "OPENAI_API_KEY",
+            "OPENAI_API_KEY is not set in the environment or .env file. Please set it to use OpenAI.",
         )
 
 

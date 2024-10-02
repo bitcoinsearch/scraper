@@ -21,6 +21,9 @@ class ScrapedDocument(BaseModel):
         description="Type of the body content (e.g., 'markdown', 'mediawiki')"
     )
     summary: Optional[str] = Field(default=None, description="Summary of the document")
+    summary_vector_embeddings: Optional[List[float]] = Field(
+        default=None, description="Vector embeddings of the summary"
+    )
     domain: str = Field(description="Domain from which the document was scraped")
     indexed_at: str = Field(
         default_factory=datetime.now().isoformat,

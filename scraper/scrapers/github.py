@@ -91,7 +91,7 @@ class GithubScraper(BaseScraper):
                 logger.info(f"Processing changed file: {file_path}")
                 document = self.parse_file(repo, file_path)
                 if document:
-                    await self.index_document(document)
+                    await self.process_and_index_document(document)
                     processed_documents += 1
         return processed_documents
 
