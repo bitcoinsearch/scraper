@@ -6,15 +6,13 @@ import traceback
 from datetime import datetime
 
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
 from loguru import logger
 from requests import request
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.elasticsearch_utils import upsert_document
-
-load_dotenv()
+from config.conf import INDEX_NAME, DATA_DIR, START_INDEX
 
 BOARD_URL = 'https://bitcointalk.org/index.php?board=6.'
 
@@ -24,9 +22,8 @@ authors = ['achow101', 'kanzure', 'Sergio_Demian_Lerner', 'Nicolas Dorier', 'jl2
 
 
 def fetch_all_topics() -> list:
-    data_dir = os.getenv('DATA_DIR')
-    if not os.path.exists(os.path.join(data_dir, 'bitcointalk')):
-        os.makedirs(os.path.join(data_dir, 'bitcointalk'), exist_ok=True)
+    if not os.path.exists(os.path.join(DATA_DIR, 'bitcointalk')):
+        os.makedirs(os.path.join(DATA_DIR, 'bitcointalk'), exist_ok=True)
 
     offset = 0
     topics = []
@@ -146,7 +143,7 @@ def fetch_posts(url: str):
 
 
 def main() -> None:
-    filename = os.path.join(os.getenv('DATA_DIR'), 'bitcointalk', 'topics.json')
+    filename = os.path.join(DATA_DIR, 'bitcointalk', 'topics.json')
     topics = []
 
     if not os.path.exists(filename):
@@ -160,14 +157,14 @@ def main() -> None:
     logger.info(f"Found {len(topics)} topics")
     new_ids = set()
     updated_ids = set()
-    start_index = int(os.getenv('START_INDEX', 0))
+    start_index = int(START_INDEX)
     for i in range(start_index, len(topics)):
         topic = topics[i]
         logger.info(f"Processing {i + 1}/{len(topics)}")
         documents = fetch_posts(topic)
         for document in documents:
             try:
-                res = upsert_document(index_name=os.getenv('INDEX'), doc_id=document['id'], doc_body=document)
+                res = upsert_document(index_name=INDEX_NAME, doc_id=document['id'], doc_body=document)
                 logger.info(f"Version-{res['_version']}, Result-{res['result']}, ID-{res['_id']}")
                 if res['result'] == 'created':
                     new_ids.add(res['_id'])

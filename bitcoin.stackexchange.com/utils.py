@@ -1,8 +1,8 @@
+import sys
 import traceback
 from io import StringIO
 from html.parser import HTMLParser
-from dotenv import load_dotenv
-from elasticsearch import Elasticsearch, NotFoundError
+from elasticsearch import NotFoundError
 import requests
 import os
 import subprocess
@@ -11,24 +11,18 @@ from loguru import logger
 from tqdm import tqdm
 import xml.etree.ElementTree as ET
 
-load_dotenv()
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-INDEX = os.getenv("INDEX")
-
-es = Elasticsearch(
-    cloud_id=os.getenv("CLOUD_ID"),
-    api_key=os.getenv("USER_PASSWORD")
-)
-
+from config.conf import ES
 
 def document_add(index_name, doc, doc_id=None):
-    resp = es.index(index=index_name, body=doc, id=doc_id)
+    resp = ES.index(index=index_name, body=doc, id=doc_id)
     return resp
 
 
 def document_view(index_name, doc_id):
     try:
-        resp = es.get(index=index_name, id=doc_id)
+        resp = ES.get(index=index_name, id=doc_id)
     except NotFoundError:
         resp = False
     return resp
@@ -50,7 +44,7 @@ def find_and_delete_document_by_source_id(index_name, source_id):
     }
 
     try:
-        search_resp = es.search(index=index_name, body=body, _source=False)
+        search_resp = ES.search(index=index_name, body=body, _source=False)
         hits = search_resp.get('hits', {}).get('hits', [])
         if not hits:
             logger.info(f"No documents found with source-id: {source_id}")
@@ -59,7 +53,7 @@ def find_and_delete_document_by_source_id(index_name, source_id):
         document_to_delete_id = hits[0]['_id']
         logger.info(f"Document _id to delete: {document_to_delete_id}")
 
-        delete_resp = es.delete(index=index_name, id=document_to_delete_id)
+        delete_resp = ES.delete(index=index_name, id=document_to_delete_id)
         result = delete_resp.get('result', None)
         if result == 'deleted':
             logger.info(f"Deleted! '_id': '{document_to_delete_id}'")
@@ -96,6 +90,7 @@ def extract_dump(download_path, extract_path):
             full_7z_path = r"C:\\Program Files\\7-Zip\\7z.exe"  # assuming the default path of 7z in Windows machine
             subprocess.check_call([full_7z_path, "x", "-o" + extract_path, download_path])
         else:
+            print("Extracted Path", extract_path)
             subprocess.check_call(["7z", "x", "-o" + extract_path, download_path])
         logger.info(f"Extraction successful to path: {os.path.abspath(download_path)}")
     except subprocess.CalledProcessError as e:

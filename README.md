@@ -27,9 +27,10 @@ Additionally, for on-demand scraping tasks, we utilize a Scrapybot, details of w
 You need an env file to indicate where you are pushing the data.
 
 1. Copy `cp .env.sample .env`
+2. If you want to run Elastic Search locally, update the `ES_LOCAL_URL = ` with your local elastic search url
 2. run `cd common && yarn install && cd ../mailing-list && yarn install && cd ..`
 3. To scrape a mailing list run `node mailing-list/main.js` with additional env vars like `URL='https://lists.linuxfoundation.org/pipermail/bitcoin-dev/'` and `NAME='bitcoin'`
-3a. Or you can do something like `cd bitcoin.stackexchange.com && pip install -r requirements.txt && cd .. && python3 bitcoin.stackexchange.com/main.py`
+3a. Or you can do something like `cd bitcointranscripts && pip install -r requirements.txt && cd .. && python3 bitcointranscripts/main.py
 
 You should be calling the scrapers from the root dir because they use the common dir.
 

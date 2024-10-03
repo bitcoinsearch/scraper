@@ -10,6 +10,8 @@ import os
 import re
 import sys
 
+from utils import strip_tags
+
 from bs4 import BeautifulSoup
 from elasticsearch import Elasticsearch
 from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
@@ -19,7 +21,6 @@ spiders_dir = os.path.join(current_dir, 'spiders')
 
 sys.path.append(spiders_dir)
 
-from utils import strip_tags
 
 config = configparser.ConfigParser()
 config.read("config.ini")
