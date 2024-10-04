@@ -10,10 +10,9 @@ import traceback
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config.conf import INDEX_NAME, DATA_DIR
+from config.conf import INDEX_NAME, BASE_DIR
 
 if __name__ == "__main__":
-    BASE_DIR = os.getenv(DATA_DIR, ".")
     DOWNLOAD_PATH = os.path.join(BASE_DIR, "bitcoin.stackexchange.com.7z")
     EXTRACT_PATH = os.path.join(BASE_DIR, "bitcoin.stackexchange.com")
 
