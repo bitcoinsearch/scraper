@@ -17,9 +17,9 @@ from common.elasticsearch_utils import document_view, document_add
 
 load_dotenv()
 
-INDEX = os.getenv("INDEX")
-BASE_DIR = os.getenv("DATA_DIR", ".")
-DOWNLOAD_PATH = os.path.join(BASE_DIR, "mailing-list/bitcoin-dev")
+from config.conf import DATA_DIR, INDEX_NAME
+
+DOWNLOAD_PATH = os.path.join(DATA_DIR, "mailing-list/bitcoin-dev")
 
 ORIGINAL_URL = "https://gnusha.org/pi/bitcoindev/"
 CUSTOM_URL = "https://mailing-list.bitcoindevs.xyz/bitcoindev/"
@@ -213,9 +213,9 @@ def parse_dumps():
 def index_documents(docs):
     for doc in docs:
 
-        resp = document_view(index_name=INDEX, doc_id=doc['id'])
+        resp = document_view(index_name=INDEX_NAME, doc_id=doc['id'])
         if not resp:
-            _ = document_add(index_name=INDEX, doc=doc, doc_id=doc['id'])
+            _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
             logger.success(f'Successfully added! ID: {doc["id"]}')
         else:
             logger.info(f"Document already exist! ID: {doc['id']}")
