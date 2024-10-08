@@ -5,13 +5,12 @@ from elasticsearch import Elasticsearch
 
 load_dotenv()
 
-DATA_DIR = os.getenv('DATA_DIR')
+DATA_DIR = os.getenv('DATA_DIR', '.')
 INDEX_NAME = os.getenv("INDEX")
 CLOUD_ID = os.getenv("CLOUD_ID", None)
 API_KEY = os.getenv("USER_PASSWORD", None)
 ES_LOCAL_URL = os.getenv("ES_LOCAL_URL", None)
 START_INDEX = os.getenv("START_INDEX", 0)
-BASE_DIR = os.getenv(DATA_DIR, ".")
 
 ES: Elasticsearch
 

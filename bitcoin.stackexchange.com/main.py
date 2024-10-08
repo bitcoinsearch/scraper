@@ -10,11 +10,11 @@ import traceback
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config.conf import INDEX_NAME, BASE_DIR
+from config.conf import INDEX_NAME, DATA_DIR
 
 if __name__ == "__main__":
-    DOWNLOAD_PATH = os.path.join(BASE_DIR, "bitcoin.stackexchange.com.7z")
-    EXTRACT_PATH = os.path.join(BASE_DIR, "bitcoin.stackexchange.com")
+    DOWNLOAD_PATH = os.path.join(DATA_DIR, "bitcoin.stackexchange.com.7z")
+    EXTRACT_PATH = os.path.join(DATA_DIR, "bitcoin.stackexchange.com")
 
     # download archive data
     if not os.path.exists(DOWNLOAD_PATH):
