@@ -8,22 +8,16 @@ from datetime import datetime
 
 import requests
 import yaml
-from dotenv import load_dotenv
 from loguru import logger
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.elasticsearch_utils import upsert_document
 from common.utils import parse_markdown
-
-load_dotenv()
-
+from config.conf import DATA_DIR, INDEX_NAME
 
 FOLDER_NAME = "bitcointranscripts-master"
 REPO_URL = "https://github.com/bitcointranscripts/bitcointranscripts/archive/refs/heads/master.zip"
-
-INDEX_NAME = os.getenv('INDEX')
-DATA_DIR = os.getenv('DATA_DIR')
 
 # Paths
 DIR_PATH = os.path.join(DATA_DIR, "bitcointranscripts")

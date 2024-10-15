@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "@elastic/enterprise-search": "^8.1.1-beta.1",
-    "cheerio": "^1.0.0-rc.12",
-    "dotenv": "^16.0.3",
-    "jsdom": "^20.0.2"
-  }
-}

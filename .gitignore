@@ -3,6 +3,8 @@ delvingbitcoin_2_elasticsearch\archive
 venv/
 archive
 
+.venv
+
 node_modules
 __pycache__
 .vscode

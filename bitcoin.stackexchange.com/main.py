@@ -1,21 +1,20 @@
 import os
+import sys
 import time
 from datetime import datetime
-from dotenv import load_dotenv
 from loguru import logger
 from tqdm import tqdm
+
 from utils import download_dump, extract_dump, parse_posts, parse_users, strip_tags, document_view, document_add
 import traceback
-load_dotenv()
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from config.conf import INDEX_NAME, DATA_DIR
 
 if __name__ == "__main__":
-
-    INDEX = os.getenv("INDEX")
-
-    BASE_DIR = os.getenv("DATA_DIR", ".")
-    DOWNLOAD_PATH = os.path.join(BASE_DIR, "bitcoin.stackexchange.com.7z")
-    EXTRACT_PATH = os.path.join(BASE_DIR, "bitcoin.stackexchange.com")
+    DOWNLOAD_PATH = os.path.join(DATA_DIR, "bitcoin.stackexchange.com.7z")
+    EXTRACT_PATH = os.path.join(DATA_DIR, "bitcoin.stackexchange.com")
 
     # download archive data
     if not os.path.exists(DOWNLOAD_PATH):
@@ -101,9 +100,9 @@ if __name__ == "__main__":
             # _ = find_and_delete_document_by_source_id(INDEX, this_id)
 
             # insert the doc if it doesn't exist, with '_id' set by our logic
-            resp = document_view(index_name=INDEX, doc_id=document['id'])
+            resp = document_view(index_name=INDEX_NAME, doc_id=document['id'])
             if not resp:
-                _ = document_add(index_name=INDEX, doc=document, doc_id=document['id'])
+                _ = document_add(index_name=INDEX_NAME, doc=document, doc_id=document['id'])
                 logger.success(f"Added! ID: {document['id']}, Title: {document['title']}")
             else:
                 # logger.info(f"Exist! ID: {document['id']}, Title: {document['title']}")
