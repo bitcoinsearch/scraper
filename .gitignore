@@ -16,6 +16,11 @@ scrapybot/*.xml
 scrapybot/*.bz2
 scrapybot/*.json
 
+# Jupyter Notebook
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+*/notebooks/outputs/
+
 # Logs
 logs
 *.log
