@@ -1,0 +1,201 @@
+[
+  {
+    "name": "Adam Back",
+    "bitcointalk_username": "adam3us",
+    "bitcointalk_user_id": "101601",
+    "aliases": ["adam3us", "Dr Adam Back"]
+  },
+  {
+    "name": "Adam Ficsor",
+    "aliases": ["nopara73"]
+  },
+  {
+    "name": "Adam Gibson",
+    "aliases": ["AdamISZ"]
+  },
+  {
+    "name": "Andreas Antonopoulos",
+    "aliases": ["Andreas M. Antonopoulos"]
+  },
+  {
+    "name": "Andrew Poelstra",
+    "bitcointalk_username": "andytoshi",
+    "bitcointalk_user_id": "80376",
+    "aliases": ["andytoshi"]
+  },
+  {
+    "name": "Ava Chow",
+    "bitcointalk_username": "achow101",
+    "bitcointalk_user_id": "290195",
+    "aliases": ["Andrew Chow", "Achow101", "achow101_alt", "achow101"]
+  },
+  {
+    "name": "Antoine Poinsot",
+    "aliases": ["darosior"]
+  },
+  {
+    "name": "Bastien Teinturier",
+    "aliases": ["Bastien TEINTURIER"]
+  },
+  {
+    "name": "Bryan Bishop",
+    "bitcointalk_username": "kanzure",
+    "bitcointalk_user_id": "190005",
+    "aliases": ["kanzure"]
+  },
+  {
+    "name": "Btc Drak",
+    "aliases": ["Drak"]
+  },
+  {
+    "name": "Christian Decker",
+    "bitcointalk_username": "Cdecker",
+    "bitcointalk_user_id": "49",
+    "aliases": ["cdecker"]
+  },
+  {
+    "name": "David Harding",
+    "aliases": ["David A. Harding", "harding", "bitcoinops"]
+  },
+  {
+    "name": "Eric Voskuil",
+    "aliases": ["eric at voskuil.org"]
+  },
+  {
+    "name": "Gavin Andresen",
+    "bitcointalk_username": "Gavin Andresen",
+    "bitcointalk_user_id": "224",
+    "aliases": ["gavinandresen", "Gavin"]
+  },
+  {
+    "name": "Greg Maxwell",
+    "bitcointalk_username": "gmaxwell",
+    "bitcointalk_user_id": "11425",
+    "aliases": ["gmaxwell", "Gregory Maxwell", "G. Maxwell", "nullc"]
+  },
+  {
+    "name": "Greg Sanders",
+    "aliases": ["instagibbs"]
+  },
+  {
+    "name": "Jeff Garzik",
+    "bitcointalk_username": "jgarzik",
+    "bitcointalk_user_id": "541",
+    "aliases": ["jgarzik"]
+  },
+  {
+    "name": "Jeremy Rubin",
+    "aliases": ["Jeremy"]
+  },
+  {
+    "name": "John Newbery",
+    "aliases": ["jnewbery"]
+  },
+  {
+    "name": "Johnson Lau",
+    "bitcointalk_username": "jl2012",
+    "bitcointalk_user_id": "57175",
+    "aliases": ["jl2012"]
+  },
+  {
+    "name": "Jonas Nick",
+    "aliases": ["nickler"]
+  },
+  {
+    "name": "Jonas Schnelli",
+    "aliases": ["jonas.schnelli"]
+  },
+  {
+    "name": "Jorge Timón",
+    "aliases": ["jtimon", "Jorge Timón"]
+  },
+  {
+    "name": "Karl-Johan Alm",
+    "aliases": ["Kalle Alm"]
+  },
+  {
+    "name": "Luke Dashjr",
+    "bitcointalk_username": "Luke-Jr",
+    "bitcointalk_user_id": "3318",
+    "aliases": ["Luke-Jr"]
+  },
+  {
+    "name": "Mark Erhardt",
+    "aliases": ["Murch"]
+  },
+  {
+    "name": "Matt Corallo",
+    "bitcointalk_username": "Matt Corallo",
+    "bitcointalk_user_id": "4528",
+    "aliases": ["bitcoin-list at bluematt.me", "lf-lists at mattcorallo.com"]
+  },
+  {
+    "name": "Meni Rosenfeld",
+    "bitcointalk_username": "Meni Rosenfeld",
+    "bitcointalk_user_id": "5776"
+  },
+  {
+    "name": "Mike Hearn",
+    "bitcointalk_username": "Mike Hearn",
+    "bitcointalk_user_id": "2700"
+  },
+  {
+    "name": "Nicolas Dorier",
+    "bitcointalk_username": "Nicolas Dorier",
+    "bitcointalk_user_id": "316249",
+    "aliases": ["Nicolas DORIER"]
+  },
+  {
+    "name": "Peter Todd",
+    "bitcointalk_username": "Peter Todd",
+    "bitcointalk_user_id": "2546"
+  },
+  {
+    "name": "Pieter Wuille",
+    "bitcointalk_username": "Pieter Wuille",
+    "bitcointalk_user_id": "2786"
+  },
+  {
+    "name": "Rene Pickhardt",
+    "aliases": ["René Pickhardt"]
+  },
+  {
+    "name": "Satoshi",
+    "bitcointalk_username": "satoshi",
+    "bitcointalk_user_id": "3"
+  },
+  {
+    "name": "Sergi Delgado Segura",
+    "aliases": ["sr_gi"]
+  },
+  {
+    "name": "Sergio Lerner",
+    "bitcointalk_username": "Sergio_Demian_Lerner",
+    "bitcointalk_user_id": "24826",
+    "aliases": ["Sergio Demian Lerner", "Sergio_Demian_Lerner"]
+  },
+  {
+    "name": "Suhas Daftuar",
+    "aliases": ["sdaftuar"]
+  },
+  {
+    "name": "Tim Ruffing",
+    "bitcointalk_username": "TimRuffing",
+    "bitcointalk_user_id": "313945",
+    "aliases": ["TimRuffing"]
+  },
+  {
+    "name": "Vincenzo Palazzo",
+    "aliases": ["vincenzopalazzo"]
+  },
+  {
+    "name": "Warren Togami",
+    "aliases": ["Warren Togami Jr.", "wtogami"]
+  },
+  {
+    "name": "Wladimir J. van der Laan",
+    "bitcointalk_username": "wumpus",
+    "bitcointalk_user_id": "2252",
+    "aliases": ["Wladimir", "wumpus"]
+  }
+]
