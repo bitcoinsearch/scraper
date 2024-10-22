@@ -25,7 +25,7 @@ parser.add_argument(
     default=Path(os.environ.get('TARGET_DIR', './archive')))
 
 
-@functools.cache
+# @functools.cache
 def args():
     return parser.parse_args()
 
