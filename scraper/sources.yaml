@@ -22,6 +22,6 @@ github:
       - topic_extractor
       - vector_embeddings
 web:
-  - name: bitcointalk
-    domain: https://bitcointalk.org/
-    url: https://bitcointalk.org/
+  - name: BitcoinTalk
+    domain: https://bitcointalk.org
+    url: https://bitcointalk.org/index.php?board=6.0

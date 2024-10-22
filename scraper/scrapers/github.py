@@ -24,6 +24,7 @@ class GithubScraper(BaseScraper):
         self.repo_path = os.path.join(settings.DATA_DIR, slugify(self.config.name))
         self._excluded_files = self.DEFAULT_EXCLUDED_FILES.copy()
         self.document_class: Type[ScrapedDocument] = ScrapedDocument
+        self.test_resources = self.config.test_resources
 
     @property
     def excluded_files(self) -> Set[str]:
@@ -38,17 +39,20 @@ class GithubScraper(BaseScraper):
 
         repo = self.clone_or_pull_repo()
 
-        if self.config.test_file:
-            changed_files = [self.config.test_file]
-            logger.info(f"Testing single file: {self.config.test_file}")
+        # Handle test mode vs full mode
+        if self.test_resources:
+            logger.info(f"Running in test mode with resources: {self.test_resources}")
+            files_to_process = self.test_resources
         else:
-            changed_files = self.get_changed_files(repo, last_commit_hash)
+            logger.info("Running in full mode")
+            files_to_process = self.get_changed_files(repo, last_commit_hash)
 
-        documents_indexed = await self.process_changed_files(repo, changed_files)
-        if not self.config.test_file:
-            # Update the existing metadata
+        documents_indexed = await self.process_files(repo, files_to_process)
+
+        # Only update metadata in full mode
+        if not self.test_resources:
             metadata.last_commit_hash = repo.head.commit.hexsha
-            metadata.files_processed = len(changed_files)
+            metadata.files_processed = len(files_to_process)
             metadata.documents_indexed = documents_indexed
             await self.update_metadata(metadata)
 
@@ -82,17 +86,18 @@ class GithubScraper(BaseScraper):
             repo = Repo.clone_from(self.config.url, self.repo_path)
         return repo
 
-    async def process_changed_files(
-        self, repo: Repo, changed_files: List[str]
-    ) -> List[ScrapedDocument]:
+    async def process_files(self, repo: Repo, files: List[str]) -> int:
+        """Process a list of files from the repository."""
         processed_documents = 0
-        for file_path in changed_files:
+        for file_path in files:
             if self.is_relevant_file(file_path):
-                logger.info(f"Processing changed file: {file_path}")
+                logger.info(f"Processing file: {file_path}")
                 document = self.parse_file(repo, file_path)
                 if document:
                     await self.process_and_index_document(document)
                     processed_documents += 1
+                else:
+                    logger.warning(f"Failed to parse file: {file_path}")
         return processed_documents
 
     def is_relevant_file(self, file_path: str) -> bool:

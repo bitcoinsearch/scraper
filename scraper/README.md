@@ -142,11 +142,11 @@ This command will launch a Jupyter notebook server and open the [notebooks/playg
 
 ### Testing with Specific Files
 
-During testing, you can specify a single file to be scraped for a particular source. This is helpful when you want to test the scraper's behavior with a known file or debug issues with specific content.
+During testing, you can specify specific resources to be scraped for a particular source. This is helpful when you want to test the scraper's behavior with known content or debug issues with specific resources.
 
 To use this feature:
 
-1. In the `sources.yaml` file, add a `test_file` field to the source configuration:
+1. In the `sources.yaml` file, add a `test_resources` field to the source configuration:
 
    ```yaml
    github:
@@ -156,12 +156,26 @@ To use this feature:
        processors:
          - processor1
          - processor2
-       test_file: path/to/test/file.md
+       test_resources: 
+         - path/to/test/file.md
+
+  web:
+  - name: BitcoinTalk
+    domain: https://bitcointalk.org
+    url: https://bitcointalk.org/index.php?board=6.0
+    test_resources:
+      - https://bitcointalk.org/index.php?topic=5499150.0
+      - https://bitcointalk.org/index.php?topic=5477577.0
    ```
 
-2. When you run the scraper with this configuration, it will only process the specified `test_file` instead of scraping the entire source.
+2. When you run the scraper with this configuration, it will only process the specified test resources instead of scraping the entire source.
 
 This is useful for debugging, testing new processors, or verifying behavior with specific content. Remove or comment out `test_file` to scrape the entire source.
+
+Remove or comment out `test_resources` to scrape the entire source.
+
+Note: When running in test mode:
+- Metadata updates are disabled
 
 ## Contributing
 
