@@ -1,12 +1,13 @@
 import requests
 from loguru import logger
 import json
+from bs4 import BeautifulSoup
 
 
 class JsonAPIScraper:
     def __init__(self, api_url, link_property, data_property):
         self.api_url = api_url
-        self.api_links = []
+        self.posts = []
         self.link_property = link_property
         self.data_property = data_property
 
@@ -23,17 +24,17 @@ class JsonAPIScraper:
 
                 # Filter only the required fields (links)
                 if self.data_property is not None:
-                    links_array = [
-                        item.get(self.link_property)
+                    posts_array = [
+                        item
                         for item in data.get(self.data_property, [])
                     ]
                 else:
-                    links_array = [
-                        item.get(self.link_property)
+                    posts_array = [
+                        item
                         for item in data
                     ]
 
-                self.api_links = links_array
+                self.posts = posts_array
             else:
                 print(f"Failed to retrieve data. Status code: {response.status_code}")
 
@@ -43,5 +44,21 @@ class JsonAPIScraper:
             print("Failed to parse JSON response.")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
+
+    def scrape_data(self):
+        for post in self.posts:
+            url = post.get(self.link_property)
+            response = requests.get(url)
+
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            # Step 2: Extract title, author, body, and creation date
+            title = soup.find("a", {"class": "question-hyperlink"}).text
+            author = soup.find("div", {"class": "user-details"}).find("a").text
+            body = soup.find("div", {"class": "s-prose js-post-body"}).text
+
+
+
+
 
 
