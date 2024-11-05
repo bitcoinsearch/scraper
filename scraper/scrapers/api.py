@@ -48,6 +48,10 @@ class JsonAPIScraper:
     def scrape_data(self):
         for post in self.posts:
             url = post.get(self.link_property)
+            owner = post.get("owner")
+            author = owner.get("display_name")
+            creation_date = post.get("creation_date")
+
             response = requests.get(url)
 
             soup = BeautifulSoup(response.text, "html.parser")
