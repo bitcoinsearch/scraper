@@ -54,6 +54,7 @@ class StackExchangeScraper:
             author = owner.get("display_name")
             creation_date = post.get("creation_date")
             id = "stackexchange-" + post.get("post_id")
+            post_type = post.get("post_type")
 
             response = requests.get(url)
 
@@ -70,21 +71,44 @@ class StackExchangeScraper:
             # Extract tags
             tags = [tag.text for tag in soup.find_all("a", {"class": "post-tag"})]
 
-            document = {
-                "title": title,
-                "body": body,
-                "body_type": "raw",
-                "authors": [author],
-                "id": id,
-                "tags": tags,
-                "domain": "https://bitcoin.stackexchange.com",
-                "url": url,
-                "thread_url":  url,
-                "created_at": creation_date,
-                "accepted_answer_id": accepted_answer_id,
-                "type": "question",
-                "indexed_at": datetime.now(timezone.utc).isoformat()
-            }
+            base_url = "https://bitcoin.stackexchange.com"
+
+            if post_type == "question":
+                document = {
+                    "title": title,
+                    "body": body,
+                    "body_type": "raw",
+                    "authors": [author],
+                    "id": id,
+                    "tags": tags,
+                    "domain": base_url,
+                    "url": url,
+                    "thread_url":  url,
+                    "created_at": creation_date,
+                    "accepted_answer_id": accepted_answer_id,
+                    "type": "question",
+                    "indexed_at": datetime.now(timezone.utc).isoformat()
+                }
+            elif post_type == "answer":
+                question_link = soup.find("a", class_="question-hyperlink")['href']
+                url = base_url + question_link
+
+                document = {
+                    "title": title,
+                    "body": body,
+                    "body_type": "raw",
+                    "authors": [author],
+                    "id": id,
+                    "tags": tags,
+                    "domain": base_url,
+                    "url": url,
+                    "thread_url": url,
+                    "created_at": creation_date,
+                    "accepted_answer_id": accepted_answer_id,
+                    "type": "question",
+                    "indexed_at": datetime.now(timezone.utc).isoformat()
+                }
+
 
 
 
