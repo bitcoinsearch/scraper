@@ -1,10 +1,12 @@
+from datetime import datetime, timezone
+
 import requests
 from loguru import logger
 import json
 from bs4 import BeautifulSoup
 
 
-class JsonAPIScraper:
+class StackExchangeScraper:
     def __init__(self, api_url, link_property, data_property):
         self.api_url = api_url
         self.posts = []
@@ -51,6 +53,7 @@ class JsonAPIScraper:
             owner = post.get("owner")
             author = owner.get("display_name")
             creation_date = post.get("creation_date")
+            id = "stackexchange-" + post.get("post_id")
 
             response = requests.get(url)
 
@@ -58,8 +61,32 @@ class JsonAPIScraper:
 
             # Step 2: Extract title, author, body, and creation date
             title = soup.find("a", {"class": "question-hyperlink"}).text
-            author = soup.find("div", {"class": "user-details"}).find("a").text
             body = soup.find("div", {"class": "s-prose js-post-body"}).text
+
+            # Extract accepted answer ID if available
+            accepted_answer_element = soup.find("div", {"itemprop": "acceptedAnswer"})
+            accepted_answer_id = accepted_answer_element["data-answerid"] if accepted_answer_element else None
+
+            # Extract tags
+            tags = [tag.text for tag in soup.find_all("a", {"class": "post-tag"})]
+
+            document = {
+                "title": title,
+                "body": body,
+                "body_type": "raw",
+                "authors": [author],
+                "id": id,
+                "tags": tags,
+                "domain": "https://bitcoin.stackexchange.com",
+                "url": url,
+                "thread_url":  url,
+                "created_at": creation_date,
+                "accepted_answer_id": accepted_answer_id,
+                "type": "question",
+                "indexed_at": datetime.now(timezone.utc).isoformat()
+            }
+
+
 
 
 
