@@ -15,7 +15,8 @@ from scraper.registry import scraper_registry
 class StackExchangeScraper:
     """Scraper for retrieving and processing posts from Bitcoin StackExchange."""
     def __init__(self):
-        self.api_url = "https://api.stackexchange.com/posts?site=bitcoin.stackexchange&filter=withbody"
+        #!6WPIomnA_rhBb Get titles and body, and body_markdown filter
+        self.api_url = "https://api.stackexchange.com/posts?site=bitcoin.stackexchange&filter=!6WPIomnA_rhBb"
         self.posts = []
         self.link_property = "link"
         self.data_property = "items"
@@ -74,16 +75,14 @@ class StackExchangeScraper:
                 owner = post.get("owner")
                 author = owner.get("display_name")
                 creation_date = post.get("creation_date")
-                body = self.clean_html(post.get("body"))
+                body = self.clean_html(post.get("body_markdown"))
                 post_id = "stackexchange-" + post.get("post_id")
                 post_type = post.get("post_type")
+                title = post.get("title")
 
                 response = requests.get(url, timeout=60)
 
                 soup = BeautifulSoup(response.text, "html.parser")
-
-                # Step 2: Extract title, author, body, and creation date
-                title = soup.find("a", {"class": "question-hyperlink"}).text
 
                 # Extract accepted answer ID if available
                 accepted_answer_element = soup.find("div", {"itemprop": "acceptedAnswer"})
