@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import re
 import html
 import traceback
@@ -15,8 +15,22 @@ from scraper.registry import scraper_registry
 class StackExchangeScraper:
     """Scraper for retrieving and processing posts from Bitcoin StackExchange."""
     def __init__(self):
+        # Get the current timestamp
+        current_timestamp = datetime.now()
+        # Calculate the timestamp from 7 days before
+        seven_days_ago = current_timestamp - timedelta(days=7)
+
+        # Convert timestamps to Unix timestamps
+        from_timestamp = int(seven_days_ago.timestamp())
+        to_timestamp = int(current_timestamp.timestamp())
+        
         #!6WPIomnA_rhBb Get titles and body, and body_markdown filter
-        self.api_url = "https://api.stackexchange.com/posts?site=bitcoin.stackexchange&filter=!6WPIomnA_rhBb"
+        self.page = 1
+        self.pagesize = 100
+        self.total_pages = 1
+        self.api_url = f"https://api.stackexchange.com/posts?site=bitcoin.stackexchange&filter=!6WPIomnA_rhBb&fromdate={from_timestamp}&todate={to_timestamp}&page={self.page}&pagesize={self.pagesize}"
+        self.total_url = f"https://api.stackexchange.com/posts?site=bitcoin.stackexchange&filter=total&fromdate={from_timestamp}&todate={to_timestamp}"
+        self.total_documents = 0
         self.posts = []
         self.link_property = "link"
         self.data_property = "items"
@@ -28,29 +42,52 @@ class StackExchangeScraper:
         """
         try:
             headers = {"User-Agent": "Mozilla/5.0"}
-            response = requests.get(self.api_url, headers=headers, timeout=90)
-            response.raise_for_status()  # Raise an HTTPError if the response status is 4xx or 5xx
+            # Get total number of documents
+
+            response = requests.get(self.total_url, headers=headers, timeout=90)
+            response.raise_for_status()  
 
             # Check if the request was successful
             if response.status_code == 200:
                 # Parse the JSON response
                 data = response.json()
+                self.total_documents = data.get("total")
 
-                # Filter only the required fields (links)
-                if self.data_property is not None:
-                    posts_array = [
-                        item
-                        for item in data.get(self.data_property, [])
-                    ]
+                # Calculate the number of pages
+                self.total_pages = round(self.total_documents / self.pagesize)
+
+
+            # Loop through all pages    
+            for page in range(1, self.total_pages + 1):
+                self.page = page
+
+                self.api_url = f"https://api.stackexchange.com/posts?site=bitcoin.stackexchange&filter=!6WPIomnA_rhBb&fromdate={from_timestamp}&todate={to_timestamp}&page={self.page}&pagesize={self.pagesize}"
+                
+                # Get posts
+                response = requests.get(self.api_url, headers=headers, timeout=90)
+                response.raise_for_status()  # Raise an HTTPError if the response status is 4xx or 5xx
+
+                # Check if the request was successful
+                if response.status_code == 200:
+                    # Parse the JSON response
+                    data = response.json()
+
+                    # Filter only the required fields (links)
+                    if self.data_property is not None:
+                        posts_array = [
+                            item
+                            for item in data.get(self.data_property, [])
+                        ]
+                    else:
+                        posts_array = [
+                            item
+                            for item in data
+                        ]
+
+                    # Append posts to self.posts
+                    self.posts.extend(posts_array)
                 else:
-                    posts_array = [
-                        item
-                        for item in data
-                    ]
-
-                self.posts = posts_array
-            else:
-                print(f"Failed to retrieve data. Status code: {response.status_code}")
+                    print(f"Failed to retrieve data. Status code: {response.status_code}")
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to download the repo: {e}")
