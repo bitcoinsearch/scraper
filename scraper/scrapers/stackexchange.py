@@ -54,14 +54,17 @@ class StackExchangeScraper:
                 self.total_documents = data.get("total")
 
                 # Calculate the number of pages
-                self.total_pages = round(self.total_documents / self.pagesize)
+                total_pages = round(self.total_documents / self.pagesize)
+
+                if total_pages == 0:
+                    self.total_pages = 1
+                else:
+                    self.total_pages = total_pages
 
 
             # Loop through all pages    
             for page in range(1, self.total_pages + 1):
                 self.page = page
-
-                self.api_url = f"https://api.stackexchange.com/posts?site=bitcoin.stackexchange&filter=!6WPIomnA_rhBb&fromdate={from_timestamp}&todate={to_timestamp}&page={self.page}&pagesize={self.pagesize}"
                 
                 # Get posts
                 response = requests.get(self.api_url, headers=headers, timeout=90)
@@ -113,7 +116,8 @@ class StackExchangeScraper:
                 author = owner.get("display_name")
                 creation_date = post.get("creation_date")
                 body = self.clean_html(post.get("body_markdown"))
-                post_id = "stackexchange-" + post.get("post_id")
+                p_id = post.get("post_id")
+                post_id = f"stackexchange-{p_id}" 
                 post_type = post.get("post_type")
                 title = post.get("title")
 
