@@ -1,3 +1,4 @@
 [development]
 test_mode = True
 mock_output_excluded_fields = body, body_formatted
+chat_completion_model = gpt-4o
