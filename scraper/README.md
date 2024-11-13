@@ -1,12 +1,12 @@
 # Scraper
 
-A flexible multi-source scraper application designed to gather information from various types of sources, including GitHub repositories and web pages.
+A flexible multi-source scraper application designed to gather information from GitHub repositories and web pages. Leverages both Git-based and Scrapy-based approaches to handle different source types effectively.
 
 ## Features
 
-- Flexible output options (Elasticsearch, mock for testing)
-- Extensible architecture for easy addition of new sources and scrapers
-- Configurable processors for customizing document processing before indexing
+- Flexible output options (Elasticsearch, mock [for testing](#testing-scrapers))
+- Extensible architecture for [easy addition of new sources](#adding-new-sources)
+- [Configurable processors](#adding-new-processors) for customizing document processing before indexing
 
 ## Installation
 
@@ -28,19 +28,42 @@ A flexible multi-source scraper application designed to gather information from 
 - Scrape a specific source: `poetry run scraper scrape --source sourcename`
 - List available sources: `poetry run scraper list-sources`
 - Show configuration: `poetry run scraper show-config`
-- Cleanup test documents: `poetry run scraper cleanup-test-documents`
 
 ## Sources Configuration
 
 The scraper uses a registry-based architecture to manage scrapers, processors, and outputs. This design allows for flexible configuration and easy extensibility.
+
 - **Scrapers**: Each scraper is registered with one or more source names. This allows a single scraper implementation to be used for multiple similar sources, or custom scrapers to be created for specific sources.
 - **Processors**: Processors are registered by name and can be applied to any source as specified in the configuration.
 - **Outputs**: Different output methods (e.g., Elasticsearch, mock) are registered and can be selected at runtime.
 
+### Source Configuration Structure
+
+Sources are configured in `sources.yaml`, which serves as the central source of truth for all scraping configurations.
+
+```yaml
+web: # Web-based sources using Scrapy
+  - name: BitcoinTalk
+    domain: bitcointalk.org
+    url: https://bitcointalk.org/index.php?board=6.0
+    processors: # Optional post-processing
+      - summarization
+
+github: # Git repository sources
+  - name: BitcoinOps
+    domain: https://bitcoinops.org
+    url: https://github.com/bitcoinops/bitcoinops.github.io.git
+    directories: # Optional directory mapping
+      _posts/en: post
+```
 
 ### Adding New Sources
 
-1. **Add to `sources.yaml`** under the appropriate type:
+For testing your new source configuration, see the [Development and Testing](#development-and-testing) section.
+
+#### GitHub Source
+
+1. **Add to `sources.yaml`**:
 
    ```yaml
    github:
@@ -53,6 +76,7 @@ The scraper uses a registry-based architecture to manage scrapers, processors, a
    ```
 
 2. **Register a scraper for the new source**:
+
    - If the new source can use an existing scraper, add its name to the registration of that scraper:
 
      ```python
@@ -73,9 +97,64 @@ The scraper uses a registry-based architecture to manage scrapers, processors, a
              # ... custom implementation ...
      ```
 
-3. **Test**: Run the scraper with your new source to ensure it works as expected:
+#### Web Source
+
+1. **Add source configuration to `sources.yaml`**:
+
+   ```yaml
+   web:
+     - name: NewSite
+       domain: example.com
+       url: https://example.com/listing
+       processors:
+         - summarization
    ```
-   scraper scrape --test --output=mock --source NewRepo
+
+2. **Register with the default scraper**:
+
+   ```python
+   from scraper.registry import scraper_registry
+   from scraper.scrapers.scrapy import ScrapyScraper
+
+   @scraper_registry.register("NewSite")
+   class ScrapyScraper(BaseScraper):
+       # ... existing implementation ...
+       # Uses the default BaseSpider
+   ```
+
+3. **Set up Scrapy configuration**:
+   The scraper uses a configuration-based approach for web sources, allowing you to define how content should be extracted without writing code. Use the CLI tools to manage your configuration:
+
+   ```bash
+   # Initialize Scrapy configuration
+   scraper scrapy init newsite
+   ```
+
+   The configuration defines:
+
+   - How to find content links on index pages
+   - How to extract content from resource pages
+   - How to handle pagination
+   - Which elements contain titles, authors, dates, etc.
+
+   For detailed information about Scrapy configuration, see the [Scrapy Configuration Guide](scrapy_sources_configs/README.md).
+
+4. **(Optional) Custom Spider Implementation**:
+   If the default scraper doesn't meet your needs (e.g., special date parsing, content processing), you can create a custom spider:
+
+   ```python
+   from scraper.registry import scraper_registry
+   from scraper.scrapers.scrapy import ScrapyScraper, BaseSpider
+
+   class NewSiteSpider(BaseSpider):
+       def parse_date(self, date_str: str) -> Optional[str]:
+           # Custom date parsing implementation
+           ...
+
+   @scraper_registry.register("NewSite")
+   class NewSiteScraper(ScrapyScraper):
+       def get_spider_class(self):
+           return NewSiteSpider
    ```
 
 ### Adding a New Source Type
@@ -140,42 +219,67 @@ poetry run playground
 
 This command will launch a Jupyter notebook server and open the [notebooks/playground.ipynb](./notebooks/playground.ipynb) file. The notebook environment will have access to all the scraper's modules and will use the development configuration profile.
 
-### Testing with Specific Files
+### Testing Scrapers
 
-During testing, you can specify specific resources to be scraped for a particular source. This is helpful when you want to test the scraper's behavior with known content or debug issues with specific resources.
+#### Mock Output
 
+For initial testing without writing to Elasticsearch:
+
+```bash
+scraper scrape --output=mock --source sourcename
+```
+
+This runs the scraper and outputs the extracted content to a JSON file.
+
+### Test Resources
+
+To test with specific content, add `test_resources` to your source configuration:
 To use this feature:
 
-1. In the `sources.yaml` file, add a `test_resources` field to the source configuration:
-
-   ```yaml
-   github:
-     - name: ExampleRepo
-       domain: https://github.com/example/repo
-       url: https://github.com/example/repo.git
-       processors:
-         - processor1
-         - processor2
-       test_resources: 
-         - path/to/test/file.md
-
-  web:
-  - name: BitcoinTalk
-    domain: https://bitcointalk.org
-    url: https://bitcointalk.org/index.php?board=6.0
+```yaml
+github:
+  - name: ExampleRepo
+    # ... source configuration ...
     test_resources:
-      - https://bitcointalk.org/index.php?topic=5499150.0
-      - https://bitcointalk.org/index.php?topic=5477577.0
+      - path/to/test/file.md
+
+web:
+  - name: ExampleSite
+    # ... source configuration ...
+    test_resources:
+      - https://example.com/example-post
+      - https://example.com/example-post2
+```
+
+The scraper will only process the specified test resources instead of scraping the entire source.
+
+This is useful for debugging, testing new processors, or verifying behavior with specific content. Remove or comment out `test_resources` to scrape the entire source.
+
+### Testing with Elasticsearch
+
+When testing Elasticsearch integration:
+
+1. Set `test_mode=True` in `config.ini`:
+
+   ```ini
+   [development]
+   test_mode = True
    ```
 
-2. When you run the scraper with this configuration, it will only process the specified test resources instead of scraping the entire source.
+   This flags indexed documents as test documents.
 
-This is useful for debugging, testing new processors, or verifying behavior with specific content. Remove or comment out `test_file` to scrape the entire source.
+2. Run your tests with the Elasticsearch output:
 
-Remove or comment out `test_resources` to scrape the entire source.
+   ```bash
+   scraper scrape --source sourcename
+   ```
 
-Note: When running in test mode:
-- Metadata updates are disabled
+3. Clean up test documents when done:
+   ```bash
+   scraper cleanup-test-documents
+   ```
+
+This workflow allows you to verify correct document indexing by testing the full pipeline while also ensuring that the test documents are removed after the tests are complete.
 
 ## Contributing
 

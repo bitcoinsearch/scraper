@@ -3,6 +3,7 @@ from twisted.internet import asyncioreactor, defer
 from twisted.internet.task import react
 from loguru import logger
 
+from scraper.commands.scrapy import scrapy
 from scraper.config import settings
 from scraper.outputs import ElasticsearchOutput
 from scraper.scraper_factory import ScraperFactory
@@ -19,6 +20,9 @@ from scraper.scraper_factory import ScraperFactory
 def cli():
     """Scrape data from a variety of sources."""
     pass
+
+
+cli.add_command(scrapy)
 
 
 def run_in_reactor(coro):
