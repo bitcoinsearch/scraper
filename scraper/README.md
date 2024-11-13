@@ -46,6 +46,9 @@ web: # Web-based sources using Scrapy
   - name: BitcoinTalk
     domain: bitcointalk.org
     url: https://bitcointalk.org/index.php?board=6.0
+    analyzer_config: # For LLM-based selector generation
+      index_url: https://bitcointalk.org/index.php?board=6.0
+      resource_url: https://bitcointalk.org/index.php?topic=5499150.0
     processors: # Optional post-processing
       - summarization
 
@@ -106,6 +109,9 @@ For testing your new source configuration, see the [Development and Testing](#de
      - name: NewSite
        domain: example.com
        url: https://example.com/listing
+       analyzer_config: # Required for automatic selector generation
+         index_url: https://example.com/listing
+         resource_url: https://example.com/example-post
        processors:
          - summarization
    ```
@@ -123,19 +129,20 @@ For testing your new source configuration, see the [Development and Testing](#de
    ```
 
 3. **Set up Scrapy configuration**:
-   The scraper uses a configuration-based approach for web sources, allowing you to define how content should be extracted without writing code. Use the CLI tools to manage your configuration:
+   The scraper uses configuration-based scraping, which can be set up in two ways:
 
    ```bash
-   # Initialize Scrapy configuration
-   scraper scrapy init newsite
+   # Option 1: AI-Assisted Configuration
+   scraper scrapy analyze newsite    # Generate config using AI analysis
+
+   # Option 2: Manual Configuration
+   scraper scrapy init newsite       # Create blank config template
    ```
 
-   The configuration defines:
-
-   - How to find content links on index pages
-   - How to extract content from resource pages
-   - How to handle pagination
-   - Which elements contain titles, authors, dates, etc.
+   Then validate your configuration:
+   ```bash
+   scraper scrapy validate NewSite
+   ```
 
    For detailed information about Scrapy configuration, see the [Scrapy Configuration Guide](scrapy_sources_configs/README.md).
 
