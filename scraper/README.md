@@ -6,6 +6,7 @@ A flexible multi-source scraper application designed to gather information from 
 
 - Flexible output options (Elasticsearch, mock for testing)
 - Extensible architecture for easy addition of new sources and scrapers
+- Configurable processors for customizing document processing before indexing
 
 ## Installation
 
@@ -30,8 +31,6 @@ A flexible multi-source scraper application designed to gather information from 
   <<<<<<< HEAD
   =======
 - Cleanup test documents: `poetry run scraper cleanup-test-documents`
-
-> > > > > > > cd87ac2 (feat(scraper): introduce scraping package)
 
 ## Sources Configuration
 
@@ -88,6 +87,9 @@ For testing your new source configuration, see the [Development and Testing](#de
        domain: https://github.com/user/new-repo
        url: https://github.com/user/new-repo.git
    <<<<<<< HEAD
+   <<<<<<< HEAD
+   =======
+   >>>>>>> bad0dfa (feat(processors): implement flexible document processing pipeline)
        processors:
          - processor1
          - processor2
@@ -202,6 +204,11 @@ If you need to add an entirely new type of source:
 2. Create a default scraper for this new type (e.g., `NewTypeScraper`).
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+
+=======
+
+> > > > > > > bad0dfa (feat(processors): implement flexible document processing pipeline)
 
 ## Adding New Processors
 
@@ -244,9 +251,13 @@ Processors are used to perform additional operations on scraped documents before
 
 7. The processor will be automatically loaded and instantiated by the `ScraperFactory` when it's listed in the `sources.yaml` file.
 
-=======
+# <<<<<<< HEAD
 
 > > > > > > > cd87ac2 (feat(scraper): introduce scraping package)
+
+=======
+
+> > > > > > > bad0dfa (feat(processors): implement flexible document processing pipeline)
 
 ## Development and Testing
 
@@ -262,6 +273,7 @@ poetry run playground
 
 This command will launch a Jupyter notebook server and open the [notebooks/playground.ipynb](./notebooks/playground.ipynb) file. The notebook environment will have access to all the scraper's modules and will use the development configuration profile.
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 
 ### Testing Scrapers
@@ -328,7 +340,32 @@ This workflow allows you to verify correct document indexing by testing the full
 
 =======
 
-> > > > > > > cd87ac2 (feat(scraper): introduce scraping package)
+> > > > > > > # cd87ac2 (feat(scraper): introduce scraping package)
+
+### Testing with Specific Files
+
+During testing, you can specify a single file to be scraped for a particular source. This is helpful when you want to test the scraper's behavior with a known file or debug issues with specific content.
+
+To use this feature:
+
+1. In the `sources.yaml` file, add a `test_file` field to the source configuration:
+
+   ```yaml
+   github:
+     - name: ExampleRepo
+       domain: https://github.com/example/repo
+       url: https://github.com/example/repo.git
+       processors:
+         - processor1
+         - processor2
+       test_file: path/to/test/file.md
+   ```
+
+2. When you run the scraper with this configuration, it will only process the specified `test_file` instead of scraping the entire source.
+
+This is useful for debugging, testing new processors, or verifying behavior with specific content. Remove or comment out `test_file` to scrape the entire source.
+
+> > > > > > > bad0dfa (feat(processors): implement flexible document processing pipeline)
 
 ## Contributing
 
