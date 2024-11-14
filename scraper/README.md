@@ -1,12 +1,11 @@
 # Scraper
 
-A flexible multi-source scraper application designed to gather information from GitHub repositories and web pages. Leverages both Git-based and Scrapy-based approaches to handle different source types effectively.
+A flexible multi-source scraper application designed to gather information from various types of sources, including GitHub repositories and web pages.
 
 ## Features
 
-- Flexible output options (Elasticsearch, mock [for testing](#testing-scrapers))
-- Extensible architecture for [easy addition of new sources](#adding-new-sources)
-- [Configurable processors](#adding-new-processors) for customizing document processing before indexing
+- Flexible output options (Elasticsearch, mock for testing)
+- Extensible architecture for easy addition of new sources and scrapers
 
 ## Installation
 
@@ -28,10 +27,16 @@ A flexible multi-source scraper application designed to gather information from 
 - Scrape a specific source: `poetry run scraper scrape --source sourcename`
 - List available sources: `poetry run scraper list-sources`
 - Show configuration: `poetry run scraper show-config`
+  <<<<<<< HEAD
+  =======
+- Cleanup test documents: `poetry run scraper cleanup-test-documents`
+
+> > > > > > > cd87ac2 (feat(scraper): introduce scraping package)
 
 ## Sources Configuration
 
 The scraper uses a registry-based architecture to manage scrapers, processors, and outputs. This design allows for flexible configuration and easy extensibility.
+<<<<<<< HEAD
 
 - **Scrapers**: Each scraper is registered with one or more source names. This allows a single scraper implementation to be used for multiple similar sources, or custom scrapers to be created for specific sources.
 - **Processors**: Processors are registered by name and can be applied to any source as specified in the configuration.
@@ -66,13 +71,23 @@ For testing your new source configuration, see the [Development and Testing](#de
 
 #### GitHub Source
 
-1. **Add to `sources.yaml`**:
+1. # **Add to `sources.yaml`**:
+
+- **Scrapers**: Each scraper is registered with one or more source names. This allows a single scraper implementation to be used for multiple similar sources, or custom scrapers to be created for specific sources.
+- **Outputs**: Different output methods (e.g., Elasticsearch, mock) are registered and can be selected at runtime.
+
+### Adding New Sources
+
+1. **Add to `sources.yaml`** under the appropriate type:
+
+   > > > > > > > cd87ac2 (feat(scraper): introduce scraping package)
 
    ```yaml
    github:
      - name: NewRepo
        domain: https://github.com/user/new-repo
        url: https://github.com/user/new-repo.git
+   <<<<<<< HEAD
        processors:
          - processor1
          - processor2
@@ -80,41 +95,48 @@ For testing your new source configuration, see the [Development and Testing](#de
 
 2. **Register a scraper for the new source**:
 
-   - If the new source can use an existing scraper, add its name to the registration of that scraper:
+======= # Optional: scraper: CustomScraper
 
-     ```python
-     @scraper_registry.register("BOLTs", "NewRepo")
-     class GithubScraper(BaseScraper):
-         # ... existing implementation ...
-     ```
+````
 
-   - If the new source needs a custom scraper, create a new class and register it with the source's name:
+2. **Register a scraper for the new source**:
+>>>>>>> cd87ac2 (feat(scraper): introduce scraping package)
+- If the new source can use an existing scraper, add its name to the registration of that scraper:
 
-     ```python
-     from scraper.registry import scraper_registry
-     from scraper.scrapers.github import GithubScraper
+  ```python
+  @scraper_registry.register("BOLTs", "NewRepo")
+  class GithubScraper(BaseScraper):
+      # ... existing implementation ...
+  ```
 
-     @scraper_registry.register("NewRepo")
-     class NewRepoScraper(GithubScraper):
-         async def scrape(self):
-             # ... custom implementation ...
-     ```
+- If the new source needs a custom scraper, create a new class and register it with the source's name:
 
+  ```python
+  from scraper.registry import scraper_registry
+  from scraper.scrapers.github import GithubScraper
+
+  @scraper_registry.register("NewRepo")
+  class NewRepoScraper(GithubScraper):
+      async def scrape(self):
+          # ... custom implementation ...
+  ```
+
+<<<<<<< HEAD
 #### Web Source
 
 1. **Add source configuration to `sources.yaml`**:
 
-   ```yaml
-   web:
-     - name: NewSite
-       domain: example.com
-       url: https://example.com/listing
-       analyzer_config: # Required for automatic selector generation
-         index_url: https://example.com/listing
-         resource_url: https://example.com/example-post
-       processors:
-         - summarization
-   ```
+```yaml
+web:
+  - name: NewSite
+    domain: example.com
+    url: https://example.com/listing
+    analyzer_config: # Required for automatic selector generation
+      index_url: https://example.com/listing
+      resource_url: https://example.com/example-post
+    processors:
+      - summarization
+````
 
 2. **Register with the default scraper**:
 
@@ -140,6 +162,7 @@ For testing your new source configuration, see the [Development and Testing](#de
    ```
 
    Then validate your configuration:
+
    ```bash
    scraper scrapy validate NewSite
    ```
@@ -162,6 +185,13 @@ For testing your new source configuration, see the [Development and Testing](#de
    class NewSiteScraper(ScrapyScraper):
        def get_spider_class(self):
            return NewSiteSpider
+   =======
+   ```
+
+5. **Test**: Run the scraper with your new source to ensure it works as expected:
+   ```
+   scraper scrape --test --output=mock --source NewRepo
+   >>>>>>> cd87ac2 (feat(scraper): introduce scraping package)
    ```
 
 ### Adding a New Source Type
@@ -170,6 +200,8 @@ If you need to add an entirely new type of source:
 
 1. Add a new top-level key to `sources.yaml` for your new type.
 2. Create a default scraper for this new type (e.g., `NewTypeScraper`).
+
+<<<<<<< HEAD
 
 ## Adding New Processors
 
@@ -212,6 +244,10 @@ Processors are used to perform additional operations on scraped documents before
 
 7. The processor will be automatically loaded and instantiated by the `ScraperFactory` when it's listed in the `sources.yaml` file.
 
+=======
+
+> > > > > > > cd87ac2 (feat(scraper): introduce scraping package)
+
 ## Development and Testing
 
 ### Jupyter Notebook Playground
@@ -225,6 +261,8 @@ poetry run playground
 ```
 
 This command will launch a Jupyter notebook server and open the [notebooks/playground.ipynb](./notebooks/playground.ipynb) file. The notebook environment will have access to all the scraper's modules and will use the development configuration profile.
+
+<<<<<<< HEAD
 
 ### Testing Scrapers
 
@@ -287,6 +325,10 @@ When testing Elasticsearch integration:
    ```
 
 This workflow allows you to verify correct document indexing by testing the full pipeline while also ensuring that the test documents are removed after the tests are complete.
+
+=======
+
+> > > > > > > cd87ac2 (feat(scraper): introduce scraping package)
 
 ## Contributing
 

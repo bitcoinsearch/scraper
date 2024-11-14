@@ -3,8 +3,8 @@ from typing import List
 
 from loguru import logger
 
-from scraper.config import settings
-from scraper.models import SourceConfig, MetadataDocument, ScrapedDocument
+from scraper.config import SourceConfig, settings
+from scraper.models import MetadataDocument, ScrapedDocument
 
 
 class AbstractOutput(ABC):
@@ -54,37 +54,14 @@ class AbstractOutput(ABC):
 
     @abstractmethod
     async def _index_batch(self, documents: List[ScrapedDocument]):
-        """
-        Index a batch of documents.
-
-        This method should be implemented by subclasses to define how a batch of documents
-        is indexed in the specific output system (e.g., Elasticsearch, file system, etc.).
-
-        Args:
-            documents (List[ScrapedDocument]): A list of documents to be indexed.
-        """
         pass
 
     async def index_document(self, document: ScrapedDocument):
-        """
-        Index a single document.
-
-        This method adds the document to the buffer and flushes the buffer if it reaches the batch size.
-
-        Args:
-            document (ScrapedDocument): The document to be indexed.
-        """
         self.document_buffer.append(document)
         if len(self.document_buffer) >= self.batch_size:
             await self.flush_buffer()
 
     async def flush_buffer(self):
-        """
-        Flush the current buffer of documents.
-
-        This method indexes the current batch of documents in the buffer and clears the buffer.
-        It's called automatically when the buffer reaches the batch size, but can also be called manually.
-        """
         if self.document_buffer:
             await self._index_batch(self.document_buffer)
             logger.debug(

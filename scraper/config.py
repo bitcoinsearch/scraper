@@ -2,10 +2,21 @@ import os
 import configparser
 import yaml
 from dotenv import load_dotenv
+from pydantic import BaseModel, HttpUrl
 from typing import Dict, List, Optional
 
-from scraper.registry import output_registry, scraper_registry, processor_registry
-from scraper.models import SourceConfig
+from scraper.registry import output_registry, scraper_registry
+
+
+class SourceConfig(BaseModel):
+    name: str
+    domain: HttpUrl
+    url: HttpUrl
+    scraper: Optional[str] = None
+    directories: Optional[Dict[str, str]] = None
+    index_name: Optional[str] = None
+    type: Optional[str] = None
+    test_file: Optional[str] = None
 
 
 def get_project_root():
@@ -58,15 +69,6 @@ class Settings:
         self.DATA_DIR = os.getenv("DATA_DIR", "./data")
         self.DEFAULT_INDEX = os.getenv("INDEX", "default_index")
 
-    def get_source_config(self, source_name: str) -> Optional[SourceConfig]:
-        """Get configuration for a specific source by name."""
-        sources = self.load_sources()
-        for source_list in sources.values():
-            for src in source_list:
-                if src.name.lower() == source_name.lower():
-                    return src
-        return None
-
     def load_sources(self) -> Dict[str, List[SourceConfig]]:
         sources_path = os.path.join(get_project_root(), "sources.yaml")
         try:
@@ -89,10 +91,6 @@ class Settings:
     @property
     def registered_scraper_types(self):
         return scraper_registry.get_all()
-
-    @property
-    def registered_processor_types(self):
-        return processor_registry.get_all()
 
     def get_config_overview(self):
         overview = "Configuration Settings:\n"
@@ -132,13 +130,6 @@ class Settings:
         return self._get_env_variable(
             "API_KEY",
             "API_KEY is not set in the environment or .env file. Please set it to use Elasticsearch.",
-        )
-
-    @property
-    def OPENAI_API_KEY(self):
-        return self._get_env_variable(
-            "OPENAI_API_KEY",
-            "OPENAI_API_KEY is not set in the environment or .env file. Please set it to use OpenAI.",
         )
 
 

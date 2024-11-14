@@ -4,9 +4,9 @@ from typing import Dict, List
 
 from loguru import logger
 
-from scraper.models import MetadataDocument, ScrapedDocument, SourceConfig
+from scraper.models import MetadataDocument, ScrapedDocument
 from scraper.outputs import AbstractOutput
-from scraper.config import settings
+from scraper.config import SourceConfig, settings
 from scraper.registry import output_registry
 
 

@@ -28,4 +28,3 @@ class Registry:
 # Create registries for each component
 output_registry = Registry()
 scraper_registry = Registry()
-processor_registry = Registry()
