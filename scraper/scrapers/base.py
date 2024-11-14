@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+from loguru import logger
+
 from scraper.config import SourceConfig
 from scraper.models import MetadataDocument, ScrapedDocument
 from scraper.outputs import AbstractOutput
@@ -32,6 +34,7 @@ class BaseScraper(ABC):
         self.config = config
         self.output = output
         self.processor_manager = processor_manager
+        self.total_documents_processed = 0
 
     @abstractmethod
     async def scrape(self):
@@ -54,6 +57,10 @@ class BaseScraper(ABC):
         """
         processed_doc = await self.processor_manager.process_document(document)
         await self.output.index_document(processed_doc)
+        self.total_documents_processed += 1
+        logger.info(
+            f"Processed post {processed_doc.id} by {processed_doc.authors}. Total documents processed: {self.total_documents_processed}"
+        )
 
     async def run(self):
         """

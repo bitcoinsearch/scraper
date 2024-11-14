@@ -16,7 +16,7 @@ class SourceConfig(BaseModel):
     directories: Optional[Dict[str, str]] = None
     index_name: Optional[str] = None
     type: Optional[str] = None
-    test_file: Optional[str] = None
+    test_resources: Optional[List[str]] = []
     processors: List[str] = []
 
 

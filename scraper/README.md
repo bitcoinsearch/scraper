@@ -1,372 +1,79 @@
-# Scraper
+# Welcome to the scraper!
 
-A flexible multi-source scraper application designed to gather information from various types of sources, including GitHub repositories and web pages.
+This project is designed to automate the process of gathering information from a variety of key Bitcoin-related sources.
+It leverages GitHub Actions to schedule nightly cron jobs, ensuring that the most up-to-date content is captured from each source according to a defined frequency.
+The scraped data are then stored in an Elasticsearch index.
 
-## Features
+Below is a detailed breakdown of the sources scraped and the schedule for each:
 
-- Flexible output options (Elasticsearch, mock for testing)
-- Extensible architecture for easy addition of new sources and scrapers
-- Configurable processors for customizing document processing before indexing
+Daily at 00:00 AM UTC
 
-## Installation
+- [Lightning Mailing List](https://lists.linuxfoundation.org/pipermail/lightning-dev/) ([cron](.github/workflows/mailing-list-lightning.yml), [source](mailing-list))
+- [New Bitcoin Mailing List](https://gnusha.org/pi/bitcoindev/) ([cron](.github/workflows/mailing-list-bitcoin-new.yml), [source](mailing-list/main.py))
+- [Bitcoin Mailing List](https://lists.linuxfoundation.org/pipermail/bitcoin-dev/) ([cron](.github/workflows/mailing-list-bitcoin.yml), [source](mailing-list))
+- [Delving Bitcoin](https://delvingbitcoin.org/) ([cron](.github/workflows/delving-bitcoin.yml), [source](delvingbitcoin_2_elasticsearch))
 
-1. Make sure you have Python 3.11+ installed.
-2. Install Poetry if you haven't already: `pip install poetry`
-3. Clone this repository and navigate to the project directory.
-4. Run `poetry install` to install the dependencies.
+Weekly
 
-## Configuration
+- [bitcoin.stackexchange](https://bitcoin.stackexchange.com/) ([cron](.github/workflows/stackexchange.yml), [source](bitcoin.stackexchange.com))
+- Bitcoin Talk Forum ([cron](.github/workflows/bitcointalk.yml), [source](bitcointalk))
+  - only the [Development & Technical Discussion Board](https://bitcointalk.org/index.php?board=6.0)
+  - only for specific authors
+- [Bitcoin Transcript](https://btctranscripts.com/) ([cron](.github/workflows/bitcointranscripts.yml), [source](bitcointranscripts))
+- [Bitcoin Optech](https://bitcoinops.org/) ([cron](.github/workflows/bitcoinops.yml), [source](bitcoinops))
 
-- Sources are defined in `sources.yaml`
-- Configuration profiles are set in `config.ini` and specified by the `CONFIG_PROFILE` environment variable
-  - An example `config.ini.example` file is provided in the repository
-  - You can define multiple profiles (e.g., development, production) in this file
+Additionally, for on-demand scraping tasks, we utilize a Scrapybot, details of which can be found in the [Scrapybot section](#scrapybot) below.
 
-## Usage
+## Setup
 
-- Scrape all sources: `poetry run scraper scrape`
-- Scrape a specific source: `poetry run scraper scrape --source sourcename`
-- List available sources: `poetry run scraper list-sources`
-- Show configuration: `poetry run scraper show-config`
-  <<<<<<< HEAD
-  =======
-- Cleanup test documents: `poetry run scraper cleanup-test-documents`
+You need an env file to indicate where you are pushing the data.
 
-## Sources Configuration
+1. Copy `cp .env.sample .env`
+2. If you want to run Elastic Search locally, update the `ES_LOCAL_URL = ` with your local elastic search url
+3. run `cd common && yarn install && cd ../mailing-list && yarn install && cd ..`
+4. To scrape a mailing list run `node mailing-list/main.js` with additional env vars like `URL='https://lists.linuxfoundation.org/pipermail/bitcoin-dev/'` and `NAME='bitcoin'`
+   3a. Or you can do something like `cd bitcointranscripts && pip install -r requirements.txt && cd .. && python3 bitcointranscripts/main.py
 
-The scraper uses a registry-based architecture to manage scrapers, processors, and outputs. This design allows for flexible configuration and easy extensibility.
-<<<<<<< HEAD
+You should be calling the scrapers from the root dir because they use the common dir.
 
-- **Scrapers**: Each scraper is registered with one or more source names. This allows a single scraper implementation to be used for multiple similar sources, or custom scrapers to be created for specific sources.
-- **Processors**: Processors are registered by name and can be applied to any source as specified in the configuration.
-- **Outputs**: Different output methods (e.g., Elasticsearch, mock) are registered and can be selected at runtime.
+## Scrapybot
 
-### Source Configuration Structure
+We have implemented a variety of crawlers (spiders), each designed for a specific website of interest.
+You can find all the spiders in the [`scrapybot/scrapybot/spiders`](scrapybot/scrapybot/spiders) directory.
 
-Sources are configured in `sources.yaml`, which serves as the central source of truth for all scraping configurations.
+This section explains how to run the scrapers in the `scrapybot` folder.
 
-```yaml
-web: # Web-based sources using Scrapy
-  - name: BitcoinTalk
-    domain: bitcointalk.org
-    url: https://bitcointalk.org/index.php?board=6.0
-    analyzer_config: # For LLM-based selector generation
-      index_url: https://bitcointalk.org/index.php?board=6.0
-      resource_url: https://bitcointalk.org/index.php?topic=5499150.0
-    processors: # Optional post-processing
-      - summarization
+To run a crawler using scrapybot, for example `rusty`, which will scrape the site `https://rusty.ozlabs.org`, switch to the root directory(where there is this README file) and run these commands from your terminal:
 
-github: # Git repository sources
-  - name: BitcoinOps
-    domain: https://bitcoinops.org
-    url: https://github.com/bitcoinops/bitcoinops.github.io.git
-    directories: # Optional directory mapping
-      _posts/en: post
-```
+- `pip install -r requirements.txt && cd scrapybot`
+- `scrapy crawl rusty -O rusty.json`
 
-### Adding New Sources
+The above commands will install scrapy dependencies, then run the `rusty` spider(one of the crawlers) and store the collected document in `rusty.json` file in the `scrapybot` project directory.
 
-For testing your new source configuration, see the [Development and Testing](#development-and-testing) section.
+The same procedure can be applied to any of the crawlers in the `scrapybot/spiders` directory.
+There is also a script in `scrapybot` directory called `scraper.sh` which can run all the spiders at once.
 
-#### GitHub Source
+### Sending the output to elastic search
 
-1. # **Add to `sources.yaml`**:
-
-- **Scrapers**: Each scraper is registered with one or more source names. This allows a single scraper implementation to be used for multiple similar sources, or custom scrapers to be created for specific sources.
-- **Outputs**: Different output methods (e.g., Elasticsearch, mock) are registered and can be selected at runtime.
-
-### Adding New Sources
-
-1. **Add to `sources.yaml`** under the appropriate type:
-
-   > > > > > > > cd87ac2 (feat(scraper): introduce scraping package)
-
-   ```yaml
-   github:
-     - name: NewRepo
-       domain: https://github.com/user/new-repo
-       url: https://github.com/user/new-repo.git
-   <<<<<<< HEAD
-   <<<<<<< HEAD
-   =======
-   >>>>>>> bad0dfa (feat(processors): implement flexible document processing pipeline)
-       processors:
-         - processor1
-         - processor2
-   ```
-
-2. **Register a scraper for the new source**:
-
-======= # Optional: scraper: CustomScraper
-
-````
-
-2. **Register a scraper for the new source**:
->>>>>>> cd87ac2 (feat(scraper): introduce scraping package)
-- If the new source can use an existing scraper, add its name to the registration of that scraper:
-
-  ```python
-  @scraper_registry.register("BOLTs", "NewRepo")
-  class GithubScraper(BaseScraper):
-      # ... existing implementation ...
-  ```
-
-- If the new source needs a custom scraper, create a new class and register it with the source's name:
-
-  ```python
-  from scraper.registry import scraper_registry
-  from scraper.scrapers.github import GithubScraper
-
-  @scraper_registry.register("NewRepo")
-  class NewRepoScraper(GithubScraper):
-      async def scrape(self):
-          # ... custom implementation ...
-  ```
-
-<<<<<<< HEAD
-#### Web Source
-
-1. **Add source configuration to `sources.yaml`**:
-
-```yaml
-web:
-  - name: NewSite
-    domain: example.com
-    url: https://example.com/listing
-    analyzer_config: # Required for automatic selector generation
-      index_url: https://example.com/listing
-      resource_url: https://example.com/example-post
-    processors:
-      - summarization
-````
-
-2. **Register with the default scraper**:
-
-   ```python
-   from scraper.registry import scraper_registry
-   from scraper.scrapers.scrapy import ScrapyScraper
-
-   @scraper_registry.register("NewSite")
-   class ScrapyScraper(BaseScraper):
-       # ... existing implementation ...
-       # Uses the default BaseSpider
-   ```
-
-3. **Set up Scrapy configuration**:
-   The scraper uses configuration-based scraping, which can be set up in two ways:
-
-   ```bash
-   # Option 1: AI-Assisted Configuration
-   scraper scrapy analyze newsite    # Generate config using AI analysis
-
-   # Option 2: Manual Configuration
-   scraper scrapy init newsite       # Create blank config template
-   ```
-
-   Then validate your configuration:
-
-   ```bash
-   scraper scrapy validate NewSite
-   ```
-
-   For detailed information about Scrapy configuration, see the [Scrapy Configuration Guide](scrapy_sources_configs/README.md).
-
-4. **(Optional) Custom Spider Implementation**:
-   If the default scraper doesn't meet your needs (e.g., special date parsing, content processing), you can create a custom spider:
-
-   ```python
-   from scraper.registry import scraper_registry
-   from scraper.scrapers.scrapy import ScrapyScraper, BaseSpider
-
-   class NewSiteSpider(BaseSpider):
-       def parse_date(self, date_str: str) -> Optional[str]:
-           # Custom date parsing implementation
-           ...
-
-   @scraper_registry.register("NewSite")
-   class NewSiteScraper(ScrapyScraper):
-       def get_spider_class(self):
-           return NewSiteSpider
-   =======
-   ```
-
-5. **Test**: Run the scraper with your new source to ensure it works as expected:
-   ```
-   scraper scrape --test --output=mock --source NewRepo
-   >>>>>>> cd87ac2 (feat(scraper): introduce scraping package)
-   ```
-
-### Adding a New Source Type
-
-If you need to add an entirely new type of source:
-
-1. Add a new top-level key to `sources.yaml` for your new type.
-2. Create a default scraper for this new type (e.g., `NewTypeScraper`).
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-=======
-
-> > > > > > > bad0dfa (feat(processors): implement flexible document processing pipeline)
-
-## Adding New Processors
-
-Processors are used to perform additional operations on scraped documents before they are indexed. To add a new processor:
-
-1. Create a new Python file in the `scraper/processors` directory. Name it after your processor, e.g., `my_new_processor.py`.
-
-2. In this file, create a class that inherits from `BaseProcessor` and register it with the `processor_registry`:
-
-   ```python
-   from scraper.models import ScrapedDocument
-   from scraper.processors.base_processor import BaseProcessor
-   from scraper.registry import processor_registry
-
-   @processor_registry.register("my_new_processor")
-   class MyNewProcessor(BaseProcessor):
-       async def process(self, document: ScrapedDocument) -> ScrapedDocument:
-           # Implement your processing logic here
-           # Modify the document as needed
-           return document
-   ```
-
-3. Implement the `process` method. This method should take a `ScrapedDocument` as input, perform some operations on it, and return the modified `ScrapedDocument`.
-
-4. If your processor requires any initialization or configuration, you can add an `__init__` method to the class.
-
-5. Update the `ScrapedDocument` model in `scraper/models.py` if your processor adds any new fields to the document.
-
-6. To use the new processor, add its name to the `processors` list in the `sources.yaml` file for the sources where you want to apply it:
-
-   ```yaml
-   github:
-     - name: ExampleRepo
-       domain: https://github.com/example/repo
-       url: https://github.com/example/repo.git
-       processors:
-         - existing_processor
-         - my_new_processor
-   ```
-
-7. The processor will be automatically loaded and instantiated by the `ScraperFactory` when it's listed in the `sources.yaml` file.
-
-# <<<<<<< HEAD
-
-> > > > > > > cd87ac2 (feat(scraper): introduce scraping package)
-
-=======
-
-> > > > > > > bad0dfa (feat(processors): implement flexible document processing pipeline)
-
-## Development and Testing
-
-### Jupyter Notebook Playground
-
-For development and testing purposes, this project includes a Jupyter notebook playground. This feature allows you to interactively explore the scraper's functionality, test different configurations, and analyze scraped data.
-
-To start the Jupyter notebook playground:
+- create an `example.ini` file inside the `scrapybot` directory with the following contents
 
 ```
-poetry run playground
+[ELASTIC]
+cloud_id = `your_cloud_id`
+user = `your_elasticsearch_username`
+password =  `your_elasticsearch_password`
 ```
 
-This command will launch a Jupyter notebook server and open the [notebooks/playground.ipynb](./notebooks/playground.ipynb) file. The notebook environment will have access to all the scraper's modules and will use the development configuration profile.
+- inside the `pipelines.py file` in the `scrapybot` directory, read the above file to load your elasticsearch credentials with the line below:
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-### Testing Scrapers
-
-#### Mock Output
-
-For initial testing without writing to Elasticsearch:
-
-```bash
-scraper scrape --output=mock --source sourcename
+```
+config.read("/path/to/your/example.ini") - replace what's in quotes with your actual `ini` file
 ```
 
-This runs the scraper and outputs the extracted content to a JSON file.
+## Other quirks
 
-### Test Resources
+The bitcointalk forum scraper takes many hours to scrape so to start from the beginning, you'll need to do it from a server rather than use GitHub actions which has a 6 hours timeout. It's not a big deal if it times out on GitHub actions because it's written to index the last 100 posts and work in reverse chronological order.
 
-To test with specific content, add `test_resources` to your source configuration:
-To use this feature:
+## These scrapers pull EVERYTHING
 
-```yaml
-github:
-  - name: ExampleRepo
-    # ... source configuration ...
-    test_resources:
-      - path/to/test/file.md
-
-web:
-  - name: ExampleSite
-    # ... source configuration ...
-    test_resources:
-      - https://example.com/example-post
-      - https://example.com/example-post2
-```
-
-The scraper will only process the specified test resources instead of scraping the entire source.
-
-This is useful for debugging, testing new processors, or verifying behavior with specific content. Remove or comment out `test_resources` to scrape the entire source.
-
-### Testing with Elasticsearch
-
-When testing Elasticsearch integration:
-
-1. Set `test_mode=True` in `config.ini`:
-
-   ```ini
-   [development]
-   test_mode = True
-   ```
-
-   This flags indexed documents as test documents.
-
-2. Run your tests with the Elasticsearch output:
-
-   ```bash
-   scraper scrape --source sourcename
-   ```
-
-3. Clean up test documents when done:
-   ```bash
-   scraper cleanup-test-documents
-   ```
-
-This workflow allows you to verify correct document indexing by testing the full pipeline while also ensuring that the test documents are removed after the tests are complete.
-
-=======
-
-> > > > > > > # cd87ac2 (feat(scraper): introduce scraping package)
-
-### Testing with Specific Files
-
-During testing, you can specify a single file to be scraped for a particular source. This is helpful when you want to test the scraper's behavior with a known file or debug issues with specific content.
-
-To use this feature:
-
-1. In the `sources.yaml` file, add a `test_file` field to the source configuration:
-
-   ```yaml
-   github:
-     - name: ExampleRepo
-       domain: https://github.com/example/repo
-       url: https://github.com/example/repo.git
-       processors:
-         - processor1
-         - processor2
-       test_file: path/to/test/file.md
-   ```
-
-2. When you run the scraper with this configuration, it will only process the specified `test_file` instead of scraping the entire source.
-
-This is useful for debugging, testing new processors, or verifying behavior with specific content. Remove or comment out `test_file` to scrape the entire source.
-
-> > > > > > > bad0dfa (feat(processors): implement flexible document processing pipeline)
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+If testing on your local machine, it won't pull things it already has, but it will for GitHub actions. This could be optimized.
