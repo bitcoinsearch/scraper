@@ -7,13 +7,11 @@ The scraped data are then stored in an Elasticsearch index.
 Below is a detailed breakdown of the sources scraped and the schedule for each:
 
 Daily at 00:00 AM UTC
-- [Lightning Mailing List](https://lists.linuxfoundation.org/pipermail/lightning-dev/) ([cron](.github/workflows/mailing-list-lightning.yml), [source](mailing-list))
-- [New Bitcoin Mailing List](https://gnusha.org/pi/bitcoindev/) ([cron](.github/workflows/mailing-list-bitcoin-new.yml), [source](mailing-list/main.py))
-- [Bitcoin Mailing List](https://lists.linuxfoundation.org/pipermail/bitcoin-dev/) ([cron](.github/workflows/mailing-list-bitcoin.yml), [source](mailing-list))
+- [Bitcoin-dev Mailing List](https://gnusha.org/pi/bitcoindev/) ([cron](.github/workflows/mailing-list-bitcoin-new.yml), [source](mailing-list/main.py))
 - [Delving Bitcoin](https://delvingbitcoin.org/) ([cron](.github/workflows/delving-bitcoin.yml), [source](delvingbitcoin_2_elasticsearch))
 
 Weekly
-- [bitcoin.stackexchange](https://bitcoin.stackexchange.com/) ([cron](.github/workflows/stackexchange.yml), [source](bitcoin.stackexchange.com))
+- [bitcoin.stackexchange](https://bitcoin.stackexchange.com/) ([cron](.github/workflows/stackexchange.yml), [source](bitcoin.stackexchange.com)) [NOT WORKING]
 - Bitcoin Talk Forum ([cron](.github/workflows/bitcointalk.yml), [source](bitcointalk))
     - only the [Development & Technical Discussion Board](https://bitcointalk.org/index.php?board=6.0)
     - only for specific authors

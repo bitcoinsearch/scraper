@@ -1,4 +1,4 @@
-name: New Bitcoin Mailing list
+name: Bitcoin-dev Mailing list
 on:
   schedule:
     - cron: '0 0 * * *'
