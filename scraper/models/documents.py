@@ -79,6 +79,12 @@ class PRReviewClubDocument(ScrapedDocument):
     )
 
 
+class StackExchangeDocument(ScrapedDocument):
+    accepted_answer_id: Optional[str] = Field(
+        default=None, description="ID of the accepted answer"
+    )
+
+
 class MetadataDocument(BaseModel):
     """
     Represents metadata about a scraping operation for a specific domain.

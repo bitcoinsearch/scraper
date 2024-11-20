@@ -33,3 +33,6 @@ web:
     analyzer_config:
       index_url: https://bitcointalk.org/index.php?board=6.0
       resource_url: https://bitcointalk.org/index.php?topic=5499150.0
+  - name: StackExchange
+    domain: https://bitcoin.stackexchange.com
+    url: https://api.stackexchange.com
