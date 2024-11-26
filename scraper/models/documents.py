@@ -69,6 +69,16 @@ class BitcoinTranscriptDocument(ScrapedDocument):
     transcript_source: str = Field(description="Source of the transcript")
 
 
+class PRReviewClubDocument(ScrapedDocument):
+    issue: Optional[int] = Field(
+        default_factory=None,
+        description="Bitcoin Core issue number associated with the meeting",
+    )
+    host: Optional[str] = Field(
+        default=None, description="The person hosting the meeting"
+    )
+
+
 class MetadataDocument(BaseModel):
     """
     Represents metadata about a scraping operation for a specific domain.
