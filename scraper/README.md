@@ -78,7 +78,15 @@ For testing your new source configuration, see the [Development and Testing](#de
          - processor2
    ```
 
-2. **Register a scraper for the new source**:
+2. **Analyze Repository Structure** (optional):
+
+   ```bash
+   scraper github analyze NewRepo
+   ```
+
+   This helps understand what metadata fields are used across the repository before configuring scraping.
+
+3. **Register a scraper for the new source**:
 
    - If the new source can use an existing scraper, add its name to the registration of that scraper:
 
@@ -98,6 +106,17 @@ For testing your new source configuration, see the [Development and Testing](#de
      class NewRepoScraper(GithubScraper):
          async def scrape(self):
              # ... custom implementation ...
+     ```
+
+     Then export it in [`scrapers/__init__.py`](./scrapers/__init__.py):
+
+     ```python
+     from .newrepo import NewRepoScraper
+
+     __all__ = [
+         # ... existing exports ...
+         "NewRepoScraper",
+     ]
      ```
 
 #### Web Source
@@ -140,6 +159,7 @@ For testing your new source configuration, see the [Development and Testing](#de
    ```
 
    Then validate your configuration:
+
    ```bash
    scraper scrapy validate NewSite
    ```
