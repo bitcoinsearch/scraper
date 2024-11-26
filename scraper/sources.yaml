@@ -21,6 +21,11 @@ github:
       - summarization
       - topic_extractor
       - vector_embeddings
+  - name: PR-Review-Club
+    domain: https://bitcoincore.reviews/
+    url: https://github.com/bitcoin-core-review-club/website.git
+    directories: 
+      _posts: post
 web:
   - name: BitcoinTalk
     domain: https://bitcointalk.org

@@ -3,12 +3,13 @@ from datetime import date, datetime
 import re
 from git import Repo
 from loguru import logger
-from typing import List, Dict, Any, Set, Type
+from typing import List, Dict, Any, Optional, Set, Type
 
 import yaml
 
 from scraper.models import ScrapedDocument
 from scraper.config import settings
+from scraper.scrapers.utils import parse_standard_date_formats
 from scraper.utils import slugify, strip_emails
 from scraper.registry import scraper_registry
 from .base import BaseScraper
@@ -242,20 +243,49 @@ class GithubScraper(BaseScraper):
         # If no title is found, return a default string
         return "Untitled"
 
-    def get_created_at(self, metadata: Dict[str, Any]) -> str:
-        # Handle 'date' field if it's a string
-        if isinstance(metadata.get("date"), str):
-            return datetime.strptime(metadata["date"], "%Y-%m-%d").strftime("%Y-%m-%d")
+    def get_created_at(self, metadata: Dict[str, Any]) -> Optional[str]:
+        """
+        Extract and normalize creation date from document metadata.
 
-        # Handle 'Created' field if it's a string or a date
-        created = metadata.get("Created")
-        if isinstance(created, str):
-            return created  # Assume the string is already in the desired format
-        elif isinstance(created, date):
-            # Format the date as 'YYYY-MM-DD'
-            return created.strftime("%Y-%m-%d")
+        Attempts to parse date from multiple common metadata fields and formats.
+        Returns ISO formatted date string (YYYY-MM-DD) or None if no valid date found.
 
-        # If no valid date found, return None
+        Args:
+            metadata: Document metadata dictionary
+
+        Returns:
+            Optional[str]: ISO formatted date string or None
+        """
+        # List of common metadata field names for dates
+        date_fields = [
+            "date",
+            "created",
+            "created_at",
+            "published",
+            "published_at",
+            "timestamp",
+        ]
+
+        for field in date_fields:
+            value = metadata.get(field) or metadata.get(field.title())
+            if not value:
+                continue
+
+            # Handle datetime/date objects
+            if isinstance(value, (datetime, date)):
+                return value.strftime("%Y-%m-%d")
+
+            # Handle string dates
+            if isinstance(value, str):
+                # Try standard date formats using utility function
+                parsed_date = parse_standard_date_formats(value)
+                if parsed_date:
+                    # Convert full ISO timestamp to date-only format if needed
+                    if "T" in parsed_date:
+                        return parsed_date.split("T")[0]
+                    return parsed_date
+
+        # No valid date found
         return None
 
     def get_language(self, metadata: Dict[str, Any]) -> str:
