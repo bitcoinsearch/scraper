@@ -304,3 +304,126 @@ class GithubScraper(BaseScraper):
                 return content_type
 
         return None  # Default type if no match is found
+
+    def analyze_metadata(self, store_all_values: bool = False) -> dict:
+        """
+        Analyze metadata fields in all markdown files of the repository.
+
+        Args:
+            store_all_values: If True, store all unique values for each field instead of examples
+
+        Returns:
+            dict: Analysis results including field frequencies, types, and values/examples
+        """
+        # Clone or update repository
+        repo = self.clone_or_pull_repo()
+
+        # Initialize analysis data structure
+        analysis = {"total_documents": 0, "metadata_fields": {}}
+
+        # Analyze all markdown files
+        for item in repo.tree().traverse():
+            if item.type != "blob" or not self.is_relevant_file(item.path):
+                continue
+
+            try:
+                # Read and parse file
+                with open(
+                    os.path.join(repo.working_dir, item.path), "r", encoding="utf-8"
+                ) as f:
+                    content = f.read()
+                metadata, _ = self.parse_markdown(content)
+
+                if metadata:
+                    analysis["total_documents"] += 1
+                    self._analyze_metadata_fields(
+                        metadata, analysis["metadata_fields"], store_all_values
+                    )
+
+            except Exception as e:
+                logger.warning(f"Error analyzing file {item.path}: {e}")
+                logger.error("Full traceback:", exc_info=True)
+                continue
+
+        # Convert sets to lists for JSON serialization at the end
+        self._prepare_for_json(analysis["metadata_fields"])
+
+        return analysis
+
+    def _analyze_metadata_fields(
+        self, metadata: dict, field_registry: dict, store_all_values: bool
+    ):
+        """
+        Analyze metadata fields from a single document and update the registry.
+
+        Args:
+            metadata: Dict of metadata from a document
+            field_registry: Registry to update with findings
+            store_all_values: If True, store all unique values instead of examples
+        """
+        for field, value in metadata.items():
+            if field not in field_registry:
+                field_registry[field] = {
+                    "count": 0,
+                    "types": set(),
+                    "values"
+                    if store_all_values
+                    else "examples": set()
+                    if store_all_values
+                    else [],
+                }
+
+            # Update count
+            field_registry[field]["count"] += 1
+
+            # Track value type
+            value_type = self._get_value_type(value)
+            field_registry[field]["types"].add(value_type)
+
+            # Convert date/datetime to string for JSON serialization
+            if isinstance(value, (date, datetime)):
+                value = value.isoformat()
+
+            # Handle value storage based on mode
+            if store_all_values:
+                # For all values mode, use a set to track unique values
+                if isinstance(value, (list, tuple)):
+                    # For arrays, convert to tuple to make it hashable
+                    field_registry[field]["values"].add(str(value))
+                else:
+                    field_registry[field]["values"].add(value)
+            else:
+                # For examples mode, keep up to 3 examples
+                if len(field_registry[field]["examples"]) < 3:
+                    if value not in field_registry[field]["examples"]:
+                        field_registry[field]["examples"].append(value)
+
+    def _prepare_for_json(self, field_registry: dict):
+        """Convert sets to lists for JSON serialization."""
+        for field in field_registry:
+            field_registry[field]["types"] = list(field_registry[field]["types"])
+
+            if "values" in field_registry[field]:
+                field_registry[field]["values"] = list(field_registry[field]["values"])
+
+    def _get_value_type(self, value) -> str:
+        """
+        Determine the type of a metadata value.
+
+        Returns:
+            str: Name of the type ("string", "array", "number", "boolean", "null")
+        """
+        if value is None:
+            return "null"
+        elif isinstance(value, bool):
+            return "boolean"
+        elif isinstance(value, (int, float)):
+            return "number"
+        elif isinstance(value, (list, tuple)):
+            return "array"
+        elif isinstance(value, dict):
+            return "object"
+        elif isinstance(value, datetime):
+            return "datetime"
+        else:
+            return "string"

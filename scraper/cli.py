@@ -4,6 +4,7 @@ from twisted.internet.task import react
 from loguru import logger
 
 from scraper.commands.scrapy import scrapy
+from scraper.commands.github import github
 from scraper.config import settings
 from scraper.outputs import ElasticsearchOutput
 from scraper.scraper_factory import ScraperFactory
@@ -23,6 +24,7 @@ def cli():
 
 
 cli.add_command(scrapy)
+cli.add_command(github)
 
 
 def run_in_reactor(coro):
