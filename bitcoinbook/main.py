@@ -9,17 +9,18 @@ from loguru import logger
 if __name__ == "__main__":
 
     site = 'https://github.com/bitcoinbook/bitcoinbook/blob/develop'
-    chapters = ['/ch01.asciidoc', '/ch02.asciidoc', '/ch03.asciidoc', '/ch04.asciidoc',
-                '/ch05.asciidoc', '/ch06.asciidoc', '/ch07.asciidoc', '/ch08.asciidoc',
-                '/ch09.asciidoc', '/ch10.asciidoc', '/ch11.asciidoc', '/ch12.asciidoc']
+    chapters = ['/ch01_intro.adoc', '/ch02_overview.adoc', '/ch03_bitcoin-core.adoc', '/ch04_keys.adoc',
+                '/ch05_wallets.adoc', '/ch06_transactions.adoc', '/ch07_authorization-authentication.adoc',
+                '/ch08_signatures.adoc', '/ch09_fees.adoc', '/ch10_network.adoc', '/ch11_blockchain.adoc',
+                '/ch12_mining.adoc', '/ch13_security.adoc', 'ch14_applications.adoc']
     chapter_links = [f"{site}{chapter}" for chapter in chapters]
 
     documents = []
     for url in chapter_links:
         data = requests.get(url).text
         soup = BeautifulSoup(data, 'html.parser')
-        title = soup.find('h2', dir='auto').get_text()
-        body = soup.find('div', id='readme').get_text()
+        title = soup.find('h2', attrs={'class':'heading-element'}).get_text()
+        body = soup.find('article', attrs={'class':'entry-content'}).get_text()
         body_type = "md"
         author = "Andreas Antonopoulous"
         chapter_number = ''.join(re.findall(r'\d+', url))
