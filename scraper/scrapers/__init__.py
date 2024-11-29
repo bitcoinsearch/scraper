@@ -8,6 +8,7 @@ from .github import GithubScraper
 from .scrapy.scrapy_base import ScrapyScraper
 from .scrapy.spider_base import BaseSpider
 from .scrapy.bitcointalk import BitcoinTalkScraper
+from .stackexchange import StackExchangeScraper
 
 __all__ = [
     "BaseScraper",
@@ -22,4 +23,6 @@ __all__ = [
     "ScrapyScraper",
     "BaseSpider",
     "BitcoinTalkScraper",
+    # api
+    "StackExchangeScraper",
 ]
