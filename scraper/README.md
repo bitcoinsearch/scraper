@@ -29,6 +29,12 @@ A flexible multi-source scraper application designed to gather information from 
 - List available sources: `poetry run scraper list-sources`
 - Show configuration: `poetry run scraper show-config`
 
+### Elasticsearch Management
+
+- Initialize index with custom mapping: `poetry run scraper elastic init-index <my_index> path/to/mapping.json`
+- Show index mapping: `poetry run scraper elastic show-mapping <my_index>`
+- Clean up test documents: `poetry run scraper elastic cleanup-index <my_index> --test-docs-only`
+
 ## Sources Configuration
 
 The scraper uses a registry-based architecture to manage scrapers, processors, and outputs. This design allows for flexible configuration and easy extensibility.
@@ -303,7 +309,7 @@ When testing Elasticsearch integration:
 
 3. Clean up test documents when done:
    ```bash
-   scraper cleanup-test-documents
+   scraper elastic cleanup-index <my_index> --test-docs-only
    ```
 
 This workflow allows you to verify correct document indexing by testing the full pipeline while also ensuring that the test documents are removed after the tests are complete.

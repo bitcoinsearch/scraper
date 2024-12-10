@@ -13,13 +13,8 @@ def get_project_root():
     Find the project root by searching for a specific file.
 
     This function traverses up the directory tree from the current file's location
-    until it finds a directory containing 'pyproject.toml', which is assumed to be
+    until it finds a directory containing 'cli.py', which is assumed to be
     the project root.
-
-    Assumptions:
-    1. The project uses Poetry and thus has a pyproject.toml file in its root.
-    2. The function has permission to read the directory structure.
-    3. The project root is not beyond the file system root (/).
 
     Returns:
         str: The absolute path to the project root directory.

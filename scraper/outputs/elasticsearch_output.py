@@ -112,3 +112,19 @@ class ElasticsearchOutput(AbstractOutput):
             logger.error(f"Error cleaning up test documents: {e}")
             logger.exception("Full traceback:")
             raise
+
+    async def create_index_with_mapping(self, index_name: str, mapping: dict):
+        """
+        Create an index with a specific mapping.
+        If the index exists, raise an error.
+        """
+        try:
+            if self.es.indices.exists(index=index_name):
+                raise ValueError(f"Index {index_name} already exists")
+
+            self.es.indices.create(index=index_name, body=mapping)
+            logger.info(f"Created index {index_name} with custom mapping")
+
+        except Exception as e:
+            logger.error(f"Error creating index {index_name}: {e}")
+            raise
