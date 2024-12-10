@@ -3,10 +3,10 @@ from twisted.internet import asyncioreactor, defer
 from twisted.internet.task import react
 from loguru import logger
 
+from scraper.commands.elastic import elastic
 from scraper.commands.scrapy import scrapy
 from scraper.commands.github import github
 from scraper.config import settings
-from scraper.outputs import ElasticsearchOutput
 from scraper.scraper_factory import ScraperFactory
 
 
@@ -25,6 +25,7 @@ def cli():
 
 cli.add_command(scrapy)
 cli.add_command(github)
+cli.add_command(elastic)
 
 
 def run_in_reactor(coro):
@@ -85,39 +86,6 @@ def scrape(source, output):
         return run_in_reactor(run_scraping())
 
     react(run_scraper)
-
-
-@cli.command()
-@click.option(
-    "--index", default=settings.DEFAULT_INDEX, help="Name of the index to clean"
-)
-def cleanup_test_documents(index):
-    """
-    Remove test documents from the specified Elasticsearch index.
-
-    This is useful during development to clean up test data. It only removes
-    documents that have test_document=True.
-
-    Example usage:
-    $ scraper cleanup-test-documents
-    $ scraper cleanup-test-documents --index my-custom-index
-    """
-    try:
-        asyncioreactor.install()
-    except Exception:
-        pass
-
-    def run_cleanup(reactor):
-        output = ElasticsearchOutput(index_name=index)
-
-        async def cleanup():
-            async with output:
-                await output.cleanup_test_documents(index)
-                click.echo(f"Cleaned up test documents from index {index}")
-
-        return run_in_reactor(cleanup())
-
-    react(run_cleanup)
 
 
 @cli.command()
