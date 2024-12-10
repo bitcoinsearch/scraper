@@ -26,6 +26,18 @@ github:
     url: https://github.com/bitcoin-core-review-club/website.git
     directories: 
       _posts: post
+  - name: github-metadata-bitcoin-bips
+    domain: https://github.com/bitcoin/bips
+    url: https://github.com/bitcoin-data/github-metadata-backup-bitcoin-bips.git
+  - name: github-metadata-bitcoin-bitcoin
+    domain: https://github.com/bitcoin/bitcoin
+    url: https://github.com/bitcoin-data/github-metadata-backup-bitcoin-bitcoin.git
+  - name: github-metadata-bitcoin-core-secp256k1
+    domain: https://github.com/bitcoin-core/secp256k1
+    url: https://github.com/bitcoin-data/github-metadata-backup-bitcoin-core-secp256k1.git
+  - name: github-metadata-bitcoin-core-gui
+    domain: https://github.com/bitcoin-core/gui
+    url: https://github.com/bitcoin-data/github-metadata-backup-bitcoin-core-gui.git
 web:
   - name: BitcoinTalk
     domain: https://bitcointalk.org
