@@ -1,0 +1,31 @@
+selectors:
+  index_page:
+    items:
+      item_selector:
+        selector: td.windowbg > span > a
+        attribute: href
+        multiple: true
+        pattern: \?topic=\d+
+    next_page:
+      selector: td.middletext span.prevnext:last-of-type a.navPages
+      attribute: href
+  resource_page:
+    items:
+      item_selector:
+        selector: table.bordercolor > tr > td > table > tr > td[class^="windowbg"]
+        multiple: true
+      title:
+        selector: .subject > a
+      author:
+        selector: .poster_info > b > a
+      date:
+        selector: .td_headerandpost .smalltext
+        transform: parse_date
+      content:
+        selector: .post
+      url:
+        selector: .subject a
+        attribute: href
+    next_page:
+      selector: td.middletext span.prevnext:last-of-type a.navPages
+      attribute: href
