@@ -1,0 +1,124 @@
+{
+  "mappings": {
+    "properties": {
+      "id": { "type": "keyword" },
+      "title": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "body": { "type": "text" },
+      "body_formatted": { "enabled": false },
+      "body_type": { "type": "keyword" },
+      "summary": { "type": "text" },
+      "domain": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "indexed_at": { "type": "date" },
+      "created_at": { "type": "date" },
+      "url": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "thread_url": { "type": "keyword" },
+      "type": { "type": "keyword" },
+      "language": { "type": "keyword" },
+      "tags": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "authors": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "test_document": { "type": "boolean" },
+      "number": { "type": "keyword" },
+      "updated_at": { "type": "date" },
+      "closed_at": { "type": "date" },
+      "merged_at": { "type": "date" },
+      "state": { "type": "keyword" },
+      "labels": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "head_sha": { "type": "keyword" },
+      "reviews": {
+        "type": "nested",
+        "properties": {
+          "id": { "type": "long" },
+          "author": { "type": "keyword" },
+          "commit_id": { "type": "keyword" },
+          "submitted_at": { "type": "date" },
+          "body": { "type": "text" }
+        }
+      },
+      "review_threads": {
+        "type": "nested",
+        "properties": {
+          "pull_request_review_id": { "type": "long" },
+          "path": { "type": "keyword" },
+          "diff_hunk": { "type": "text" },
+          "commit_id": { "type": "keyword" },
+          "original_commit_id": { "type": "keyword" },
+          "position": { "type": "integer" },
+          "original_position": { "type": "integer" },
+          "line": { "type": "integer" },
+          "original_line": { "type": "integer" },
+          "start_line": { "type": "integer" },
+          "original_start_line": { "type": "integer" },
+          "comments": {
+            "type": "nested",
+            "properties": {
+              "id": { "type": "long" },
+              "author": { "type": "keyword" },
+              "created_at": { "type": "date" },
+              "updated_at": { "type": "date" },
+              "body": { "type": "text" },
+              "pull_request_review_id": { "type": "long" }
+            }
+          }
+        }
+      },
+      "comments": {
+        "type": "nested",
+        "properties": {
+          "id": { "type": "long" },
+          "author": { "type": "keyword" },
+          "created_at": { "type": "date" },
+          "updated_at": { "type": "date" },
+          "body": { "type": "text" }
+        }
+      }
+    }
+  }
+}
