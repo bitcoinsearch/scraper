@@ -46,6 +46,9 @@ class ScrapedDocument(BaseModel):
     authors: Optional[List[str]] = Field(
         default=None, description="List of authors of the document"
     )
+    chunks: Optional[List[dict]] = Field(
+        default=None, description="List of chunks generated after splitting the document"
+    )
     test_document: Optional[bool] = Field(
         # TODO: remove hardcoded value
         default=True,
