@@ -70,9 +70,9 @@ class BitcoinTranscriptDocument(ScrapedDocument):
 
 
 class PRReviewClubDocument(ScrapedDocument):
-    issue: Optional[int] = Field(
+    number: Optional[int] = Field(
         default_factory=None,
-        description="Bitcoin Core issue number associated with the meeting",
+        description="Bitcoin Core PR number associated with the meeting",
     )
     host: Optional[str] = Field(
         default=None, description="The person hosting the meeting"
