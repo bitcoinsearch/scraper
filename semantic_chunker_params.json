@@ -1,0 +1,12 @@
+{
+    "breakpoint_threshold_type": "standard_deviation",
+    "buffer_size": 4,
+    "breakpoint_threshold_amount": 3,
+    "sentence_split_regex": "(?<=[\\.\\!\\?\n])(\n?)\\s+",
+    "oai_embedding_model": "text-embedding-3-small",
+    "oai_gen_model": "gpt-4o-mini",
+    "chunk_threshold": 6000,
+    "use_markdown_headers": false,
+    "max_chunk_size": 6000,
+    "generate_titles": false
+}
