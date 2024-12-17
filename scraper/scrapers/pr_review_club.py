@@ -52,12 +52,12 @@ class PRReviewClubScraper(GithubScraper):
         For Bitcoin Core PRs, uses PR number and metadata.
         For other content, identifies topics from filename.
         """
-        document_data["issue"] = metadata.get("pr", None)
+        document_data["number"] = metadata.get("pr", None)
         document_data["host"] = metadata.get("host", [])
         document_data["tags"] = metadata.get("components", []) or []
 
         # If no PR number exists, this is not a Bitcoin Core PR review
-        if not document_data["issue"]:
+        if not document_data["number"]:
             # Extract title from filename
             title = self._extract_title_from_jekyll_filename(file_path)
 
