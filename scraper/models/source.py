@@ -23,6 +23,9 @@ class SourceConfig(BaseModel):
     test_resources: Optional[List[str]] = []
     processors: List[str] = []
     analyzer_config: Optional[AnalyzerConfig] = None
+    checkout_commit: Optional[
+        str
+    ] = None  # Specific commit hash to checkout for testing
 
 
 __all__ = ["SourceConfig", "AnalyzerConfig"]

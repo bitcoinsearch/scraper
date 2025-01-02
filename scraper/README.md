@@ -267,27 +267,43 @@ This runs the scraper and outputs the extracted content to a JSON file.
 
 ### Test Resources
 
-To test with specific content, add `test_resources` to your source configuration:
-To use this feature:
+To test with specific content:
 
-```yaml
-github:
-  - name: ExampleRepo
-    # ... source configuration ...
-    test_resources:
-      - path/to/test/file.md
+1. **Test Resources**
 
-web:
-  - name: ExampleSite
-    # ... source configuration ...
-    test_resources:
-      - https://example.com/example-post
-      - https://example.com/example-post2
-```
+   Add `test_resources` to your source configuration:
 
-The scraper will only process the specified test resources instead of scraping the entire source.
+   ```yaml
+   github:
+     - name: ExampleRepo
+       # ... source configuration ...
+       test_resources:
+         - path/to/test/file.md
 
-This is useful for debugging, testing new processors, or verifying behavior with specific content. Remove or comment out `test_resources` to scrape the entire source.
+   web:
+     - name: ExampleSite
+       # ... source configuration ...
+       test_resources:
+         - https://example.com/example-post
+         - https://example.com/example-post2
+   ```
+
+   The scraper will only process the specified test resources instead of scraping the entire source.
+
+2. **Test with Specific Commit State**
+
+   For GitHub sources, specify a `checkout_commit` to test with repository state at a particular point in time:
+
+   ```yaml
+   github:
+     - name: ExampleRepo
+       # ... source configuration ...
+       checkout_commit: abc123def456 # Test with repo state at this specific commit
+   ```
+
+   This allows testing the scraper against a specific historical state of the repository.
+
+This is useful for debugging, testing new processors, or verifying behavior with specific content. Remove or comment out these test options to scrape the entire source.
 
 ### Testing with Elasticsearch
 

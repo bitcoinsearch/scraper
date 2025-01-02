@@ -44,6 +44,16 @@ class GithubScraper(BaseScraper):
         last_commit_hash = last_run.last_commit_hash if last_run else None
 
         repo = self.clone_or_pull_repo()
+        # If checkout_commit is specified, use that specific commit state
+        if self.config.checkout_commit:
+            try:
+                repo.git.checkout(self.config.checkout_commit)
+            except Exception as e:
+                logger.error(
+                    f"Failed to checkout commit {self.config.checkout_commit}: {e}"
+                )
+                raise
+
         self.current_commit_hash = repo.head.commit.hexsha
 
         # Handle test mode vs full mode
@@ -51,7 +61,9 @@ class GithubScraper(BaseScraper):
             logger.info(f"Running in test mode with resources: {self.test_resources}")
             files_to_process = self.test_resources
         else:
-            logger.info("Running in full mode")
+            logger.info(
+                f"Running in full mode: {last_commit_hash} -> {self.current_commit_hash}"
+            )
             files_to_process = self.get_changed_files(repo, last_commit_hash)
 
         # Process files
@@ -81,6 +93,17 @@ class GithubScraper(BaseScraper):
         if os.path.exists(self.repo_path):
             logger.info(f"Updating existing repo at path: {self.repo_path}")
             repo = Repo(self.repo_path)
+
+            # Reset any changes and checkout main branch before pulling
+            repo.git.reset("--hard")
+
+            # Get default branch name (usually main or master)
+            default_branch = repo.git.symbolic_ref("refs/remotes/origin/HEAD").split(
+                "/"
+            )[-1]
+            repo.git.checkout(default_branch)
+
+            # Now pull the latest changes
             origin = repo.remotes.origin
             origin.pull()
         else:
