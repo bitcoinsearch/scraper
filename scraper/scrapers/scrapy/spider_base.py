@@ -73,7 +73,6 @@ class BaseSpider(scrapy.Spider, SelectorExtractor, ABC):
         # Statistics
         self.total_items_scraped = 0
         self.total_items_queued = 0
-        self.total_items_indexed = 0
         self.log_interval = 15
 
         logger.info(
@@ -149,7 +148,7 @@ class BaseSpider(scrapy.Spider, SelectorExtractor, ABC):
         """Log current scraping statistics."""
         logger.info(
             f"Status for {self.name}: Scraped: {self.total_items_scraped}, "
-            f"Queued: {self.total_items_queued}, Indexed: {self.total_items_indexed}"
+            f"Queued: {self.total_items_queued}, Indexed: {self.scraper.total_documents_processed}"
         )
 
     def parse(self, response: Response) -> Generator:
@@ -401,10 +400,3 @@ class BaseSpider(scrapy.Spider, SelectorExtractor, ABC):
         """Process and index a document using the parent scraper."""
         logger.info(f"Processing document: {document.id}")
         yield self.scraper.process_and_index_document(document)
-        self.total_items_indexed += 1
-        logger.info(
-            f"Indexed document: {document.id}. "
-            f"Scraped: {self.total_items_scraped}, "
-            f"Queued: {self.total_items_queued}, "
-            f"Indexed: {self.total_items_indexed}"
-        )

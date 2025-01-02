@@ -34,6 +34,7 @@ A flexible multi-source scraper application designed to gather information from 
 - Initialize index with custom mapping: `poetry run scraper elastic init-index <my_index> path/to/mapping.json`
 - Show index mapping: `poetry run scraper elastic show-mapping <my_index>`
 - Clean up test documents: `poetry run scraper elastic cleanup-index <my_index> --test-docs-only`
+- Show recent scraper runs for a source: `poetry run scraper elastic show-runs <my_index> <source>`
 
 ## Sources Configuration
 

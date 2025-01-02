@@ -54,9 +54,6 @@ class ScrapedDocument(BaseModel):
 
 
 class BitcoinTranscriptDocument(ScrapedDocument):
-    tags: List[str] = Field(
-        default_factory=list, description="Tags associated with the transcript"
-    )
     media: Optional[str] = Field(
         default=None, description="Media associated with the transcript"
     )
@@ -85,36 +82,41 @@ class StackExchangeDocument(ScrapedDocument):
     )
 
 
-class MetadataDocument(BaseModel):
-    """
-    Represents metadata about a scraping operation for a specific domain.
+class RunStats(BaseModel):
+    """Statistics for a single scraper run"""
 
-    This model defines the structure and types of data that should be present
-    in every metadata document. It uses Pydantic for data validation and serialization.
-    """
-
-    id: str = Field(description="Unique identifier for the document")
-    domain: str = Field(..., description="Domain for which this metadata applies")
-    updated_at: str = Field(
-        default_factory=datetime.now().isoformat,
-        description="Timestamp of the last scrape operation",
-    )
-    last_commit_hash: Optional[str] = Field(
-        None, description="Hash of the last processed commit (for Git repositories)"
-    )
-    files_processed: Optional[int] = Field(
-        default=None, description="Number of files processed in the last scrape"
+    resources_to_process: Optional[int] = Field(
+        default=None, description="Number of available resources to process in this run"
     )
     documents_indexed: Optional[int] = Field(
-        default=None,
-        description="Number of documents successfully indexed in the last scrape",
+        default=None, description="Number of documents successfully indexed in this run"
+    )
+
+
+class ScraperRunDocument(BaseModel):
+    """Represents a single run of a scraper with its statistics"""
+
+    scraper: str = Field(description="Name of the scraper")
+    source: str = Field(description="Name of the source")
+    domain: str = Field(description="Domain being scraped")
+    started_at: str = Field(description="When this run started")
+    finished_at: str = Field(
+        default_factory=lambda: datetime.now().isoformat(),
+        description="When this run finished",
     )
     type: str = Field(
-        default="scrape_metadata",
-        description="Type of the document, always 'scrape_metadata' for metadata",
+        default="scraper_run",
+        description="Type of the document, always 'scraper_run' for run documents",
     )
-    test_document: bool = Field(
-        # TODO: remove hardcoded value
-        default=True,
-        description="Flag indicating if this is a test metadata document",
+    last_commit_hash: Optional[str] = Field(
+        default=None, description="Last commit hash for Git-based scrapers"
+    )
+    success: bool = Field(description="Whether the run completed successfully")
+    error_message: Optional[str] = Field(
+        default=None, description="Error message if the run failed"
+    )
+    stats: RunStats = Field(description="Statistics for this run")
+    test_document: Optional[bool] = Field(
+        default=True,  # TODO: remove hardcoded value
+        description="Flag indicating if this is a test document",
     )

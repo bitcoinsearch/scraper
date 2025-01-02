@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional, Set, Type
 
 import yaml
 
-from scraper.models import ScrapedDocument
+from scraper.models import ScrapedDocument, RunStats
 from scraper.config import settings
 from scraper.scrapers.utils import parse_standard_date_formats
 from scraper.utils import slugify, strip_emails
@@ -35,10 +35,16 @@ class GithubScraper(BaseScraper):
         self._excluded_files.update(files)
 
     async def scrape(self):
-        metadata = await self.get_metadata(self.config)
-        last_commit_hash = metadata.last_commit_hash
+        """
+        Main scraping method for GitHub repositories.
+        Uses last successful run's commit hash to determine what files to process.
+        """
+        # Get last successful run for commit hash
+        last_run = await self.get_last_successful_run()
+        last_commit_hash = last_run.last_commit_hash if last_run else None
 
         repo = self.clone_or_pull_repo()
+        self.current_commit_hash = repo.head.commit.hexsha
 
         # Handle test mode vs full mode
         if self.test_resources:
@@ -48,14 +54,9 @@ class GithubScraper(BaseScraper):
             logger.info("Running in full mode")
             files_to_process = self.get_changed_files(repo, last_commit_hash)
 
-        documents_indexed = await self.process_files(repo, files_to_process)
-
-        # Only update metadata in full mode
-        if not self.test_resources:
-            metadata.last_commit_hash = repo.head.commit.hexsha
-            metadata.files_processed = len(files_to_process)
-            metadata.documents_indexed = documents_indexed
-            await self.update_metadata(metadata)
+        # Process files
+        self.resources_to_process = len(files_to_process)
+        await self.process_files(repo, files_to_process)
 
     def get_changed_files(self, repo: Repo, last_commit_hash: str) -> List[str]:
         if not last_commit_hash:
@@ -89,17 +90,14 @@ class GithubScraper(BaseScraper):
 
     async def process_files(self, repo: Repo, files: List[str]) -> int:
         """Process a list of files from the repository."""
-        processed_documents = 0
         for file_path in files:
             if self.is_relevant_file(file_path):
                 logger.info(f"Processing file: {file_path}")
                 document = self.parse_file(repo, file_path)
                 if document:
                     await self.process_and_index_document(document)
-                    processed_documents += 1
                 else:
                     logger.warning(f"Failed to parse file: {file_path}")
-        return processed_documents
 
     def is_relevant_file(self, file_path: str) -> bool:
         file_name = os.path.basename(file_path)

@@ -1,3 +1,4 @@
+from datetime import datetime
 import click
 import json
 from pathlib import Path
@@ -140,6 +141,69 @@ def show_mapping(index_name: str):
 
                 mapping = output.es.indices.get_mapping(index=index_name)
                 click.echo(json.dumps(mapping.body, indent=2))
+
+        return run_in_reactor(show())
+
+    react(run_show)
+
+
+@elastic.command()
+@click.argument("index_name")
+@click.argument("source")
+@click.option("--limit", default=10, help="Number of most recent runs to show")
+def show_runs(index_name: str, source: str, limit: int):
+    """
+    Show recent scraper runs for a source.
+
+    Example usage:
+        $ scraper elastic show-runs my_index bitcointalk
+        $ scraper elastic show-runs my_index bitcointalk --limit 5
+    """
+    try:
+        from twisted.internet import asyncioreactor
+
+        asyncioreactor.install()
+    except Exception:
+        pass
+
+    def run_show(reactor):
+        async def show():
+            output = ElasticsearchOutput(index_name=index_name)
+
+            async with output:
+                runs = await output.get_recent_runs(source, limit)
+
+                if not runs:
+                    click.echo(f"No runs found for source: {source}")
+                    return
+
+                click.echo(f"\nMost recent {len(runs)} runs for {source}:")
+                for run in runs:
+                    click.echo("\n" + "-" * 40)
+                    # Format timestamps for better readability
+                    started = datetime.fromisoformat(run.started_at).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+                    finished = datetime.fromisoformat(run.finished_at).strftime(
+                        "%H:%M:%S"
+                    )  # Only time for finish
+                    duration = datetime.fromisoformat(
+                        run.finished_at
+                    ) - datetime.fromisoformat(run.started_at)
+                    duration_str = str(duration).split(".")[0]  # Remove microseconds
+                    click.echo(
+                        f"Time: {started} -> {finished} (duration: {duration_str})"
+                    )
+                    click.echo(f"Success: {run.success}")
+                    if run.error_message:
+                        click.echo(f"Error: {run.error_message}")
+                    if run.stats:
+                        click.echo(
+                            f"Resources to process: {run.stats.resources_to_process}"
+                        )
+                        click.echo(f"Documents indexed: {run.stats.documents_indexed}")
+                    if run.last_commit_hash:
+                        click.echo(f"Last commit: {run.last_commit_hash[:8]}")
 
         return run_in_reactor(show())
 

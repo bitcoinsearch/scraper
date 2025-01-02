@@ -1,10 +1,9 @@
-from elasticsearch import Elasticsearch, NotFoundError
-from datetime import datetime
-from typing import List
+from elasticsearch import Elasticsearch
+from typing import Any, List, Optional
 import logging
 from loguru import logger
 
-from scraper.models import MetadataDocument, ScrapedDocument, SourceConfig
+from scraper.models import ScrapedDocument, ScraperRunDocument
 from scraper.config import settings
 from scraper.outputs import AbstractOutput
 from scraper.registry import output_registry
@@ -20,7 +19,6 @@ class ElasticsearchOutput(AbstractOutput):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.es = None
-        self.metadata_prefix = "scrape_metadata_"
 
         # Configure logging levels for noisy libraries
         logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
@@ -65,40 +63,70 @@ class ElasticsearchOutput(AbstractOutput):
             logger.error(f"Error during batch indexing: {e}")
             logger.exception("Full traceback:")
 
-    async def get_metadata(self, config: SourceConfig) -> MetadataDocument:
-        """
-        Retrieve metadata document for a source.
-        Creates new metadata if none exists for the source.
-        """
-        doc_id = f"{self.metadata_prefix}{config.name}"
-        try:
-            result = self.es.get(index=settings.DEFAULT_INDEX, id=doc_id)
-            return MetadataDocument(**result["_source"])
-        except NotFoundError:
-            logger.info(
-                f"No metadata found for {config.domain}. Creating new metadata."
-            )
-        except Exception as e:
-            logger.error(f"Error retrieving metadata for {config.domain}: {e}")
-
-        return MetadataDocument(
-            id=doc_id,
-            domain=str(config.domain),
+    async def record_run(self, run_document: ScraperRunDocument) -> None:
+        """Record statistics for a scraper run"""
+        self.es.index(
+            index=self.index_name,
+            document=run_document.model_dump(exclude_none=True),
         )
 
-    async def update_metadata(self, metadata: MetadataDocument):
-        """Update metadata document in Elasticsearch."""
-        metadata.updated_at = datetime.now().isoformat()
+    async def _query_runs(
+        self,
+        source: str,
+        must_terms: dict[str, Any] = None,
+        size: int = 1,
+    ) -> List[ScraperRunDocument]:
+        """
+        Generic method to query run documents with configurable filters.
 
+        Args:
+            source: Name of the source to query
+            must_terms: Additional term queries to add to the must clause
+            size: Maximum number of documents to return
+
+        Returns:
+            List[ScraperRunDocument]: List of matching run documents
+        """
         try:
-            self.es.index(
-                index=settings.DEFAULT_INDEX,
-                id=metadata.id,
-                document=metadata.model_dump(exclude_none=True),
-            )
-            logger.info(f"Updated metadata for {metadata.domain}")
+            # Build base query
+            must_clauses = [
+                {"term": {"source": source.lower()}},
+                {"term": {"type": "scraper_run"}},
+            ]
+
+            # Add additional term queries if provided
+            if must_terms:
+                must_clauses.extend({"term": {k: v}} for k, v in must_terms.items())
+
+            query = {
+                "query": {"bool": {"must": must_clauses}},
+                "sort": [{"timestamp": {"order": "desc"}}],
+                "size": size,
+            }
+
+            result = self.es.search(index=self.index_name, body=query)
+            return [
+                ScraperRunDocument(**hit["_source"]) for hit in result["hits"]["hits"]
+            ]
+
         except Exception as e:
-            logger.error(f"Error updating metadata for {metadata.domain}: {e}")
+            logger.error(f"Error querying runs for {source}: {e}")
+            return []
+
+    async def get_last_successful_run(
+        self, source: str
+    ) -> Optional[ScraperRunDocument]:
+        """Get the most recent successful run for a scraper"""
+        runs = await self._query_runs(
+            source=source, must_terms={"success": True}, size=1
+        )
+        return runs[0] if runs else None
+
+    async def get_recent_runs(
+        self, source: str, limit: int = 10
+    ) -> List[ScraperRunDocument]:
+        """Get the most recent runs for a source."""
+        return await self._query_runs(source=source, size=limit)
 
     async def cleanup_test_documents(self, index_name: str):
         """Remove all test documents from the specified index."""

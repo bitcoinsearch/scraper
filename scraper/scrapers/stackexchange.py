@@ -48,7 +48,7 @@ class StackExchangeScraper(BaseScraper):
             # Get total number of posts to process
             total_posts = self._get_total_posts()
             total_pages = max(1, (total_posts + self.page_size - 1) // self.page_size)
-
+            self.resources_to_process = total_posts
             logger.info(f"Found {total_posts} posts across {total_pages} pages")
 
             # Process each page

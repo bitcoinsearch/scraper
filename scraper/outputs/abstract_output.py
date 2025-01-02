@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 
 from loguru import logger
 
 from scraper.config import settings
-from scraper.models import SourceConfig, MetadataDocument, ScrapedDocument
+from scraper.models import ScraperRunDocument, ScrapedDocument
 
 
 class AbstractOutput(ABC):
@@ -93,24 +93,17 @@ class AbstractOutput(ABC):
             self.document_buffer.clear()
 
     @abstractmethod
-    async def get_metadata(self, config: SourceConfig) -> MetadataDocument:
+    async def get_last_successful_run(
+        self, source: str
+    ) -> Optional[ScraperRunDocument]:
         """
-        Retrieve metadata for a given domain.
-
-        Args:
-            source (SourceConfig): The source for which to retrieve metadata.
-
-        Returns:
-            MetadataDocument: The metadata associated with the specified source.
+        Retrieve the most recent successful run for a source.
         """
         pass
 
     @abstractmethod
-    async def update_metadata(self, metadata: MetadataDocument):
+    async def record_run(self, run_document: ScraperRunDocument) -> None:
         """
-        Update metadata for the source.
-
-        Args:
-            metadata (MetadataDocument): The new metadata to associate with the source.
+        Record statistics for a scraper run.
         """
         pass

@@ -1,10 +1,11 @@
 import json
 from datetime import datetime
-from typing import Dict, List
+import os
+from typing import Dict, List, Optional
 
 from loguru import logger
 
-from scraper.models import MetadataDocument, ScrapedDocument, SourceConfig
+from scraper.models import ScrapedDocument, ScraperRunDocument
 from scraper.outputs import AbstractOutput
 from scraper.config import settings
 from scraper.registry import output_registry
@@ -14,7 +15,6 @@ from scraper.registry import output_registry
 class MockOutput(AbstractOutput):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.metadata: Dict[str, Dict] = {}
         self.output_file = (
             f"mock_output_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         )
@@ -26,7 +26,13 @@ class MockOutput(AbstractOutput):
         ]
 
     async def _initialize(self):
-        self._write_json({"documents": [], "metadata": {}})
+        """Initialize the output file with empty documents and runs arrays"""
+        self._write_json(
+            {
+                "documents": [],
+                "runs": [],  # Store runs as an array for future extensibility
+            }
+        )
 
     async def _cleanup(self):
         logger.info(
@@ -34,42 +40,46 @@ class MockOutput(AbstractOutput):
         )
 
     def _write_json(self, data: Dict):
+        """Write data to the output file"""
         with open(self.output_file, "w") as f:
             json.dump(data, f, indent=2)
 
-    def _append_json(self, data: List[Dict]):
-        with open(self.output_file, "r+") as f:
-            file_data = json.load(f)
-            file_data["documents"].extend(data)
-            f.seek(0)
-            json.dump(file_data, f, indent=2)
-            f.truncate()
+    def _read_json(self) -> Dict:
+        """Read data from the output file"""
+        if os.path.exists(self.output_file):
+            with open(self.output_file, "r") as f:
+                return json.load(f)
+        return {"documents": [], "runs": []}
+
+    def _append_documents(self, documents: List[Dict]):
+        """Append documents to the output file"""
+        data = self._read_json()
+        data["documents"].extend(documents)
+        self._write_json(data)
 
     async def _index_batch(self, documents: List[ScrapedDocument]):
+        """Index a batch of documents"""
         docs_to_index = [
             doc.model_dump(exclude_none=True, exclude=self.excluded_fields)
             for doc in documents
         ]
 
-        self._append_json(docs_to_index)
+        self._append_documents(docs_to_index)
 
-    async def get_metadata(self, config: SourceConfig) -> MetadataDocument:
-        doc_id = config.name.lower()
-        metadata = self.metadata.get(
-            doc_id,
-            {
-                "id": doc_id,
-                "domain": str(config.domain),
-            },
-        )
-        return MetadataDocument(**metadata)
+    async def get_last_successful_run(
+        self, source: str
+    ) -> Optional[ScraperRunDocument]:
+        """Always return None to simulate no previous runs"""
+        return None
 
-    async def update_metadata(self, metadata: MetadataDocument):
-        self.metadata[metadata.domain] = metadata.model_dump()
-        with open(self.output_file, "r+") as f:
-            file_data = json.load(f)
-            file_data["metadata"] = self.metadata
-            f.seek(0)
-            json.dump(file_data, f, indent=2)
-            f.truncate()
-        logger.info(f"Updated metadata for {metadata.domain}")
+    async def record_run(self, run_document: ScraperRunDocument) -> None:
+        """Update the runs section of the output file"""
+        data = self._read_json()
+
+        # Convert run document to dict and handle datetime serialization
+        run_dict = run_document.model_dump(exclude_none=True)
+
+        # Update runs array - keeping just the latest run for now
+        data["runs"] = [run_dict]
+
+        self._write_json(data)
