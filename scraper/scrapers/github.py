@@ -215,9 +215,8 @@ class GithubScraper(BaseScraper):
                 "id": self.generate_id(file_path),
                 "title": self.get_title(metadata, body),
                 "body": body,
-                "body_formatted": body,
+                "original": None,  # TODO handle .mediawiki
                 "summary": metadata.get("summary", None),
-                "body_type": self.get_body_type(file_path),
                 "domain": str(self.config.domain),
                 "created_at": self.get_created_at(metadata),
                 "url": self.get_url(file_path, metadata),
@@ -312,11 +311,6 @@ class GithubScraper(BaseScraper):
     def get_language(self, metadata: Dict[str, Any]) -> str:
         # Override this method to customize language extraction
         return metadata.get("lang", "en")
-
-    def get_body_type(self, file_path: str) -> str:
-        # Override this method to customize body type extraction
-        file_extension = os.path.splitext(file_path)[1]
-        return "mediawiki" if file_extension == ".mediawiki" else "markdown"
 
     def get_authors(self, metadata: Dict[str, Any]) -> List[str]:
         # Override this method to customize author extraction

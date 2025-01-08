@@ -1,8 +1,29 @@
 import re
 from typing import List, Optional
 from bs4 import BeautifulSoup, Tag
+from dataclasses import dataclass
 
 from scraper.scrapers.scrapy.selector_types import SelectorConfig
+
+
+@dataclass
+class FieldExtractionResult:
+    """Result of field extraction containing both processed text and original content."""
+
+    text: Optional[str]
+    processed_html: Optional[str]
+    original_html: Optional[str]
+
+    @classmethod
+    def from_attribute(cls, value: str) -> "FieldExtractionResult":
+        """Create a result from an attribute value where both text and original are the same."""
+        stripped = value.strip()
+        return cls(text=stripped, processed_html=stripped, original_html=stripped)
+
+    @classmethod
+    def none(cls) -> "FieldExtractionResult":
+        """Create an empty result."""
+        return cls(text=None, processed_html=None, original_html=None)
 
 
 class SelectorExtractor:
@@ -21,30 +42,57 @@ class SelectorExtractor:
 
     def _extract_field(
         self, item: Tag, selector_config: Optional[SelectorConfig]
-    ) -> Optional[str]:
-        """Extract a field from an item using configured selector."""
+    ) -> FieldExtractionResult:
+        """
+        Extract a field from an item using configured selector.
+
+        Args:
+            item: The BeautifulSoup Tag to extract from
+            selector_config: Configuration for the selector
+
+        Returns:
+        FieldExtractionResult: Extraction result containing text, processed HTML, and original HTML.
+        If no content is found, returns an empty result (use .text to get None).
+        """
         if not selector_config:
-            return None
+            return FieldExtractionResult.none()
 
         element = item.select_one(selector_config.selector)
         if not element:
-            return None
+            return FieldExtractionResult.none()
 
         if selector_config.attribute:
             # Get the specified attribute
             value = element.get(selector_config.attribute)
+            if not value:
+                return FieldExtractionResult.none()
+            return FieldExtractionResult.from_attribute(value)
         else:
             # For content fields that might need HTML processing
+            # Store original HTML before any processing
+            original_html = str(element)
+
+            # Process the HTML
             processed_element = self.process_html(element)
-            value = processed_element.get_text(strip=True)
+            processed_html = str(processed_element)
 
-        # Apply pattern if specified
-        if selector_config.pattern and value:
-            match = re.search(selector_config.pattern, value)
-            if match:
-                value = match.group(1) if match.groups() else match.group(0)
+            # Extract text from processed HTML
+            text_value = processed_element.get_text(strip=True)
 
-        return value.strip() if value else None
+            # Apply pattern if specified
+            if selector_config.pattern and text_value:
+                match = re.search(selector_config.pattern, text_value)
+                if match:
+                    text_value = match.group(1) if match.groups() else match.group(0)
+
+            if not text_value:
+                return FieldExtractionResult.none()
+
+            return FieldExtractionResult(
+                text=text_value.strip(),
+                processed_html=processed_html,
+                original_html=original_html,
+            )
 
     def _extract_links(
         self, soup: BeautifulSoup, selector_config: SelectorConfig

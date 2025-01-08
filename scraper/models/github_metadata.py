@@ -93,9 +93,6 @@ class GitHubDocument(ScrapedDocument):
     )
     number: str = Field(description="Issue or PR number")
     body: str = Field(description="Issue/PR description")
-    body_type: Literal["markdown"] = Field(
-        "markdown", description="Content format type"
-    )
     created_at: str = Field(description="When the issue/PR was created")
     updated_at: str = Field(description="When the issue/PR was last updated")
     closed_at: Optional[str] = Field(description="When the issue/PR was closed")

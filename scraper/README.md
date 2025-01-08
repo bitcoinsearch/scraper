@@ -7,6 +7,9 @@ A flexible multi-source scraper application designed to gather information from 
 - Flexible output options (Elasticsearch, mock [for testing](#testing-scrapers))
 - Extensible architecture for [easy addition of new sources](#adding-new-sources)
 - [Configurable processors](#adding-new-processors) for customizing document processing before indexing
+- Standardized [content handling](#content-handling) with markdown as the canonical format
+  - All content is automatically converted to markdown for consistency
+  - Original content format (HTML, mediawiki, etc.) is preserved in its native form
 
 ## Installation
 
@@ -238,6 +241,27 @@ Processors are used to perform additional operations on scraped documents before
    ```
 
 7. The processor will be automatically loaded and instantiated by the `ScraperFactory` when it's listed in the `sources.yaml` file.
+
+## Content Handling
+
+The scraper handles content in a standardized way across all sources.
+
+### Document Content Format
+
+- All document content is stored in markdown format in the `body` field
+- The original content (before markdown conversion) is preserved in the `original` object:
+  ```python
+  {
+    "original": {
+      "format": "html",  # or mediawiki, etc.
+      "body": "<original content>"
+    }
+  }
+  ```
+
+Currently supported format conversions:
+
+- HTML to Markdown (using markdownify)
 
 ## Development and Testing
 

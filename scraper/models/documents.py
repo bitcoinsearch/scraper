@@ -3,6 +3,15 @@ from typing import List, Optional
 from datetime import datetime
 
 
+class OriginalContent(BaseModel):
+    """Represents the original content before markdown conversion"""
+
+    format: str = Field(
+        description="Original format of the content (e.g., 'mediawiki', 'html')"
+    )
+    body: str = Field(description="Original content in its native format")
+
+
 class ScrapedDocument(BaseModel):
     """
     Represents a document scraped from a source.
@@ -13,12 +22,9 @@ class ScrapedDocument(BaseModel):
 
     id: str = Field(description="Unique identifier for the document")
     title: str = Field(description="Title of the document")
-    body: str = Field(description="Main content of the document")
-    body_formatted: Optional[str] = Field(
-        default=None, description="Formatted content of the document"
-    )
-    body_type: str = Field(
-        description="Type of the body content (e.g., 'markdown', 'mediawiki')"
+    body: str = Field(description="Main content of the document in markdown format")
+    original: Optional[OriginalContent] = Field(
+        default=None, description="Original content before markdown conversion"
     )
     summary: Optional[str] = Field(default=None, description="Summary of the document")
     summary_vector_embeddings: Optional[List[float]] = Field(
@@ -45,11 +51,6 @@ class ScrapedDocument(BaseModel):
     )
     authors: Optional[List[str]] = Field(
         default=None, description="List of authors of the document"
-    )
-    test_document: Optional[bool] = Field(
-        # TODO: remove hardcoded value
-        default=True,
-        description="Flag indicating if this is a test document",
     )
 
 
@@ -116,7 +117,3 @@ class ScraperRunDocument(BaseModel):
         default=None, description="Error message if the run failed"
     )
     stats: RunStats = Field(description="Statistics for this run")
-    test_document: Optional[bool] = Field(
-        default=True,  # TODO: remove hardcoded value
-        description="Flag indicating if this is a test document",
-    )

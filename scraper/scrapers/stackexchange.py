@@ -150,13 +150,19 @@ class StackExchangeScraper(BaseScraper):
             # Get author information
             author = post.get("owner", {}).get("display_name")
 
+            # Get original content and convert body to markdown
+            body_markdown = self._unescape_text(post.get("body_markdown", ""))
+            original = {
+                "format": "html",
+                "body": post.get("body", ""),  # Original HTML content from the API
+            }
+
             # Basic document data
             doc_data = {
                 "id": f"stackexchange-{post_id}",
                 "title": self._unescape_text(post.get("title", "")),
-                "body": self._unescape_text(post.get("body_markdown", "")),
-                "body_formatted": post.get("body", ""),
-                "body_type": "raw",
+                "body": body_markdown,
+                "original": original,
                 "authors": [author] if author else None,
                 "domain": str(self.config.domain),
                 "url": url,  # Use API-provided URL for both questions and answers

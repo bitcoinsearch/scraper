@@ -12,8 +12,6 @@
         }
       },
       "body": { "type": "text" },
-      "body_formatted": { "enabled": false },
-      "body_type": { "type": "keyword" },
       "summary": { "type": "text" },
       "domain": {
         "type": "text",

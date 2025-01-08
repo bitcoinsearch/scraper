@@ -284,7 +284,7 @@ class BaseSpider(scrapy.Spider, SelectorExtractor, ABC):
         try:
             author = None
             if item_config.author:
-                author = self._extract_field(item, item_config.author)
+                author = self._extract_field(item, item_config.author).text
 
             if not author and self.source_config.default_author:
                 author = self.source_config.default_author
@@ -299,7 +299,7 @@ class BaseSpider(scrapy.Spider, SelectorExtractor, ABC):
             item_url = None
             if item_config.url:
                 # Try to extract URL using selector
-                item_url = self._extract_field(item, item_config.url)
+                item_url = self._extract_field(item, item_config.url).text
 
             # If URL selector is not configured or extraction failed
             if not item_url:
@@ -312,13 +312,28 @@ class BaseSpider(scrapy.Spider, SelectorExtractor, ABC):
                     )
                     return None
 
+            # Extract content
+            content_result = self._extract_field(item, item_config.content)
+            if content_result.text:
+                # Convert HTML to markdown
+                from scraper.utils import html_to_markdown
+
+                markdown_content, _ = html_to_markdown(content_result.processed_html)
+                original = {
+                    "format": "html",
+                    "body": content_result.original_html,  # Store the truly original HTML
+                }
+            else:
+                markdown_content = ""
+                original = None
+
             # Build item data
             data = {
                 "id": self.generate_id_from_url(item_url),
-                "title": self._extract_field(item, item_config.title),
-                "body": self._extract_field(item, item_config.content)
+                "title": self._extract_field(item, item_config.title).text,
+                "body": markdown_content
                 or "",  # We currently remove quotes from BitcoinTalk forum posts. Empty string covers an edge case with BitcoinTalk forum posts where the post only contains quotes.
-                "body_type": "raw",
+                "original": original,
                 "url": item_url,
                 "domain": str(self.source_config.domain),
                 "authors": [author] if author else None,
@@ -331,7 +346,7 @@ class BaseSpider(scrapy.Spider, SelectorExtractor, ABC):
 
             # Extract date
             if item_config.date:
-                date_str = self._extract_field(item, item_config.date)
+                date_str = self._extract_field(item, item_config.date).text
                 if date_str:
                     data["created_at"] = self.parse_date(date_str)
 

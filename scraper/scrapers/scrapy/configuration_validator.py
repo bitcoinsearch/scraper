@@ -179,7 +179,7 @@ class ConfigurationValidator(SelectorExtractor):
         This wrapper helps track the validation process while using shared extraction logic.
         """
         try:
-            value = self._extract_field(item, config)
+            value = self._extract_field(item, config).text
             if value:
                 # Special handling for content field samples
                 if field_name == "content" and len(value) > 100:

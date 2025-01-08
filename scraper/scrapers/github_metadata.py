@@ -87,7 +87,6 @@ class GitHubMetadataScraper(GithubScraper):
                 "title": data["title"],
                 "authors": [data["user"]["login"]],
                 "body": data.get("body", ""),
-                "body_type": "markdown",
                 "created_at": data["created_at"],
                 "updated_at": data["updated_at"],
                 "closed_at": data.get("closed_at"),
