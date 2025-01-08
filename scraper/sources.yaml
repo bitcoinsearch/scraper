@@ -17,10 +17,6 @@ github:
   - name: BitcoinTranscripts
     domain: https://btctranscripts.com
     url: https://github.com/bitcointranscripts/bitcointranscripts.git
-    processors:
-      - summarization
-      - topic_extractor
-      - vector_embeddings
   - name: PR-Review-Club
     domain: https://bitcoincore.reviews/
     url: https://github.com/bitcoin-core-review-club/website.git

@@ -100,7 +100,7 @@ class ElasticsearchOutput(AbstractOutput):
 
             query = {
                 "query": {"bool": {"must": must_clauses}},
-                "sort": [{"timestamp": {"order": "desc"}}],
+                "sort": [{"finished_at": {"order": "desc"}}],
                 "size": size,
             }
 
@@ -127,19 +127,6 @@ class ElasticsearchOutput(AbstractOutput):
     ) -> List[ScraperRunDocument]:
         """Get the most recent runs for a source."""
         return await self._query_runs(source=source, size=limit)
-
-    async def cleanup_test_documents(self, index_name: str):
-        """Remove all test documents from the specified index."""
-        query = {"query": {"term": {"test_document": True}}}
-        try:
-            result = self.es.delete_by_query(index=index_name, body=query)
-            logger.info(
-                f"Cleaned up {result['deleted']} test documents from index {index_name}"
-            )
-        except Exception as e:
-            logger.error(f"Error cleaning up test documents: {e}")
-            logger.exception("Full traceback:")
-            raise
 
     async def create_index_with_mapping(self, index_name: str, mapping: dict):
         """

@@ -1,0 +1,39 @@
+name: Scrape Source
+
+on:
+  workflow_call:
+    inputs:
+      source:
+        required: true
+        type: string
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Get latest release
+        id: latest_release
+        uses: pozetroninc/github-action-get-latest-release@v0.7.0
+        with:
+          repository: bitcoinsearch/scraper
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install release
+        run: |
+          # Get the wheel filename from the release assets
+          WHEEL_URL=$(curl -s https://api.github.com/repos/bitcoinsearch/scraper/releases/latest | jq -r '.assets[] | select(.name | endswith(".whl")) | .browser_download_url')
+          pip install $WHEEL_URL
+
+      - name: Run scraper
+        run: scraper scrape --source ${{ inputs.source }}
+        env:
+          CLOUD_ID: ${{ secrets.CLOUD_ID }}
+          API_KEY: ${{ secrets.API_KEY }}
+          INDEX: ${{ secrets.INDEX }}

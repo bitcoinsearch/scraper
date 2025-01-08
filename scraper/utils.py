@@ -1,3 +1,4 @@
+import os
 import re
 import unicodedata
 from typing import Tuple
@@ -9,7 +10,7 @@ def slugify(value: str) -> str:
     """
     Convert a string to a URL-friendly slug.
     - Normalize to ASCII
-    - Replace spaces and underscores with hyphens
+    - Replace spaces, underscores and directory separators with hyphens
     - Remove characters that aren't alphanumerics, underscores, or hyphens
     - Convert to lowercase
     - Strip leading and trailing hyphens
@@ -18,6 +19,8 @@ def slugify(value: str) -> str:
     value = (
         unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
     )
+    # Replace directory separators to hyphens
+    value = value.replace(os.sep, "-")
 
     # Replace spaces and underscores with hyphens, remove invalid characters
     value = re.sub(r"[_\s]+", "-", value)  # Replace spaces and underscores

@@ -100,14 +100,50 @@ def cleanup_index(index_name: str, test_docs_only: bool):
                     click.echo(f"Index {index_name} does not exist")
                     return
 
+                # Define query based on the cleanup type
                 if test_docs_only:
-                    await output.cleanup_test_documents(index_name)
-                    click.echo(f"Cleaned up test documents from index {index_name}")
+                    query = {"query": {"term": {"test_document": True}}}
+                    operation_desc = "test documents"
                 else:
-                    output.es.delete_by_query(
-                        index=index_name, body={"query": {"match_all": {}}}
+                    query = {"query": {"match_all": {}}}
+                    operation_desc = "documents"
+
+                try:
+                    # First count how many documents will be affected
+                    count_result = output.es.count(index=index_name, body=query)
+                    doc_count = count_result["count"]
+
+                    # Ask for confirmation
+                    if not click.confirm(
+                        f"\nWarning: {doc_count} {operation_desc} will be deleted from index '{index_name}'. Do you want to continue?"
+                    ):
+                        click.echo("Operation cancelled")
+                        return
+
+                    # Proceed with deletion
+                    delete_result = output.es.delete_by_query(
+                        index=index_name, body=query
                     )
-                    click.echo(f"Removed all documents from index {index_name}")
+
+                    # Print detailed deletion results
+                    click.echo("\nDeletion Results:")
+                    click.echo(
+                        f"Total {operation_desc} deleted: {delete_result['deleted']}"
+                    )
+                    click.echo(f"Total batches: {delete_result['batches']}")
+                    click.echo(f"Documents that failed: {delete_result['failures']}")
+                    click.echo(f"Time taken: {delete_result['took']}ms")
+
+                    if delete_result.get("failures"):
+                        click.echo("\nFailures encountered:")
+                        for failure in delete_result["failures"]:
+                            click.echo(f"Document ID: {failure['_id']}")
+                            click.echo(f"Error: {failure.get('error')}")
+                            click.echo("---")
+
+                except Exception as e:
+                    click.echo(f"Error during cleanup: {e}", err=True)
+                    raise click.ClickException(str(e))
 
         return run_in_reactor(cleanup())
 

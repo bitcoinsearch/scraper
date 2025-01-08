@@ -243,10 +243,16 @@ class GithubScraper(BaseScraper):
         return document_data
 
     def generate_id(self, file_path: str) -> str:
-        # Override this method to customize ID generation
+        """
+        Override this method in subclasses to customize ID generation.
+        """
+        # Since file_path is relative (e.g. 'tabconf/2022/file.zh.md'),
+        # we can safely use directory structure in ID generation
+        dir_path = os.path.dirname(file_path)
         file_name = os.path.basename(file_path)
+        # Keep language suffix (e.g. .zh) but remove final extension (.md)
         name_without_extension = os.path.splitext(file_name)[0]
-        return f"{self.config.name.lower()}-{slugify(name_without_extension)}"
+        return f"{self.config.name.lower()}-{slugify(dir_path)}-{slugify(name_without_extension)}"
 
     def get_title(self, metadata: Dict[str, Any], body: str) -> str:
         # First, check if there's a title in the metadata

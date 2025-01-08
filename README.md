@@ -15,7 +15,7 @@ Weekly
 - Bitcoin Talk Forum ([cron](.github/workflows/bitcointalk.yml), [source](bitcointalk))
     - only the [Development & Technical Discussion Board](https://bitcointalk.org/index.php?board=6.0)
     - only for specific authors
-- [Bitcoin Transcript](https://btctranscripts.com/) ([cron](.github/workflows/bitcointranscripts.yml), [source](bitcointranscripts))
+- [Bitcoin Transcript](https://btctranscripts.com/) ([cron](.github/workflows/bitcointranscripts.yml), [source](scraper/scrapers/bitcointranscripts.py))
 - [Bitcoin Optech](https://bitcoinops.org/) ([cron](.github/workflows/bitcoinops.yml), [source](bitcoinops))
 
 Additionally, for on-demand scraping tasks, we utilize a Scrapybot, details of which can be found in the [Scrapybot section](#scrapybot) below.
