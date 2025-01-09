@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "scraper"
-version = "0.1.0"
+version = "0.2.0"
 description = "A flexible multi-source scraper application designed to gather information from GitHub repositories and web pages. Leverages both Git-based and Scrapy-based approaches to handle different source types effectively."
 authors = ["kouloumos <kouloumosa@gmail.com>", "urvish patel <urvishp80@gmail.com>"] 
 readme = "README.md"
@@ -36,7 +36,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.1.0"
+version = "0.2.0"
 tag_format = "$version"
 version_files = [
     "pyproject.toml:version",
