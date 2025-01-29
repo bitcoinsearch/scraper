@@ -219,7 +219,7 @@ class GithubScraper(BaseScraper):
                 "original": None,  # TODO handle .mediawiki
                 "summary": metadata.get("summary", None),
                 "domain": str(self.config.domain),
-                "created_at": self.get_created_at(metadata),
+                "created_at": self.get_created_at(file_path, metadata),
                 "url": self.get_url(file_path, metadata),
                 "type": self.determine_document_type(file_path),
                 "language": self.get_language(metadata),
@@ -270,19 +270,34 @@ class GithubScraper(BaseScraper):
         # If no title is found, return a default string
         return "Untitled"
 
-    def get_created_at(self, metadata: Dict[str, Any]) -> Optional[str]:
+    def get_created_at(self, file_path, metadata: Dict[str, Any]) -> Optional[str]:
         """
-        Extract and normalize creation date from document metadata.
+        Extract and normalize creation date from document metadata or filename.
 
-        Attempts to parse date from multiple common metadata fields and formats.
-        Returns ISO formatted date string (YYYY-MM-DD) or None if no valid date found.
+        Attempts to parse date from multiple sources in the following order:
+        1. Jekyll-style filename (YYYY-MM-DD-title.md)
+        2. Common metadata fields with various date formats
 
         Args:
+            file_path: Path to the file
             metadata: Document metadata dictionary
 
         Returns:
-            Optional[str]: ISO formatted date string or None
+            Optional[str]: ISO formatted date string or None if no valid date found
         """
+        # First try to extract date from Jekyll filename if available
+        if file_path:
+            filename = os.path.basename(file_path)
+            match = re.match(r"(\d{4}-\d{2}-\d{2})-", filename)
+            if match:
+                try:
+                    date_str = match.group(1)
+                    # Validate it's a proper date
+                    datetime.strptime(date_str, "%Y-%m-%d")
+                    return date_str
+                except ValueError:
+                    pass
+
         # List of common metadata field names for dates
         date_fields = [
             "date",
