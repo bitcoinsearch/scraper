@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urljoin
 from loguru import logger
 
 from scraper.registry import scraper_registry
@@ -221,16 +222,15 @@ class GitHubMetadataScraper(GithubScraper):
 
     def get_url(self, file_path: str, metadata: Dict[str, Any]) -> str:
         """Generate the GitHub web URL for the issue/PR"""
-        base_url = self.config.domain
         item_type = metadata.get("type")
         number = metadata.get("number")
 
-        if not all([base_url, item_type, number]):
-            raise ValueError("Missing required fields: domain, type, or number")
+        if not all([item_type, number]):
+            raise ValueError("Missing required fields: type, or number")
 
         if item_type == "issue":
-            return f"{base_url}/issues/{number}"
+            return urljoin(str(self.config.domain), f"issues/{number}")
         elif item_type == "pull":
-            return f"{base_url}/pull/{number}"
+            return urljoin(str(self.config.domain), f"pull/{number}")
         else:
             raise ValueError(f"Invalid type: {item_type}. Must be 'issue' or 'pull'")

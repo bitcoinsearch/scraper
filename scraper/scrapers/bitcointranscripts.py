@@ -1,6 +1,7 @@
 import re
 import os
 from typing import Dict, Any, Type
+from urllib.parse import urljoin
 
 from scraper.models import BitcoinTranscriptDocument, ScrapedDocument
 from scraper.scrapers.github import GithubScraper
@@ -50,7 +51,6 @@ class BitcoinTranscriptsScraper(GithubScraper):
         return "en"  # Default to English if no language code is found
 
     def get_url(self, file_path: str, metadata: Dict[str, Any]) -> str:
-        base_url = "https://btctranscripts.com"
         lang_code = self.extract_language_code(file_path)
 
         # Remove the file extension
@@ -61,7 +61,7 @@ class BitcoinTranscriptsScraper(GithubScraper):
 
         if lang_code != "en":
             # For non-English content, add the language code at the beginning of the path
-            return f"{base_url}/{lang_code}/{path_without_lang}"
+            return urljoin(str(self.config.domain), f"{lang_code}/{path_without_lang}")
         else:
             # For English content, use the path as is
-            return f"{base_url}/{path_without_lang}"
+            return urljoin(str(self.config.domain), path_without_lang)

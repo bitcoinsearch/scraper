@@ -1,6 +1,7 @@
 import os
 from datetime import date, datetime
 import re
+from urllib.parse import urljoin
 from git import Repo
 from loguru import logger
 from typing import List, Dict, Any, Optional, Set, Type
@@ -331,19 +332,18 @@ class GithubScraper(BaseScraper):
 
     def get_url(self, file_path: str, metadata: Dict[str, Any]) -> str:
         # Override this method to customize URL construction
-        base_url = f"{self.config.domain}"
-
-        # Use permalink if available in metadata
+        # Use permalink if available
         if "permalink" in metadata:
-            return f"{base_url}{metadata['permalink']}"
+            return urljoin(str(self.config.domain), metadata["permalink"])
 
-        # Check if it's a GitHub repository
-        if base_url.startswith("https://github.com/"):
+        # Special handling for GitHub repositories
+        if self.config.domain.host == "github.com":
             # For GitHub repos, include '/blob/master' in the URL
-            return f"{base_url}/blob/master/{file_path}"
+            github_path = f"blob/master/{file_path}"
+            return urljoin(str(self.config.domain), github_path)
 
         # Fall back to constructing URL from file path
-        return f"{base_url}/{file_path.replace('.md', '')}"
+        return urljoin(str(self.config.domain), f"{file_path.replace('.md', '')}")
 
     def determine_document_type(self, file_path: str) -> str:
         # Override this method to customize document type determination

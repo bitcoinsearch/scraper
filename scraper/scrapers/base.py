@@ -32,7 +32,8 @@ class BaseScraper(ABC):
             output (AbstractOutput): Handler for outputting scraped data.
             processor_manager (ProcessorManager): Manager for processors.
         """
-        self.config = config
+        # Normalize domain URL before initializing
+        self.config = self._normalize_source_config(config)
         self.output = output
         self.processor_manager = processor_manager
         self.resources_to_process = None
@@ -40,6 +41,26 @@ class BaseScraper(ABC):
         self._error: Optional[str] = None
         self._success = True
         self._started_at: Optional[str] = None
+
+    def _normalize_source_config(self, config: SourceConfig) -> SourceConfig:
+        """
+        Normalize URLs in source configuration to ensure proper format.
+        Ensures domain URLs end with a trailing slash for consistent URL joining.
+
+        Args:
+            config: Original source configuration.
+
+        Returns:
+            SourceConfig: Configuration with normalized URLs.
+        """
+        # Simple normalization: remove trailing slash if present, then add it
+        domain = str(config.domain).rstrip("/") + "/"
+
+        # Create new config with normalized domain
+        config_dict = config.model_dump()
+        config_dict["domain"] = domain
+
+        return SourceConfig(**config_dict)
 
     @abstractmethod
     async def scrape(self):
