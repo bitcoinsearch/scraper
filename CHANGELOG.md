@@ -1,3 +1,15 @@
+## 0.3.0 (2025-01-31)
+
+### Feat
+
+- enable scraperv2 workflow for bitcoinops
+- **github**: extract created_at date from Jekyll filenames
+- **notebooks**: add post date analysis notebook
+
+### Refactor
+
+- **github**: standardize URL creation using urljoin instead of string concatenation
+
 ## 0.2.0 (2025-01-09)
 
 ### Feat
