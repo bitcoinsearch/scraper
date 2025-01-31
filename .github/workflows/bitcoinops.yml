@@ -1,4 +1,5 @@
-name: Bitcoin Optech 
+name: Bitcoin Optech
+
 on:
   schedule:
     - cron: '0 13 * * 3' # every Wednesday at 1pm UTC
@@ -6,31 +7,8 @@ on:
   repository_dispatch:
 
 jobs:
-  fetch:
-    if: (github.event.action == 'scrape' && github.event.client_payload.repository == 'aureleoules/test') || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check password
-        if: github.event_name == 'scrape'
-        run: if [ "${{ github.event.client_payload.secret }}" != "${{ secrets.COMMON_SECRET }}" ]; then echo "Wrong password"; exit 1; fi
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
-      - name: Install dependencies
-        run: | 
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: Fetch data
-        run: |
-          mkdir /tmp/data
-          python bitcoinops/main.py
-        env:
-            ES_ENGINE: ${{ secrets.ES_ENGINE }}
-            ES_URL: ${{ secrets.ES_URL }}
-            ES_TOKEN: ${{ secrets.ES_TOKEN }}
-            DATA_DIR: /tmp/data
-            CLOUD_ID: ${{ secrets.CLOUD_ID }}
-            USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
-            USERNAME: ${{ secrets.USERNAME }}
-            INDEX: ${{ secrets.INDEX }}
+  bitcointranscripts:
+    uses: ./.github/workflows/scrape-source.yml
+    with:
+      source: bitcoinops
+    secrets: inherit

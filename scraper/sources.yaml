@@ -12,7 +12,8 @@ github:
     domain: https://bitcoinops.org
     url: https://github.com/bitcoinops/bitcoinops.github.io.git
     directories: 
-      _posts/en: post
+      _posts/en/newsletters: post
+      _posts/en/podcast: podcast
       _topics/en: topic
   - name: BitcoinTranscripts
     domain: https://btctranscripts.com
