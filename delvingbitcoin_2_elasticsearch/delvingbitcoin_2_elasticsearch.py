@@ -10,7 +10,7 @@ from loguru import logger as log
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from common.elasticsearch_utils import document_add, document_view, create_index
+from common.elasticsearch_utils import document_add, document_view, create_index, document_update
 
 from achieve import download_dumps
 
@@ -86,10 +86,11 @@ def index_documents(files_path):
                     'body_type': 'html',
                     'body': body,
                     'body_formatted': strip_attributes_but_urls(document['cooked']),
-                    'created_at': document['updated_at'],
+                    'created_at': document['created_at'],
                     'domain': "https://delvingbitcoin.org/",
                     'url': f"https://delvingbitcoin.org/t/{document['topic_slug']}/{document['topic_id']}",
-                    "indexed_at": datetime.utcnow().isoformat()
+                    "indexed_at": datetime.utcnow().isoformat(),
+                    "updated_at": document['updated_at']
                 }
 
                 if document['post_number'] != 1:
@@ -98,13 +99,16 @@ def index_documents(files_path):
                 else:
                     doc['type'] = 'original_post'
 
-                # Check if a document already exists
+                # check if document exist and update it if any changes are found
                 resp = document_view(index_name=INDEX, doc_id=doc['id'])
-                if not resp:
+                if resp and doc['updated_at'] != resp['_source']['updated_at']:
+                    _ = document_update(index_name=INDEX, doc=doc, doc_id=doc['id'])
+                    log.success(f'Updated doc with ID: {doc["id"]}, Type:{doc["type"]}')
+                elif not resp:
                     _ = document_add(index_name=INDEX, doc=doc, doc_id=doc['id'])
-                    log.success(f'Successfully added! ID: {doc["id"]}, Type:{doc["type"]}')
+                    log.success(f'Added doc with ID: {doc["id"]}, Type:{doc["type"]}')
                 else:
-                    log.info(f"Document already exist! ID: {doc['id']}")
+                    log.info(f"No changes - ID: {doc['id']}")
 
 
 if __name__ == "__main__":

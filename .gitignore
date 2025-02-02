@@ -1,7 +1,10 @@
 .idea/
-delvingbitcoin_2_elasticsearch\archive
+delvingbitcoin_2_elasticsearch/archive/posts
+delvingbitcoin_2_elasticsearch/archive/rendered-topics
 venv/
-archive
+
+archive/posts
+archive/rendered-topics
 
 .venv
 
@@ -96,7 +99,6 @@ web_modules/
 .yarn-integrity
 
 # dotenv environment variable files
-.env
 .env.development.local
 .env.test.local
 .env.production.local
