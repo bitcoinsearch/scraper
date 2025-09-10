@@ -82,6 +82,20 @@ def download_dumps(path, page_visited_count, max_page_count=2):
             download_dumps(next_page_link, page_visited_count)
 
 
+def extract_thread_depth_from_line(line_text):
+    """Extract thread depth from the indentation pattern in mailing list HTML"""
+    # Pattern: date + time + spaces + backtick pattern indicates depth
+    # Look for the pattern after datetime like: "2025-03-16 14:15   ` "
+    depth_pattern = r'\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}(\s*)` '
+    match = re.search(depth_pattern, line_text)
+    if match:
+        # Count spaces after time to determine depth
+        spaces_after_time = len(match.group(1))
+        # Each 2-4 spaces typically represents one depth level
+        depth = min(spaces_after_time // 2, 10)  # Cap at depth 10
+        return depth
+    return 0
+
 def get_thread_urls_with_date(pre_tags):
     urls_dates = []
     date_time_pattern = r'\b\d{4}-\d{2}-\d{2} {1,2}(?:[01]?\d|2[0-3]):[0-5]\d\b'
@@ -91,13 +105,19 @@ def get_thread_urls_with_date(pre_tags):
             anchor_tags = pre_tag.find_all('a', href=lambda href: href and '#' in href)
 
             for anchor in anchor_tags:
-                date_search = re.search(date_time_pattern, anchor.previous_sibling.text)
+                # Get the line text to extract both date and thread depth
+                line_text = anchor.previous_sibling.text if anchor.previous_sibling else ""
+                date_search = re.search(date_time_pattern, line_text)
                 if date_search:
                     date = date_search.group()
                     original_datetime = datetime.strptime(date, '%Y-%m-%d %H:%M')
                     original_datetime = original_datetime.replace(tzinfo=tz.tzutc())
                     dt = original_datetime.isoformat(timespec='milliseconds').replace('+00:00', 'Z')
-                    urls_dates.append((anchor, dt))
+                    
+                    # Extract thread depth from the line formatting
+                    thread_depth = extract_thread_depth_from_line(line_text)
+                    
+                    urls_dates.append((anchor, dt, thread_depth))
 
     # sort the urls_dates list by datetime in ascending order (earliest first)
     urls_dates.sort(key=lambda x: x[1])
@@ -155,7 +175,7 @@ def parse_dumps():
                     "[bitcoindev] ", "").replace("\t", "").strip()
 
                 urls_with_date = get_thread_urls_with_date(soup.find_all('pre'))
-                for index, (url, date) in enumerate(urls_with_date):
+                for index, (url, date, thread_depth) in enumerate(urls_with_date):
                     try:
                         year, month = get_year_month(date)
                         if year < 2024 or (year == 2024 and month == 1):
@@ -196,10 +216,13 @@ def parse_dumps():
                             "created_at": date,
                             "domain": CUSTOM_URL,
                             "thread_url": main_url,
-                            "url": f"{main_url}{href}"
+                            "url": f"{main_url}{href}",
+                            "thread_depth": thread_depth,
+                            "message_id": href.replace('#', ''),
+                            "thread_position": index
                         }
 
-                        if index == 0:
+                        if index == 0 or thread_depth == 0:
                             document['type'] = "original_post"
                         else:
                             document['type'] = "reply"
