@@ -44,7 +44,7 @@ def save_web_page(link, file_name):
         file.write(str(soup))
 
 
-def download_dumps(path, page_visited_count, max_page_count=2):
+def download_dumps(path, page_visited_count, max_page_count=1):
     if page_visited_count > max_page_count: return
     page_visited_count += 1
     logger.info(f"Page {page_visited_count}: {path}")
@@ -389,10 +389,12 @@ def parse_dumps():
 
 def index_documents(docs):
     logger.info(f"🗃️ INDEXING: Starting to index {len(docs)} documents with threading data")
+    logger.warning("🚨 SAFETY MODE: Will only process the FIRST NEW document found to test threading safely!")
     
     new_docs = 0
     existing_docs = 0
     threading_docs = 0
+    processed_new_doc = False
     
     for doc in docs:
         # Check if document has threading data
@@ -407,11 +409,34 @@ def index_documents(docs):
 
         resp = document_view(index_name=INDEX_NAME, doc_id=doc['id'])
         if not resp:
-            _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
-            new_docs += 1
-            logger.success(f'✅ INDEXING: Successfully added! ID: {doc["id"]}')
-            if has_threading:
-                logger.success(f'    🧵 WITH THREADING: depth={doc.get("thread_depth", 0)}, parent={doc.get("parent_id", "None")}')
+            # SAFETY MODE: Only process the first new document
+            if not processed_new_doc:
+                _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
+                new_docs += 1
+                processed_new_doc = True
+                
+                logger.success(f'✅ INDEXING: Successfully added FIRST NEW document! ID: {doc["id"]}')
+                logger.success(f'🎯 DOCUMENT DETAILS:')
+                logger.success(f'    📰 Title: {doc.get("title", "N/A")}')
+                logger.success(f'    👤 Author: {doc.get("authors", ["N/A"])[0]}')
+                logger.success(f'    🔗 URL: {doc.get("url", "N/A")}')
+                logger.success(f'    📅 Created: {doc.get("created_at", "N/A")}')
+                
+                if has_threading:
+                    logger.success(f'    🧵 THREADING DATA:')
+                    logger.success(f'        - Depth: {doc.get("thread_depth", 0)}')
+                    logger.success(f'        - Position: {doc.get("thread_position", 0)}') 
+                    logger.success(f'        - Parent ID: {doc.get("parent_id", "None")}')
+                    logger.success(f'        - Reply to: {doc.get("reply_to_author", "None")}')
+                    logger.success(f'        - Type: {doc.get("type", "N/A")}')
+                else:
+                    logger.warning(f'    ⚠️ NO THREADING DATA found for this document')
+                
+                logger.warning(f'🚨 SAFETY MODE: Stopping after processing first new document!')
+                break
+            else:
+                logger.info(f"🚫 SAFETY MODE: Skipping new document {doc['id']} (already processed one)")
+                continue
         else:
             existing_docs += 1
             logger.info(f"📄 INDEXING: Document already exist! ID: {doc['id']}")
@@ -426,6 +451,14 @@ def index_documents(docs):
 
 
 if __name__ == "__main__":
+    logger.warning("🚨🚨🚨 SAFETY MODE ENABLED 🚨🚨🚨")
+    logger.warning("📋 SAFETY MEASURES:")
+    logger.warning("    - Only processing 1 page (most recent)")
+    logger.warning("    - Only adding 1 new document to Elasticsearch")
+    logger.warning("    - Existing documents will NOT be modified")
+    logger.warning("    - Threading data will be tested on new document only")
+    logger.warning("🔒 This protects your production Elasticsearch data!")
+    
     if not os.path.exists(DOWNLOAD_PATH):
         os.makedirs(DOWNLOAD_PATH)
 
