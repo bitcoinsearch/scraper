@@ -86,18 +86,23 @@ def get_thread_structure(soup):
     """Parse the thread structure from the thread overview section"""
     thread_structure = []
     
+    logger.info("🧵 THREADING: Starting thread structure extraction...")
+    
     # Find the thread overview section
     thread_overview = None
     for pre_tag in soup.find_all('pre'):
         if "Thread overview:" in pre_tag.text:
             thread_overview = pre_tag
+            logger.info("🔍 THREADING: Found thread overview section")
             break
     
     if not thread_overview:
+        logger.warning("⚠️ THREADING: No thread overview section found!")
         return []
     
     # Parse the thread structure lines
     lines = thread_overview.text.split('\n')
+    logger.info(f"📄 THREADING: Processing {len(lines)} lines for thread structure")
     
     for line in lines:
         if "-- links below jump to the message on this page --" in line:
@@ -124,6 +129,8 @@ def get_thread_structure(soup):
             timestamp = date_match.group(1)
             anchor_id = anchor_match.group(1)
             
+            logger.info(f"📧 THREADING: Found message - Author: '{author}', Depth: {thread_depth}, Anchor: {anchor_id}, Time: {timestamp}")
+            
             thread_structure.append({
                 'timestamp': timestamp,
                 'anchor_id': anchor_id,
@@ -131,6 +138,15 @@ def get_thread_structure(soup):
                 'depth': thread_depth,
                 'line': line.strip()
             })
+    
+    logger.success(f"✅ THREADING: Extracted {len(thread_structure)} messages with thread structure")
+    
+    # Log the thread hierarchy
+    if thread_structure:
+        logger.info("🎯 THREADING: Thread hierarchy:")
+        for i, item in enumerate(thread_structure):
+            indent = "  " * item['depth']
+            logger.info(f"    {indent}#{i}: {item['author']} (depth: {item['depth']})")
     
     return thread_structure
 
@@ -210,11 +226,14 @@ def parse_dumps():
                 # Get thread structure for threading relationships
                 thread_structure = get_thread_structure(soup)
                 
+                logger.info(f"🔗 THREADING: Creating thread map for {len(thread_structure)} messages")
+                
                 # Create a mapping of anchor_id to thread info
                 thread_map = {}
                 for thread_info in thread_structure:
                     anchor_id = thread_info['anchor_id'].replace('#', '')
                     thread_map[anchor_id] = thread_info
+                    logger.info(f"📍 THREADING: Mapped anchor '{anchor_id}' -> author '{thread_info['author']}' depth {thread_info['depth']}")
 
                 urls_with_date = get_thread_urls_with_date(soup.find_all('pre'))
                 
@@ -254,24 +273,36 @@ def parse_dumps():
                         thread_info = thread_map.get(anchor_id, {})
                         thread_depth = thread_info.get('depth', 0)
                         
+                        logger.info(f"📧 THREADING DOC: Processing {anchor_id} - Author: '{author}', Depth: {thread_depth}")
+                        
                         # Determine parent relationship
                         parent_id = None
                         reply_to_author = None
                         thread_position = index
                         
                         if thread_depth > 0 and thread_structure:
+                            logger.info(f"🔍 THREADING DOC: Looking for parent (target depth: {thread_depth - 1})")
                             # Find the parent by looking for the previous message with depth-1
                             target_depth = thread_depth - 1
                             current_index = next((i for i, info in enumerate(thread_structure) if info['anchor_id'] == f"#{anchor_id}"), -1)
                             
+                            logger.info(f"📍 THREADING DOC: Current index in thread: {current_index}")
+                            
                             if current_index > 0:
                                 for i in range(current_index - 1, -1, -1):
                                     prev_info = thread_structure[i]
+                                    logger.info(f"    Checking previous message {i}: depth={prev_info['depth']}, author='{prev_info['author']}'")
                                     if prev_info['depth'] == target_depth:
                                         parent_anchor_id = prev_info['anchor_id'].replace('#', '')
                                         parent_id = f"mailing-list-{year}-{month:02d}-{parent_anchor_id}"
                                         reply_to_author = prev_info['author']
+                                        logger.success(f"✅ THREADING DOC: Found parent! '{author}' -> '{reply_to_author}' (parent_id: {parent_id})")
                                         break
+                                
+                                if not parent_id:
+                                    logger.warning(f"⚠️ THREADING DOC: No parent found for depth {thread_depth} message")
+                        else:
+                            logger.info(f"🌟 THREADING DOC: This is a root message (depth: {thread_depth})")
 
                         document = {
                             "id": doc_id,
@@ -295,6 +326,12 @@ def parse_dumps():
                             document['type'] = "original_post"
                         else:
                             document['type'] = "reply"
+                        
+                        # Log the final document with threading data
+                        logger.info(f"📝 THREADING DOC: Created document {doc_id}")
+                        logger.info(f"    📊 Threading Data: depth={thread_depth}, position={thread_position}")
+                        logger.info(f"    🔗 Parent: {parent_id} (reply_to: {reply_to_author})")
+                        logger.info(f"    🏷️ Type: {document['type']}, Author: {author}")
                             
                         doc.append(document)
                         
@@ -305,14 +342,41 @@ def parse_dumps():
 
 
 def index_documents(docs):
+    logger.info(f"🗃️ INDEXING: Starting to index {len(docs)} documents with threading data")
+    
+    new_docs = 0
+    existing_docs = 0
+    threading_docs = 0
+    
     for doc in docs:
+        # Check if document has threading data
+        has_threading = any([
+            doc.get('thread_depth', 0) > 0,
+            doc.get('parent_id') is not None,
+            doc.get('reply_to_author') is not None
+        ])
+        
+        if has_threading:
+            threading_docs += 1
 
         resp = document_view(index_name=INDEX_NAME, doc_id=doc['id'])
         if not resp:
             _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
-            logger.success(f'Successfully added! ID: {doc["id"]}')
+            new_docs += 1
+            logger.success(f'✅ INDEXING: Successfully added! ID: {doc["id"]}')
+            if has_threading:
+                logger.success(f'    🧵 WITH THREADING: depth={doc.get("thread_depth", 0)}, parent={doc.get("parent_id", "None")}')
         else:
-            logger.info(f"Document already exist! ID: {doc['id']}")
+            existing_docs += 1
+            logger.info(f"📄 INDEXING: Document already exist! ID: {doc['id']}")
+            if has_threading:
+                logger.info(f"    🧵 HAS THREADING DATA: depth={doc.get('thread_depth', 0)}, parent={doc.get('parent_id', 'None')}")
+    
+    logger.success("📊 INDEXING SUMMARY:")
+    logger.success(f"    📝 Total documents processed: {len(docs)}")
+    logger.success(f"    ✅ New documents added: {new_docs}")
+    logger.success(f"    📄 Existing documents: {existing_docs}")
+    logger.success(f"    🧵 Documents with threading data: {threading_docs}")
 
 
 if __name__ == "__main__":
