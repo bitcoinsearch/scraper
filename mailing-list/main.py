@@ -82,6 +82,59 @@ def download_dumps(path, page_visited_count, max_page_count=2):
             download_dumps(next_page_link, page_visited_count)
 
 
+def get_thread_structure(soup):
+    """Parse the thread structure from the thread overview section"""
+    thread_structure = []
+    
+    # Find the thread overview section
+    thread_overview = None
+    for pre_tag in soup.find_all('pre'):
+        if "Thread overview:" in pre_tag.text:
+            thread_overview = pre_tag
+            break
+    
+    if not thread_overview:
+        return []
+    
+    # Parse the thread structure lines
+    lines = thread_overview.text.split('\n')
+    
+    for line in lines:
+        if "-- links below jump to the message on this page --" in line:
+            continue
+        
+        # Match pattern like: "2025-08-23 17:35 #m4b4c6f0d4acde46dc961aebffa74bfc49273c981 [bitcoindev] [BIP Proposal] OP_TWEAKADD jeremy"
+        # Look for date pattern followed by anchor
+        date_pattern = r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})'
+        anchor_pattern = r'(#[a-f0-9]+)'
+        
+        date_match = re.search(date_pattern, line)
+        anchor_match = re.search(anchor_pattern, line)
+        
+        if date_match and anchor_match:
+            # Count indentation level (number of leading spaces/` characters after timestamp)
+            after_date = line[date_match.end():]
+            # Count ` characters to determine depth (each ` represents one level of reply)
+            thread_depth = after_date.count('`')
+            
+            # Extract author (last word on the line)
+            author_match = re.search(r'\s+([^\s]+)$', line.strip())
+            author = author_match.group(1) if author_match else "unknown"
+            
+            timestamp = date_match.group(1)
+            anchor_id = anchor_match.group(1)
+            
+            thread_structure.append({
+                'timestamp': timestamp,
+                'anchor_id': anchor_id,
+                'author': author,
+                'depth': thread_depth,
+                'line': line.strip()
+            })
+    
+    return thread_structure
+
+
 def get_thread_urls_with_date(pre_tags):
     urls_dates = []
     date_time_pattern = r'\b\d{4}-\d{2}-\d{2} {1,2}(?:[01]?\d|2[0-3]):[0-5]\d\b'
@@ -154,7 +207,17 @@ def parse_dumps():
                 title = title.replace("[Bitcoin-development] ", "").replace("[bitcoin-dev] ", "").replace(
                     "[bitcoindev] ", "").replace("\t", "").strip()
 
+                # Get thread structure for threading relationships
+                thread_structure = get_thread_structure(soup)
+                
+                # Create a mapping of anchor_id to thread info
+                thread_map = {}
+                for thread_info in thread_structure:
+                    anchor_id = thread_info['anchor_id'].replace('#', '')
+                    thread_map[anchor_id] = thread_info
+
                 urls_with_date = get_thread_urls_with_date(soup.find_all('pre'))
+                
                 for index, (url, date) in enumerate(urls_with_date):
                     try:
                         year, month = get_year_month(date)
@@ -163,6 +226,8 @@ def parse_dumps():
 
                         href = url.get('href')
                         tag_id = url.get('id')
+                        anchor_id = href.replace('#', '')
+                        
                         content = soup.find(lambda tag: tag.name == "pre" and tag.find('a', href=f"#{tag_id}"))
 
                         # Scrape Body
@@ -178,15 +243,36 @@ def parse_dumps():
                         for c in content.find_all(lambda tag: href_contains_text(tag, u)):
                             c.decompose()
 
-                        # for c in content.find_all(lambda tag: tag.name in {'b', 'u'} or any(
-                        #         href_contains_text(tag, text) for text in [href.replace("#", "")[1:],u])):
-                        #     c.decompose()
                         body_text = preprocess_body_text(content.text)
 
                         # Scraping author
                         author = get_author(body_text)
 
-                        doc_id = f"mailing-list-{year}-{month:02d}-{href.replace('#', '')}"
+                        doc_id = f"mailing-list-{year}-{month:02d}-{anchor_id}"
+                        
+                        # Get threading information
+                        thread_info = thread_map.get(anchor_id, {})
+                        thread_depth = thread_info.get('depth', 0)
+                        
+                        # Determine parent relationship
+                        parent_id = None
+                        reply_to_author = None
+                        thread_position = index
+                        
+                        if thread_depth > 0 and thread_structure:
+                            # Find the parent by looking for the previous message with depth-1
+                            target_depth = thread_depth - 1
+                            current_index = next((i for i, info in enumerate(thread_structure) if info['anchor_id'] == f"#{anchor_id}"), -1)
+                            
+                            if current_index > 0:
+                                for i in range(current_index - 1, -1, -1):
+                                    prev_info = thread_structure[i]
+                                    if prev_info['depth'] == target_depth:
+                                        parent_anchor_id = prev_info['anchor_id'].replace('#', '')
+                                        parent_id = f"mailing-list-{year}-{month:02d}-{parent_anchor_id}"
+                                        reply_to_author = prev_info['author']
+                                        break
+
                         document = {
                             "id": doc_id,
                             "authors": [author],
@@ -196,14 +282,22 @@ def parse_dumps():
                             "created_at": date,
                             "domain": CUSTOM_URL,
                             "thread_url": main_url,
-                            "url": f"{main_url}{href}"
+                            "url": f"{main_url}{href}",
+                            # Threading fields
+                            "thread_depth": thread_depth,
+                            "thread_position": thread_position,
+                            "parent_id": parent_id,
+                            "reply_to_author": reply_to_author,
+                            "anchor_id": anchor_id
                         }
 
                         if index == 0:
                             document['type'] = "original_post"
                         else:
                             document['type'] = "reply"
+                            
                         doc.append(document)
+                        
                     except Exception as e:
                         logger.info(f"{e} \nORIGINAL_URL: {main_url}\n{traceback.format_exc()}")
                         continue

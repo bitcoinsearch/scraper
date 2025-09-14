@@ -52,6 +52,23 @@ class ScrapedDocument(BaseModel):
     authors: Optional[List[str]] = Field(
         default=None, description="List of authors of the document"
     )
+    
+    # Threading fields for mailing list conversations
+    thread_depth: Optional[int] = Field(
+        default=0, description="Depth in the thread (0 = original post, 1+ = replies)"
+    )
+    thread_position: Optional[int] = Field(
+        default=0, description="Position in the thread chronologically"
+    )
+    parent_id: Optional[str] = Field(
+        default=None, description="ID of the parent message this is replying to"
+    )
+    reply_to_author: Optional[str] = Field(
+        default=None, description="Author of the message this is replying to"
+    )
+    anchor_id: Optional[str] = Field(
+        default=None, description="Anchor ID from the mailing list"
+    )
 
 
 class BitcoinTranscriptDocument(ScrapedDocument):
