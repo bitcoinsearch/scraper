@@ -307,13 +307,23 @@ def parse_dumps():
                         
                         logger.info(f"📧 THREADING DOC: Processing {anchor_id} - Author: '{author}', Looking for timestamp: {doc_timestamp}")
                         
-                        # Find matching thread info by author and similar timestamp
+                        # Find matching thread info by author (relaxed timestamp matching)
                         for thread_item in thread_structure:
-                            if (thread_item['author'].lower() == author.lower() and 
-                                thread_item['timestamp'] == doc_timestamp):
+                            # Match by author name (case insensitive, flexible matching)
+                            thread_author = thread_item['author'].lower().strip()
+                            doc_author = author.lower().strip()
+                            
+                            # Try exact match first
+                            if thread_author == doc_author:
                                 thread_info = thread_item
                                 thread_depth = thread_item.get('depth', 0)
-                                logger.success(f"✅ THREADING DOC: Matched with thread structure! Author: '{author}', Depth: {thread_depth}")
+                                logger.success(f"✅ THREADING DOC: Exact author match! '{author}' -> depth {thread_depth}")
+                                break
+                            # Try partial match (in case of name variations)
+                            elif thread_author in doc_author or doc_author in thread_author:
+                                thread_info = thread_item
+                                thread_depth = thread_item.get('depth', 0)
+                                logger.success(f"✅ THREADING DOC: Partial author match! '{author}' ≈ '{thread_item['author']}' -> depth {thread_depth}")
                                 break
                         
                         if not thread_info:
@@ -389,20 +399,30 @@ def parse_dumps():
 
 def index_documents(docs):
     logger.info(f"🗃️ INDEXING: Starting to index {len(docs)} documents with threading data")
-    logger.warning("🚨 SAFETY MODE: Will update ONE existing document with threading data for testing!")
+    
+    # Check if this is the Quantum Recovery thread
+    is_quantum_thread = any("Against-Allowing-Quantum-Recovery-of-Bitcoin" in doc.get('title', '') or 
+                           "Against Allowing Quantum Recovery" in doc.get('title', '') for doc in docs)
+    
+    if is_quantum_thread:
+        logger.success("🎯 QUANTUM RECOVERY THREAD DETECTED: Processing ALL documents for testing!")
+    else:
+        logger.warning("🚫 NON-QUANTUM THREAD: Skipping all processing for safety!")
+        logger.warning("📋 Only Quantum Recovery thread will be processed until testing is complete")
+        return  # Skip processing entirely for non-Quantum threads
     
     new_docs = 0
     existing_docs = 0
     threading_docs = 0
-    processed_new_doc = False
-    updated_existing_doc = False
+    updated_docs = 0
     
     for doc in docs:
         # Check if document has threading data
         has_threading = any([
             doc.get('thread_depth', 0) > 0,
             doc.get('parent_id') is not None,
-            doc.get('reply_to_author') is not None
+            doc.get('reply_to_author') is not None,
+            doc.get('thread_depth') == 0  # Include root messages too
         ])
         
         if has_threading:
@@ -410,84 +430,72 @@ def index_documents(docs):
 
         resp = document_view(index_name=INDEX_NAME, doc_id=doc['id'])
         if not resp:
-            # SAFETY MODE: Only process the first new document
-            if not processed_new_doc:
-                _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
-                new_docs += 1
-                processed_new_doc = True
-                
-                logger.success(f'✅ INDEXING: Successfully added FIRST NEW document! ID: {doc["id"]}')
-                logger.success(f'🎯 DOCUMENT DETAILS:')
-                logger.success(f'    📰 Title: {doc.get("title", "N/A")}')
-                logger.success(f'    👤 Author: {doc.get("authors", ["N/A"])[0]}')
-                logger.success(f'    🔗 URL: {doc.get("url", "N/A")}')
-                logger.success(f'    📅 Created: {doc.get("created_at", "N/A")}')
-                
-                if has_threading:
-                    logger.success(f'    🧵 THREADING DATA:')
-                    logger.success(f'        - Depth: {doc.get("thread_depth", 0)}')
-                    logger.success(f'        - Position: {doc.get("thread_position", 0)}') 
-                    logger.success(f'        - Parent ID: {doc.get("parent_id", "None")}')
-                    logger.success(f'        - Reply to: {doc.get("reply_to_author", "None")}')
-                    logger.success(f'        - Type: {doc.get("type", "N/A")}')
-                else:
-                    logger.warning(f'    ⚠️ NO THREADING DATA found for this document')
-                
-                logger.warning(f'🚨 SAFETY MODE: Stopping after processing first new document!')
-                break
+            # Process all new documents in Quantum thread
+            _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
+            new_docs += 1
+            
+            logger.success(f'✅ INDEXING: Successfully added document! ID: {doc["id"]}')
+            logger.success(f'🎯 DOCUMENT DETAILS:')
+            logger.success(f'    📰 Title: {doc.get("title", "N/A")}')
+            logger.success(f'    👤 Author: {doc.get("authors", ["N/A"])[0]}')
+            logger.success(f'    🔗 URL: {doc.get("url", "N/A")}')
+            logger.success(f'    📅 Created: {doc.get("created_at", "N/A")}')
+            
+            if has_threading:
+                logger.success(f'    🧵 THREADING DATA:')
+                logger.success(f'        - Depth: {doc.get("thread_depth", 0)}')
+                logger.success(f'        - Position: {doc.get("thread_position", 0)}') 
+                logger.success(f'        - Parent ID: {doc.get("parent_id", "None")}')
+                logger.success(f'        - Reply to: {doc.get("reply_to_author", "None")}')
+                logger.success(f'        - Type: {doc.get("type", "N/A")}')
             else:
-                logger.info(f"🚫 SAFETY MODE: Skipping new document {doc['id']} (already processed one)")
-                continue
+                logger.warning(f'    ⚠️ NO THREADING DATA found for this document')
         else:
             existing_docs += 1
-            logger.info(f"📄 INDEXING: Document already exist! ID: {doc['id']}")
+            logger.info(f"📄 INDEXING: Document already exists! ID: {doc['id']}")
             
-            # SAFETY MODE: Update ONE existing document with threading data for testing
-            if has_threading and not updated_existing_doc:
-                logger.warning(f"🧪 TESTING: Updating existing document with threading data!")
-                
-                # Update the existing document with new threading fields
-                _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
-                updated_existing_doc = True
-                
-                logger.success(f'✅ UPDATED: Successfully updated existing document with threading! ID: {doc["id"]}')
-                logger.success(f'🎯 UPDATED DOCUMENT DETAILS:')
-                logger.success(f'    📰 Title: {doc.get("title", "N/A")}')
-                logger.success(f'    👤 Author: {doc.get("authors", ["N/A"])[0]}')
-                logger.success(f'    🔗 URL: {doc.get("url", "N/A")}')
-                logger.success(f'    📅 Created: {doc.get("created_at", "N/A")}')
-                logger.success(f'    🧵 THREADING DATA ADDED:')
+            # Update all existing documents in Quantum thread with threading data
+            logger.warning(f"🧪 UPDATING: Existing document with threading data!")
+            
+            # Update the existing document with new threading fields
+            _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
+            updated_docs += 1
+            
+            logger.success(f'✅ UPDATED: Successfully updated document! ID: {doc["id"]}')
+            logger.success(f'🎯 UPDATED DOCUMENT DETAILS:')
+            logger.success(f'    📰 Title: {doc.get("title", "N/A")}')
+            logger.success(f'    👤 Author: {doc.get("authors", ["N/A"])[0]}')
+            logger.success(f'    🔗 URL: {doc.get("url", "N/A")}')
+            logger.success(f'    📅 Created: {doc.get("created_at", "N/A")}')
+            
+            if has_threading:
+                logger.success(f'    🧵 THREADING DATA UPDATED:')
                 logger.success(f'        - Depth: {doc.get("thread_depth", 0)}')
                 logger.success(f'        - Position: {doc.get("thread_position", 0)}') 
                 logger.success(f'        - Parent ID: {doc.get("parent_id", "None")}')
                 logger.success(f'        - Reply to: {doc.get("reply_to_author", "None")}')
                 logger.success(f'        - Type: {doc.get("type", "N/A")}')
                 logger.success(f'        - Anchor ID: {doc.get("anchor_id", "N/A")}')
-                
-                logger.warning(f'🚨 SAFETY MODE: Stopping after updating one document for testing!')
-                break
-            elif has_threading:
-                logger.info(f"    🧵 HAS THREADING DATA: depth={doc.get('thread_depth', 0)}, parent={doc.get('parent_id', 'None')}")
             else:
-                logger.info(f"    📄 No threading data for this document")
+                logger.warning(f'    ⚠️ NO THREADING DATA to update')
     
     logger.success("📊 INDEXING SUMMARY:")
     logger.success(f"    📝 Total documents processed: {len(docs)}")
     logger.success(f"    ✅ New documents added: {new_docs}")
     logger.success(f"    📄 Existing documents: {existing_docs}")
+    logger.success(f"    🔄 Documents updated: {updated_docs}")
     logger.success(f"    🧵 Documents with threading data: {threading_docs}")
-    if updated_existing_doc:
-        logger.success(f"    🧪 Updated one existing document with threading data for testing!")
+    logger.success(f"    🎯 Quantum Recovery thread mode: {'ON' if is_quantum_thread else 'OFF'}")
 
 
 if __name__ == "__main__":
-    logger.warning("🚨🚨🚨 SAFETY MODE ENABLED 🚨🚨🚨")
-    logger.warning("📋 SAFETY MEASURES:")
+    logger.warning("🚨🚨🚨 QUANTUM-ONLY TESTING MODE 🚨🚨🚨")
+    logger.warning("📋 PROCESSING RULES:")
     logger.warning("    - Only processing 1 page (most recent)")
-    logger.warning("    - Will update ONLY 1 existing document with threading data")
-    logger.warning("    - All other documents remain untouched")
-    logger.warning("    - Threading data will be tested on one document only")
-    logger.warning("🔒 This safely tests threading on just ONE document!")
+    logger.warning("    - QUANTUM RECOVERY THREAD: All documents will be processed")
+    logger.warning("    - ALL OTHER THREADS: Completely skipped for maximum safety")
+    logger.warning("    - Improved threading detection with flexible author matching")
+    logger.warning("🎯 ONLY Quantum Recovery thread will be processed - all others ignored!")
     
     if not os.path.exists(DOWNLOAD_PATH):
         os.makedirs(DOWNLOAD_PATH)
