@@ -493,17 +493,25 @@ def index_documents(docs):
     logger.success(f"    📄 Existing documents: {existing_docs}")
     logger.success(f"    🔄 Documents updated: {updated_docs}")
     logger.success(f"    🧵 Documents with threading data: {threading_docs}")
-    logger.success(f"    🎯 Quantum Recovery thread mode: {'ON' if is_quantum_thread else 'OFF'}")
+    
+    # Show which test thread mode is active
+    if is_quantum_recovery_thread:
+        logger.success(f"    🎯 Test thread mode: QUANTUM RECOVERY")
+    elif is_post_quantum_thread:
+        logger.success(f"    🎯 Test thread mode: POST QUANTUM MIGRATION")
+    else:
+        logger.success(f"    🎯 Test thread mode: OFF")
 
 
 if __name__ == "__main__":
-    logger.warning("🚨🚨🚨 QUANTUM-ONLY TESTING MODE 🚨🚨🚨")
+    logger.warning("🚨🚨🚨 TEST THREADS ONLY MODE 🚨🚨🚨")
     logger.warning("📋 PROCESSING RULES:")
     logger.warning("    - Only processing 1 page (most recent)")
     logger.warning("    - QUANTUM RECOVERY THREAD: All documents will be processed")
+    logger.warning("    - POST QUANTUM MIGRATION THREAD: All documents will be processed")
     logger.warning("    - ALL OTHER THREADS: Completely skipped for maximum safety")
     logger.warning("    - Improved threading detection with flexible author matching")
-    logger.warning("🎯 ONLY Quantum Recovery thread will be processed - all others ignored!")
+    logger.warning("🎯 ONLY test threads (Quantum Recovery + Post Quantum Migration) will be processed!")
     
     if not os.path.exists(DOWNLOAD_PATH):
         os.makedirs(DOWNLOAD_PATH)
