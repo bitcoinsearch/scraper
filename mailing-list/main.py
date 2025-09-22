@@ -400,16 +400,24 @@ def parse_dumps():
 def index_documents(docs):
     logger.info(f"🗃️ INDEXING: Starting to index {len(docs)} documents with threading data")
     
-    # Check if this is the Quantum Recovery thread
-    is_quantum_thread = any("Against-Allowing-Quantum-Recovery-of-Bitcoin" in doc.get('title', '') or 
-                           "Against Allowing Quantum Recovery" in doc.get('title', '') for doc in docs)
+    # Check if this is one of our test threads (Quantum Recovery or Post Quantum Migration)
+    is_quantum_recovery_thread = any("Against-Allowing-Quantum-Recovery-of-Bitcoin" in doc.get('title', '') or 
+                                    "Against Allowing Quantum Recovery" in doc.get('title', '') for doc in docs)
     
-    if is_quantum_thread:
-        logger.success("🎯 QUANTUM RECOVERY THREAD DETECTED: Processing ALL documents for testing!")
+    is_post_quantum_thread = any("A Post Quantum Migration Proposal" in doc.get('title', '') or
+                                "Post Quantum Migration" in doc.get('title', '') for doc in docs)
+    
+    is_test_thread = is_quantum_recovery_thread or is_post_quantum_thread
+    
+    if is_test_thread:
+        if is_quantum_recovery_thread:
+            logger.success("🎯 QUANTUM RECOVERY THREAD DETECTED: Processing ALL documents for testing!")
+        if is_post_quantum_thread:
+            logger.success("🎯 POST QUANTUM MIGRATION THREAD DETECTED: Processing ALL documents for testing!")
     else:
-        logger.warning("🚫 NON-QUANTUM THREAD: Skipping all processing for safety!")
-        logger.warning("📋 Only Quantum Recovery thread will be processed until testing is complete")
-        return  # Skip processing entirely for non-Quantum threads
+        logger.warning("🚫 NON-TEST THREAD: Skipping all processing for safety!")
+        logger.warning("📋 Only Quantum Recovery and Post Quantum Migration threads will be processed until testing is complete")
+        return  # Skip processing entirely for non-test threads
     
     new_docs = 0
     existing_docs = 0
