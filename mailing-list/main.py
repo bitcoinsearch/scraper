@@ -156,7 +156,7 @@ def _parse_thread_lines_fixed(lines, thread_overview_soup):
         
         if not timestamp_match:
             continue
-            
+        
         timestamp = timestamp_match.group(1)
         
         # Get everything after the timestamp
@@ -215,7 +215,7 @@ def _parse_thread_lines_fixed(lines, thread_overview_soup):
                 author_part = clean_line
         else:
             author_part = clean_line
-            
+        
         # Clean up the author name
         author = author_part.strip()
         
@@ -313,7 +313,6 @@ def get_author(content_soup):
             author = author.replace("via Bitcoin Development Mailing List", "").strip()
             # Handle special characters
             author = author.replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">")
-            logger.info(f"📧 AUTHOR: Extracted author from header: '{author}'")
             return author
     
     # Fallback: try the From: line method
@@ -328,7 +327,6 @@ def get_author(content_soup):
                 author = author.replace("'", "").replace("via Bitcoin Development Mailing List", "").strip()
                 # Handle special characters
                 author = author.replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">")
-                logger.info(f"📧 AUTHOR: Extracted author from From line: '{author}'")
                 return author
     
     # Enhanced fallback: look for any line with author pattern
@@ -342,7 +340,6 @@ def get_author(content_soup):
                 if len(potential_author) > 3 and not potential_author.startswith('http'):
                     author = potential_author.replace("via Bitcoin Development Mailing List", "").strip()
                     author = author.replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">")
-                    logger.info(f"📧 AUTHOR: Extracted author from fallback pattern: '{author}'")
                     return author
     
     logger.warning(f"⚠️ AUTHOR: Could not extract author from content")
@@ -422,14 +419,12 @@ def parse_dumps():
 
                         body_text = preprocess_body_text(content.text)
 
-                        # Scraping author from the content soup (before text extraction)
-                        author = get_author(content)
-
                         doc_id = f"mailing-list-{year}-{month:02d}-{anchor_id}"
                         
                         # Get threading information by matching with thread structure
                         thread_info = None
                         thread_depth = 0
+                        author = None  # Will be set from thread structure
                         
                         # Parse document timestamp for matching
                         parsed_date = datetime.fromisoformat(date.replace('Z', '+00:00'))
@@ -442,6 +437,7 @@ def parse_dumps():
                             if thread_anchor == anchor_id:
                                 thread_info = thread_item
                                 thread_depth = thread_item.get('depth', 0)
+                                author = thread_item.get('author')  # Use thread structure author
                                 break
                         
                         # Fallback: match by author and timestamp
@@ -468,15 +464,25 @@ def parse_dumps():
                                     except:
                                         pass
                         
-                        if not thread_info:
-                            logger.warning(f"⚠️ THREADING: No thread match found for '{author}' at {doc_timestamp}")
+                        # Fallback: extract author from content if no thread match
+                        if not thread_info or not author:
+                            content_author = get_author(content)
+                            if not author:
+                                author = content_author
+                            if not thread_info:
+                                logger.warning(f"⚠️ THREADING: No thread match found for '{author}' at {doc_timestamp}")
                         
                         # Note: doc_id_map could be used for parent resolution if needed in the future
                         
-                        # Determine parent relationship
+                        # Determine parent relationship and thread position
                         parent_id = None
                         reply_to_author = None
-                        thread_position = index
+                        
+                        # Set thread_position based on thread structure order, not URL order
+                        if thread_info:
+                            thread_position = next((i for i, item in enumerate(thread_structure) if item == thread_info), index)
+                        else:
+                            thread_position = index  # Fallback to URL order if no thread match
                         
                         if thread_depth > 0 and thread_structure and thread_info:
                             # Find the parent by looking for the previous message with depth-1
@@ -529,8 +535,6 @@ def parse_dumps():
 
 
 def index_documents(docs):
-    logger.info(f"🗃️ INDEXING: Starting to index {len(docs)} documents with threading data")
-    
     # Check if this is one of our test threads (Quantum Recovery or Post Quantum Migration)
     is_quantum_recovery_thread = any("Against-Allowing-Quantum-Recovery-of-Bitcoin" in doc.get('title', '') or 
                                     "Against Allowing Quantum Recovery" in doc.get('title', '') for doc in docs)
@@ -542,12 +546,11 @@ def index_documents(docs):
     
     if is_test_thread:
         if is_quantum_recovery_thread:
-            logger.success("🎯 QUANTUM RECOVERY THREAD DETECTED: Processing ALL documents for testing!")
+            logger.success("🎯 Processing Quantum Recovery thread")
         if is_post_quantum_thread:
-            logger.success("🎯 POST QUANTUM MIGRATION THREAD DETECTED: Processing ALL documents for testing!")
+            logger.success("🎯 Processing Post Quantum Migration thread")
     else:
-        logger.warning("🚫 NON-TEST THREAD: Skipping all processing for safety!")
-        logger.warning("📋 Only Quantum Recovery and Post Quantum Migration threads will be processed until testing is complete")
+        logger.warning("🚫 Skipping non-test thread")
         return  # Skip processing entirely for non-test threads
     
     new_docs = 0
@@ -573,50 +576,21 @@ def index_documents(docs):
             _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
             new_docs += 1
             
-            logger.success(f'✅ INDEXING: Successfully added document! ID: {doc["id"]}')
-            logger.success(f'🎯 DOCUMENT DETAILS:')
-            logger.success(f'    📰 Title: {doc.get("title", "N/A")}')
-            logger.success(f'    👤 Author: {doc.get("authors", ["N/A"])[0]}')
-            logger.success(f'    🔗 URL: {doc.get("url", "N/A")}')
-            logger.success(f'    📅 Created: {doc.get("created_at", "N/A")}')
-            
-            if has_threading:
-                logger.success(f'    🧵 THREADING DATA:')
-                logger.success(f'        - Depth: {doc.get("thread_depth", 0)}')
-                logger.success(f'        - Position: {doc.get("thread_position", 0)}') 
-                logger.success(f'        - Parent ID: {doc.get("parent_id", "None")}')
-                logger.success(f'        - Reply to: {doc.get("reply_to_author", "None")}')
-                logger.success(f'        - Type: {doc.get("type", "N/A")}')
-            else:
-                logger.warning(f'    ⚠️ NO THREADING DATA found for this document')
+            if has_threading and doc.get("thread_depth", 0) > 0:
+                logger.success(f'✅ Added: {doc.get("authors", ["Unknown"])[0]} (depth {doc.get("thread_depth", 0)})')
+            elif not has_threading:
+                logger.warning(f'⚠️ No threading data: {doc.get("authors", ["Unknown"])[0]}')
         else:
             existing_docs += 1
-            logger.info(f"📄 INDEXING: Document already exists! ID: {doc['id']}")
-            
-            # Update all existing documents in Quantum thread with threading data
-            logger.warning(f"🧪 UPDATING: Existing document with threading data!")
             
             # Update the existing document with new threading fields
             _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
             updated_docs += 1
             
-            logger.success(f'✅ UPDATED: Successfully updated document! ID: {doc["id"]}')
-            logger.success(f'🎯 UPDATED DOCUMENT DETAILS:')
-            logger.success(f'    📰 Title: {doc.get("title", "N/A")}')
-            logger.success(f'    👤 Author: {doc.get("authors", ["N/A"])[0]}')
-            logger.success(f'    🔗 URL: {doc.get("url", "N/A")}')
-            logger.success(f'    📅 Created: {doc.get("created_at", "N/A")}')
-            
-            if has_threading:
-                logger.success(f'    🧵 THREADING DATA UPDATED:')
-                logger.success(f'        - Depth: {doc.get("thread_depth", 0)}')
-                logger.success(f'        - Position: {doc.get("thread_position", 0)}') 
-                logger.success(f'        - Parent ID: {doc.get("parent_id", "None")}')
-                logger.success(f'        - Reply to: {doc.get("reply_to_author", "None")}')
-                logger.success(f'        - Type: {doc.get("type", "N/A")}')
-                logger.success(f'        - Anchor ID: {doc.get("anchor_id", "N/A")}')
-            else:
-                logger.warning(f'    ⚠️ NO THREADING DATA to update')
+            if has_threading and doc.get("thread_depth", 0) > 0:
+                logger.success(f'✅ Updated: {doc.get("authors", ["Unknown"])[0]} (depth {doc.get("thread_depth", 0)})')
+            elif not has_threading:
+                logger.warning(f'⚠️ No threading data to update: {doc.get("authors", ["Unknown"])[0]}')
     
     logger.success("📊 INDEXING SUMMARY:")
     logger.success(f"    📝 Total documents processed: {len(docs)}")
@@ -635,14 +609,8 @@ def index_documents(docs):
 
 
 if __name__ == "__main__":
-    logger.warning("🚨🚨🚨 TEST THREADS ONLY MODE 🚨🚨🚨")
-    logger.warning("📋 PROCESSING RULES:")
-    logger.warning("    - Only processing 1 page (most recent)")
-    logger.warning("    - QUANTUM RECOVERY THREAD: All documents will be processed")
-    logger.warning("    - POST QUANTUM MIGRATION THREAD: All documents will be processed")
-    logger.warning("    - ALL OTHER THREADS: Completely skipped for maximum safety")
-    logger.warning("    - Improved threading detection with flexible author matching")
-    logger.warning("🎯 ONLY test threads (Quantum Recovery + Post Quantum Migration) will be processed!")
+    logger.info("🚀 Starting mailing list scraper with threading support")
+    logger.warning("⚠️ TEST MODE: Only processing Quantum threads for safety")
     
     if not os.path.exists(DOWNLOAD_PATH):
         os.makedirs(DOWNLOAD_PATH)
