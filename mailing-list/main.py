@@ -112,9 +112,62 @@ def get_thread_structure(soup):
         logger.warning("⚠️ THREADING: No thread overview section found!")
         return []
     
-    # Parse the thread structure lines
-    lines = thread_overview.text.split('\n')
-    logger.info(f"📄 THREADING: Processing {len(lines)} lines for thread structure")
+    # Get all text from the thread overview section
+    full_text = thread_overview.text
+    
+    # Split into two sections if they exist
+    strict_section = full_text
+    loose_section = ""
+    
+    # Check if there are both strict and loose matches
+    loose_marker = "-- strict thread matches above, loose matches on Subject: below --"
+    if loose_marker in full_text:
+        parts = full_text.split(loose_marker)
+        strict_section = parts[0]
+        loose_section = parts[1] if len(parts) > 1 else ""
+        logger.info("🔍 THREADING: Found both strict and loose thread matches")
+    else:
+        logger.info("🔍 THREADING: Found only strict thread matches")
+    
+    # Parse both sections
+    lines = strict_section.split('\n')
+    logger.info(f"📄 THREADING: Processing {len(lines)} lines in strict thread section")
+    
+    # Process strict thread matches (properly threaded)
+    thread_structure.extend(_parse_thread_lines(lines, "strict"))
+    
+    # Process loose matches if they exist
+    if loose_section:
+        loose_lines = loose_section.split('\n')
+        logger.info(f"📄 THREADING: Processing {len(loose_lines)} lines in loose subject matches")
+        thread_structure.extend(_parse_thread_lines(loose_lines, "loose"))
+    
+    logger.success(f"✅ THREADING: Total extracted {len(thread_structure)} messages from both sections")
+    
+    # Log the thread hierarchy
+    if thread_structure:
+        logger.info("🎯 THREADING: Combined thread hierarchy:")
+        strict_count = len([t for t in thread_structure if t.get('section_type') == 'strict'])
+        loose_count = len([t for t in thread_structure if t.get('section_type') == 'loose'])
+        logger.info(f"    📊 Strict thread matches: {strict_count}")
+        logger.info(f"    📊 Loose subject matches: {loose_count}")
+        
+        for i, item in enumerate(thread_structure[:10]):  # Show first 10
+            indent = "  " * item['depth']
+            section_indicator = "🔗" if item.get('section_type') == 'strict' else "📄"
+            logger.info(f"    {section_indicator} {indent}#{i}: {item['author']} (depth: {item['depth']})")
+        
+        if len(thread_structure) > 10:
+            logger.info(f"    ... and {len(thread_structure) - 10} more messages")
+    
+    return thread_structure
+
+
+def _parse_thread_lines(lines, section_type):
+    """Parse thread lines from either strict or loose section"""
+    thread_structure = []
+    
+    logger.info(f"📧 THREADING: Parsing {section_type} thread section")
     
     for line in lines:
         if "-- links below jump to the message on this page --" in line:
@@ -131,50 +184,63 @@ def get_thread_structure(soup):
             after_date_pos = date_match.end()
             after_date = line[after_date_pos:]
             
-            # Count leading spaces before the ` character to determine depth
-            # Pattern: "  8:41 ` " (no spaces = depth 0, "  " = depth 1, "    " = depth 2, etc.)
+            # Check for backtick to determine if this is a reply or original post
             space_before_backtick = re.search(r'^(\s*)`', after_date)
             
             if space_before_backtick:
-                # Count spaces to determine thread depth (every 2 spaces = 1 depth level)
+                # This is a reply - count spaces to determine thread depth
                 spaces = len(space_before_backtick.group(1))
-                thread_depth = spaces // 2  # Every 2 spaces = 1 level of nesting
+                if spaces == 0:
+                    thread_depth = 0  # Original post  
+                elif spaces == 1:
+                    thread_depth = 1  # Direct reply
+                elif spaces == 2:
+                    thread_depth = 2  # Reply to reply
+                elif spaces >= 4:
+                    # For 4+ spaces, assume every 2 additional spaces = 1 more depth level
+                    thread_depth = 2 + ((spaces - 2) // 2)
+                else:
+                    thread_depth = 1  # Default fallback
                 
                 # Extract author (everything after the ` character)
                 author_part = after_date[space_before_backtick.end():].strip()
-                # Remove any HTML tags and get clean author name
-                author = re.sub(r'<[^>]+>', '', author_part).strip()
-                # Remove quotes around author names
-                author = author.strip("'\"")
+            else:
+                # No backtick means this is likely the original post
+                # For loose matches, treat as separate threads (depth 0)
+                thread_depth = 0 if section_type == "loose" else 0
+                # Extract author from the remaining text
+                author_part = after_date.strip()
                 
+            # Remove any HTML tags and get clean author name
+            author = re.sub(r'<[^>]+>', '', author_part).strip()
+            # Remove quotes around author names and clean up
+            author = author.strip("'\"").strip()
+            # Remove common suffixes
+            author = re.sub(r'\s+via\s+Bitcoin\s+Development\s+Mailing\s+List.*$', '', author, re.IGNORECASE).strip()
+            
+            if author:  # Only process if we found a valid author
                 timestamp = date_match.group(1)
                 
                 # Since this HTML doesn't have anchor IDs in the thread overview, 
                 # we'll create a synthetic anchor based on timestamp and author
                 import hashlib
-                anchor_content = f"{timestamp}-{author}"
+                anchor_content = f"{timestamp}-{author}-{section_type}"
                 anchor_id = hashlib.md5(anchor_content.encode()).hexdigest()[:32]
                 
-                logger.info(f"📧 THREADING: Found message - Author: '{author}', Depth: {thread_depth}, Time: {timestamp}, Spaces: {spaces}")
+                logger.info(f"📧 THREADING ({section_type}): Found message - Author: '{author}', Depth: {thread_depth}, Time: {timestamp}, Spaces: {spaces if space_before_backtick else 0}")
                 
                 thread_structure.append({
                     'timestamp': timestamp,
                     'anchor_id': f"#{anchor_id}",
                     'author': author,
                     'depth': thread_depth,
-                    'line': line.strip()
+                    'line': line.strip(),
+                    'section_type': section_type
                 })
             else:
-                logger.info(f"📧 THREADING: Skipping line (no backtick found): {line.strip()}")
+                logger.info(f"📧 THREADING ({section_type}): Skipping line (no author found): {line.strip()}")
     
-    logger.success(f"✅ THREADING: Extracted {len(thread_structure)} messages with thread structure")
-    
-    # Log the thread hierarchy
-    if thread_structure:
-        logger.info("🎯 THREADING: Thread hierarchy:")
-        for i, item in enumerate(thread_structure):
-            indent = "  " * item['depth']
-            logger.info(f"    {indent}#{i}: {item['author']} (depth: {item['depth']})")
+    logger.success(f"✅ THREADING ({section_type}): Extracted {len(thread_structure)} messages")
     
     return thread_structure
 
@@ -208,12 +274,35 @@ def get_year_month(date):
     return year, month
 
 
-def get_author(text):
-    from_user = re.search(r'From:\s*(.+?)\s+\@', text).group()
-    # to_user = re.search(r'To:\s*(.+)', text).group()
-    author = from_user.replace("From: ", "").replace("@", "").replace("'", "").replace(
-        "via Bitcoin Development Mailing List", '').strip()
-    return author
+def get_author(content_soup):
+    """Extract author from the message header, not from quoted email content"""
+    # Look for the pattern: <b>@ YYYY-MM-DD HH:MM Author Name</b>
+    b_tags = content_soup.find_all('b')
+    for b_tag in b_tags:
+        text = b_tag.get_text()
+        # Pattern: "@ 2025-07-12 21:36 Jameson Lopp"
+        author_match = re.search(r'@\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+(.+)', text)
+        if author_match:
+            author = author_match.group(1).strip()
+            # Clean up common artifacts
+            author = author.replace("via Bitcoin Development Mailing List", "").strip()
+            logger.info(f"📧 AUTHOR: Extracted author from header: '{author}'")
+            return author
+    
+    # Fallback: try the old method but with better filtering
+    text = content_soup.get_text()
+    lines = text.split('\n')
+    for line in lines[:10]:  # Only check first 10 lines for headers
+        if line.startswith('From:') and '@' in line and 'UTC' in line:
+            from_match = re.search(r'From:\s*(.+?)\s+@\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+UTC', line)
+            if from_match:
+                author = from_match.group(1).strip()
+                author = author.replace("'", "").replace("via Bitcoin Development Mailing List", "").strip()
+                logger.info(f"📧 AUTHOR: Extracted author from From line: '{author}'")
+                return author
+    
+    logger.warning(f"⚠️ AUTHOR: Could not extract author from content")
+    return "Unknown Author"
 
 
 def href_contains_text(tag, search_text):
@@ -292,8 +381,8 @@ def parse_dumps():
 
                         body_text = preprocess_body_text(content.text)
 
-                        # Scraping author
-                        author = get_author(body_text)
+                        # Scraping author from the content soup (before text extraction)
+                        author = get_author(content)
 
                         doc_id = f"mailing-list-{year}-{month:02d}-{anchor_id}"
                         
