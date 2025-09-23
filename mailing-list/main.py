@@ -301,8 +301,69 @@ def get_author(content_soup):
                 logger.info(f"📧 AUTHOR: Extracted author from From line: '{author}'")
                 return author
     
+    # Additional fallback: look for email headers in the beginning of the content
+    for line in lines[:20]:
+        # Try various From: patterns
+        if 'From:' in line:
+            # Pattern: From: "Author Name" <email@domain.com>
+            from_match = re.search(r'From:\s*["\']?([^"\'<>]+)["\']?\s*<[^>]+>', line)
+            if from_match:
+                author = from_match.group(1).strip()
+                author = author.replace("via Bitcoin Development Mailing List", "").strip()
+                logger.info(f"📧 AUTHOR: Extracted author from email header: '{author}'")
+                return author
+            
+            # Pattern: From: Author Name <email>
+            from_match = re.search(r'From:\s*([^<>]+?)\s*<[^>]+>', line)
+            if from_match:
+                author = from_match.group(1).strip()
+                author = author.replace("via Bitcoin Development Mailing List", "").strip()
+                logger.info(f"📧 AUTHOR: Extracted author from simple email header: '{author}'")
+                return author
+    
     logger.warning(f"⚠️ AUTHOR: Could not extract author from content")
     return "Unknown Author"
+
+
+def extract_email_headers(content_soup):
+    """Extract email headers like Message-ID, In-Reply-To, References from the content"""
+    headers = {}
+    text = content_soup.get_text()
+    lines = text.split('\n')
+    
+    # Look for email headers in the first 30 lines
+    for line in lines[:30]:
+        line = line.strip()
+        
+        # Extract Message-ID
+        if line.startswith('Message-ID:'):
+            message_id = re.search(r'Message-ID:\s*<([^>]+)>', line)
+            if message_id:
+                headers['message_id'] = message_id.group(1)
+                logger.info(f"📧 HEADERS: Found Message-ID: {headers['message_id']}")
+        
+        # Extract In-Reply-To
+        elif line.startswith('In-Reply-To:'):
+            in_reply_to = re.search(r'In-Reply-To:\s*<([^>]+)>', line)
+            if in_reply_to:
+                headers['in_reply_to'] = in_reply_to.group(1)
+                logger.info(f"📧 HEADERS: Found In-Reply-To: {headers['in_reply_to']}")
+        
+        # Extract References
+        elif line.startswith('References:'):
+            references = re.findall(r'<([^>]+)>', line)
+            if references:
+                headers['references'] = references
+                logger.info(f"📧 HEADERS: Found References: {headers['references']}")
+        
+        # Extract Subject for additional verification
+        elif line.startswith('Subject:'):
+            subject_match = re.search(r'Subject:\s*(.+)', line)
+            if subject_match:
+                headers['subject'] = subject_match.group(1).strip()
+                logger.info(f"📧 HEADERS: Found Subject: {headers['subject']}")
+    
+    return headers
 
 
 def href_contains_text(tag, search_text):
@@ -354,6 +415,12 @@ def parse_dumps():
 
                 urls_with_date = get_thread_urls_with_date(soup.find_all('pre'))
                 
+                # Phase 1: Extract all documents with headers
+                documents_data = []
+                message_id_to_doc = {}
+                
+                logger.info(f"🔄 THREADING: Phase 1 - Extracting {len(urls_with_date)} documents with headers...")
+                
                 for index, (url, date) in enumerate(urls_with_date):
                     try:
                         year, month = get_year_month(date)
@@ -366,123 +433,228 @@ def parse_dumps():
                         
                         content = soup.find(lambda tag: tag.name == "pre" and tag.find('a', href=f"#{tag_id}"))
 
-                        # Scrape Body
-                        for c in content.find_all('b'):
+                        # Extract email headers first
+                        email_headers = extract_email_headers(content)
+
+                        # Scrape Body (clean up after header extraction)
+                        content_copy = content.find('pre') if content.find('pre') else content
+                        
+                        for c in content_copy.find_all('b'):
                             c.decompose()
 
-                        for c in content.find_all('u'):
+                        for c in content_copy.find_all('u'):
                             c.decompose()
 
-                        for c in content.find_all(lambda tag: href_contains_text(tag, href.replace("#", "")[1:])):
+                        for c in content_copy.find_all(lambda tag: href_contains_text(tag, href.replace("#", "")[1:])):
                             c.decompose()
 
-                        for c in content.find_all(lambda tag: href_contains_text(tag, u)):
+                        for c in content_copy.find_all(lambda tag: href_contains_text(tag, u)):
                             c.decompose()
 
-                        body_text = preprocess_body_text(content.text)
+                        body_text = preprocess_body_text(content_copy.text)
 
-                        # Scraping author from the content soup (before text extraction)
+                        # Scraping author from the content soup
                         author = get_author(content)
 
                         doc_id = f"mailing-list-{year}-{month:02d}-{anchor_id}"
                         
-                        # Get threading information by matching author and timestamp
-                        thread_info = None
-                        thread_depth = 0
-                        
-                        # Try to match this document with thread structure by author
-                        parsed_date = datetime.fromisoformat(date.replace('Z', '+00:00'))
-                        doc_timestamp = parsed_date.strftime('%Y-%m-%d %H:%M')
-                        
-                        logger.info(f"📧 THREADING DOC: Processing {anchor_id} - Author: '{author}', Looking for timestamp: {doc_timestamp}")
-                        
-                        # Find matching thread info by author (relaxed timestamp matching)
-                        for thread_item in thread_structure:
-                            # Match by author name (case insensitive, flexible matching)
-                            thread_author = thread_item['author'].lower().strip()
-                            doc_author = author.lower().strip()
-                            
-                            # Try exact match first
-                            if thread_author == doc_author:
-                                thread_info = thread_item
-                                thread_depth = thread_item.get('depth', 0)
-                                logger.success(f"✅ THREADING DOC: Exact author match! '{author}' -> depth {thread_depth}")
-                                break
-                            # Try partial match (in case of name variations)
-                            elif thread_author in doc_author or doc_author in thread_author:
-                                thread_info = thread_item
-                                thread_depth = thread_item.get('depth', 0)
-                                logger.success(f"✅ THREADING DOC: Partial author match! '{author}' ≈ '{thread_item['author']}' -> depth {thread_depth}")
-                                break
-                        
-                        if not thread_info:
-                            logger.warning(f"⚠️ THREADING DOC: No thread match found for '{author}' at {doc_timestamp}")
-                            logger.info(f"📋 THREADING DOC: Available thread authors: {[t['author'] for t in thread_structure]}")
-                        
-                        # Determine parent relationship
-                        parent_id = None
-                        reply_to_author = None
-                        thread_position = index
-                        
-                        if thread_depth > 0 and thread_structure and thread_info:
-                            logger.info(f"🔍 THREADING DOC: Looking for parent (target depth: {thread_depth - 1})")
-                            # Find the parent by looking for the previous message with depth-1
-                            target_depth = thread_depth - 1
-                            current_index = next((i for i, info in enumerate(thread_structure) if info == thread_info), -1)
-                            
-                            logger.info(f"📍 THREADING DOC: Current index in thread: {current_index}")
-                            
-                            if current_index > 0:
-                                for i in range(current_index - 1, -1, -1):
-                                    prev_info = thread_structure[i]
-                                    logger.info(f"    Checking previous message {i}: depth={prev_info['depth']}, author='{prev_info['author']}'")
-                                    if prev_info['depth'] == target_depth:
-                                        # We'll need to find the actual anchor_id for this parent
-                                        # For now, create a placeholder that will be resolved later
-                                        parent_id = f"mailing-list-{year}-{month:02d}-PARENT-{i}"
-                                        reply_to_author = prev_info['author']
-                                        logger.success(f"✅ THREADING DOC: Found parent! '{author}' -> '{reply_to_author}' (parent_index: {i})")
-                                        break
-                                
-                                if not parent_id:
-                                    logger.warning(f"⚠️ THREADING DOC: No parent found for depth {thread_depth} message")
-                        else:
-                            logger.info(f"🌟 THREADING DOC: This is a root message (depth: {thread_depth})")
-
-                        document = {
-                            "id": doc_id,
-                            "authors": [author],
+                        # Store document data with headers for later processing
+                        doc_data = {
+                            "doc_id": doc_id,
+                            "author": author,
                             "title": title,
                             "body": body_text,
-                            "body_type": "raw",
-                            "created_at": date,
-                            "domain": CUSTOM_URL,
-                            "thread_url": main_url,
+                            "date": date,
                             "url": f"{main_url}{href}",
-                            # Threading fields
-                            "thread_depth": thread_depth,
-                            "thread_position": thread_position,
-                            "parent_id": parent_id,
-                            "reply_to_author": reply_to_author,
-                            "anchor_id": anchor_id
+                            "anchor_id": anchor_id,
+                            "email_headers": email_headers,
+                            "chronological_index": index
                         }
-
-                        if index == 0:
-                            document['type'] = "original_post"
-                        else:
-                            document['type'] = "reply"
                         
-                        # Log the final document with threading data
-                        logger.info(f"📝 THREADING DOC: Created document {doc_id}")
-                        logger.info(f"    📊 Threading Data: depth={thread_depth}, position={thread_position}")
-                        logger.info(f"    🔗 Parent: {parent_id} (reply_to: {reply_to_author})")
-                        logger.info(f"    🏷️ Type: {document['type']}, Author: {author}")
-                            
-                        doc.append(document)
+                        documents_data.append(doc_data)
+                        
+                        # Index by message ID if available
+                        if 'message_id' in email_headers:
+                            message_id_to_doc[email_headers['message_id']] = doc_data
+                            logger.info(f"📧 HEADERS: Indexed document by Message-ID: {email_headers['message_id']}")
                         
                     except Exception as e:
-                        logger.info(f"{e} \nORIGINAL_URL: {main_url}\n{traceback.format_exc()}")
+                        logger.error(f"Phase 1 error: {e}")
                         continue
+                
+                # Phase 2: Build proper threading relationships using email headers
+                logger.info(f"🔄 THREADING: Phase 2 - Building thread relationships...")
+                
+                # First pass: establish parent-child relationships
+                for doc_data in documents_data:
+                    thread_depth = 0
+                    parent_doc = None
+                    reply_to_author = None
+                    
+                    headers = doc_data['email_headers']
+                    
+                    # Check if this is a reply based on In-Reply-To header
+                    if 'in_reply_to' in headers:
+                        parent_message_id = headers['in_reply_to']
+                        if parent_message_id in message_id_to_doc:
+                            parent_doc = message_id_to_doc[parent_message_id]
+                            reply_to_author = parent_doc['author']
+                            # Calculate depth from parent
+                            thread_depth = parent_doc.get('thread_depth', 0) + 1
+                            logger.success(f"✅ THREADING: Found parent via In-Reply-To! '{doc_data['author']}' -> '{reply_to_author}' (depth: {thread_depth})")
+                        else:
+                            # Try to find parent by References header
+                            if 'references' in headers and headers['references']:
+                                # Look for the most recent reference that exists
+                                for ref_id in reversed(headers['references']):
+                                    if ref_id in message_id_to_doc:
+                                        parent_doc = message_id_to_doc[ref_id]
+                                        reply_to_author = parent_doc['author']
+                                        thread_depth = parent_doc.get('thread_depth', 0) + 1
+                                        logger.success(f"✅ THREADING: Found parent via References! '{doc_data['author']}' -> '{reply_to_author}' (depth: {thread_depth})")
+                                        break
+                    
+                    # If no email header match, try thread structure matching as fallback
+                    if not parent_doc and thread_structure:
+                        logger.info(f"🔍 THREADING: Falling back to thread structure matching for '{doc_data['author']}'")
+                        
+                        # Find matching thread info by author
+                        for thread_item in thread_structure:
+                            thread_author = thread_item['author'].lower().strip()
+                            doc_author = doc_data['author'].lower().strip()
+                            
+                            # Match by author name (exact or partial)
+                            if (thread_author == doc_author or 
+                                thread_author in doc_author or 
+                                doc_author in thread_author):
+                                
+                                thread_depth = thread_item.get('depth', 0)
+                                
+                                # Find parent in thread structure by looking for previously processed docs
+                                if thread_depth > 0:
+                                    current_index = next((i for i, info in enumerate(thread_structure) if info == thread_item), -1)
+                                    if current_index > 0:
+                                        target_depth = thread_depth - 1
+                                        for i in range(current_index - 1, -1, -1):
+                                            prev_info = thread_structure[i]
+                                            if prev_info['depth'] == target_depth:
+                                                # Find this author in our documents
+                                                for potential_parent in documents_data:
+                                                    if potential_parent['author'].lower().strip() == prev_info['author'].lower().strip():
+                                                        parent_doc = potential_parent
+                                                        reply_to_author = prev_info['author']
+                                                        logger.success(f"✅ THREADING: Found parent via thread structure! '{doc_data['author']}' -> '{reply_to_author}'")
+                                                        break
+                                                if parent_doc:
+                                                    break
+                                break
+                    
+                    # Store threading info
+                    doc_data.update({
+                        'thread_depth': thread_depth,
+                        'reply_to_author': reply_to_author,
+                        'parent_doc': parent_doc
+                    })
+                
+                # Second pass: Build proper thread hierarchy and assign positions
+                logger.info("🔄 THREADING: Building thread hierarchy...")
+                
+                # Create thread hierarchy based on proper threading relationships
+                def build_thread_hierarchy():
+                    hierarchy = []
+                    processed = set()
+                    
+                    # Start with root messages (thread_depth == 0)
+                    root_messages = [doc for doc in documents_data if doc.get('thread_depth', 0) == 0]
+                    
+                    # Sort root messages by chronological order
+                    root_messages.sort(key=lambda x: x['date'])
+                    
+                    def add_children_recursively(parent_doc, current_position):
+                        # Add parent to hierarchy
+                        parent_doc['thread_position'] = len(hierarchy)
+                        hierarchy.append(parent_doc)
+                        processed.add(parent_doc['doc_id'])
+                        
+                        # Find and add children
+                        children = [doc for doc in documents_data 
+                                  if doc.get('parent_doc') == parent_doc and doc['doc_id'] not in processed]
+                        
+                        # Sort children by chronological order
+                        children.sort(key=lambda x: x['date'])
+                        
+                        for child in children:
+                            add_children_recursively(child, len(hierarchy))
+                    
+                    # Process each root message and its children
+                    for root in root_messages:
+                        if root['doc_id'] not in processed:
+                            add_children_recursively(root, len(hierarchy))
+                    
+                    # Add any remaining unprocessed documents
+                    remaining = [doc for doc in documents_data if doc['doc_id'] not in processed]
+                    for doc in remaining:
+                        doc['thread_position'] = len(hierarchy)
+                        hierarchy.append(doc)
+                        logger.warning(f"⚠️ THREADING: Added orphaned document: {doc['author']}")
+                    
+                    return hierarchy
+                
+                thread_hierarchy = build_thread_hierarchy()
+                
+                logger.success(f"✅ THREADING: Built hierarchy with {len(thread_hierarchy)} documents")
+                for i, doc in enumerate(thread_hierarchy[:10]):  # Show first 10
+                    indent = "  " * doc.get('thread_depth', 0)
+                    logger.info(f"    {indent}#{doc['thread_position']}: {doc['author']} (depth: {doc.get('thread_depth', 0)})")
+                if len(thread_hierarchy) > 10:
+                    logger.info(f"    ... and {len(thread_hierarchy) - 10} more messages")
+                
+                # Phase 3: Create final documents with proper threading
+                logger.info(f"🔄 THREADING: Phase 3 - Creating final documents...")
+                
+                for doc_data in thread_hierarchy:
+                    year, month = get_year_month(doc_data['date'])
+                    
+                    parent_id = None
+                    if doc_data['parent_doc']:
+                        parent_id = doc_data['parent_doc']['doc_id']
+                    
+                    document = {
+                        "id": doc_data['doc_id'],
+                        "authors": [doc_data['author']],
+                        "title": doc_data['title'],
+                        "body": doc_data['body'],
+                        "body_type": "raw",
+                        "created_at": doc_data['date'],
+                        "domain": CUSTOM_URL,
+                        "thread_url": main_url,
+                        "url": doc_data['url'],
+                        # Threading fields (now properly computed)
+                        "thread_depth": doc_data['thread_depth'],
+                        "thread_position": doc_data['thread_position'],
+                        "parent_id": parent_id,
+                        "reply_to_author": doc_data['reply_to_author'],
+                        "anchor_id": doc_data['anchor_id'],
+                        # Email headers for debugging
+                        "message_id": doc_data['email_headers'].get('message_id'),
+                        "in_reply_to": doc_data['email_headers'].get('in_reply_to'),
+                        "references": doc_data['email_headers'].get('references', [])
+                    }
+
+                    # Determine document type based on thread depth, not chronological order
+                    if doc_data['thread_depth'] == 0:
+                        document['type'] = "original_post"
+                    else:
+                        document['type'] = "reply"
+                    
+                    # Log the final document with threading data
+                    logger.success(f"✅ THREADING DOC: Created document {doc_data['doc_id']}")
+                    logger.success(f"    📊 Threading Data: depth={doc_data['thread_depth']}, position={doc_data['thread_position']}")
+                    logger.success(f"    🔗 Parent: {parent_id} (reply_to: {doc_data['reply_to_author']})")
+                    logger.success(f"    🏷️ Type: {document['type']}, Author: {doc_data['author']}")
+                    logger.success(f"    📧 Headers: Message-ID={document.get('message_id', 'None')}, In-Reply-To={document.get('in_reply_to', 'None')}")
+                        
+                    doc.append(document)
     return doc
 
 
