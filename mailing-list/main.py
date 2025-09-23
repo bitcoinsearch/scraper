@@ -173,10 +173,9 @@ def _parse_thread_lines(lines, section_type):
         if "-- links below jump to the message on this page --" in line:
             continue
         
-        # Match pattern like: "2025-08-31 22:25 ` Ben Westgate' via Bitcoin Development Mailing List"
-        # Look for date pattern
-        date_pattern = r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})'
-        
+        # Match pattern: "2025-07-13 23:19 ` [bitcoindev] " Tadge Dryja"
+        # Look for date pattern first (handle both single and double spaces)
+        date_pattern = r'(\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2})'
         date_match = re.search(date_pattern, line)
         
         if date_match:
@@ -184,58 +183,85 @@ def _parse_thread_lines(lines, section_type):
             after_date_pos = date_match.end()
             after_date = line[after_date_pos:]
             
-            # Check for backtick to determine if this is a reply or original post
-            space_before_backtick = re.search(r'^(\s*)`', after_date)
+            # Count leading spaces to determine depth
+            # Pattern: " ` " means depth 1, "   ` " means depth 2, etc.
+            space_match = re.search(r'^(\s*)', after_date)
+            leading_spaces = len(space_match.group(1)) if space_match else 0
             
-            if space_before_backtick:
-                # This is a reply - count spaces to determine thread depth
-                spaces = len(space_before_backtick.group(1))
-                if spaces == 0:
-                    thread_depth = 0  # Original post  
-                elif spaces == 1:
-                    thread_depth = 1  # Direct reply
-                elif spaces == 2:
-                    thread_depth = 2  # Reply to reply
-                elif spaces >= 4:
-                    # For 4+ spaces, assume every 2 additional spaces = 1 more depth level
-                    thread_depth = 2 + ((spaces - 2) // 2)
+            # Check if there's a backtick (reply indicator)
+            has_backtick = '`' in after_date
+            
+            if has_backtick:
+                # This is a reply - calculate depth based on spaces before backtick
+                # Each additional 2 spaces = 1 more depth level
+                if leading_spaces <= 1:
+                    thread_depth = 1  # Direct reply (` or  `)
+                elif leading_spaces <= 3:
+                    thread_depth = 2  # Two spaces before backtick
+                elif leading_spaces <= 5:
+                    thread_depth = 3  # Four spaces before backtick
+                elif leading_spaces <= 7:
+                    thread_depth = 4  # Six spaces before backtick
+                elif leading_spaces <= 9:
+                    thread_depth = 5  # Eight spaces before backtick
                 else:
-                    thread_depth = 1  # Default fallback
-                
-                # Extract author (everything after the ` character)
-                author_part = after_date[space_before_backtick.end():].strip()
+                    # For deeper nesting: calculate more precisely
+                    thread_depth = (leading_spaces + 1) // 2
             else:
-                # No backtick means this is likely the original post
-                # For loose matches, treat as separate threads (depth 0)
-                thread_depth = 0 if section_type == "loose" else 0
-                # Extract author from the remaining text
-                author_part = after_date.strip()
-                
-            # Remove any HTML tags and get clean author name
-            author = re.sub(r'<[^>]+>', '', author_part).strip()
-            # Remove quotes around author names and clean up
-            author = author.strip("'\"").strip()
+                # No backtick means original post
+                thread_depth = 0
+            
+            # Extract author name - look for the last part after removing HTML/links
+            # Remove HTML anchor tags first
+            clean_line = re.sub(r'<a[^>]*>(.*?)</a>', r'\1', after_date)
+            # Remove remaining HTML
+            clean_line = re.sub(r'<[^>]+>', '', clean_line)
+            # Decode HTML entities
+            clean_line = clean_line.replace('&#39;', "'").replace('&#34;', '"').replace('&lt;', '<').replace('&gt;', '>')
+            
+            # Extract author - look for text after the last "> " or after backtick
+            if '>' in clean_line:
+                # Author is after the last ">"
+                author_part = clean_line.split('>')[-1].strip()
+            elif '`' in clean_line:
+                # Author is after the backtick
+                author_part = clean_line.split('`')[-1].strip()
+            else:
+                # Just take the text part
+                author_part = clean_line.strip()
+            
+            # Clean up the author name
+            author = author_part.strip()
+            # Remove subject indicators
+            author = re.sub(r'^\[bitcoindev\]\s*["\s]*', '', author)
+            # Remove quotes and extra whitespace
+            author = author.strip('\'"` \t')
             # Remove common suffixes
             author = re.sub(r'\s+via\s+Bitcoin\s+Development\s+Mailing\s+List.*$', '', author, re.IGNORECASE).strip()
             
-            if author:  # Only process if we found a valid author
+            # Extract anchor ID from the original line if present
+            anchor_match = re.search(r'href="#([^"]+)"', line)
+            if anchor_match:
+                anchor_id = anchor_match.group(1)
+            else:
+                # Create synthetic anchor based on timestamp and author
+                import hashlib
+                anchor_content = f"{date_match.group(1)}-{author}-{section_type}"
+                anchor_id = hashlib.md5(anchor_content.encode()).hexdigest()[:32]
+            
+            if author and len(author) > 1:  # Only process if we found a valid author
                 timestamp = date_match.group(1)
                 
-                # Since this HTML doesn't have anchor IDs in the thread overview, 
-                # we'll create a synthetic anchor based on timestamp and author
-                import hashlib
-                anchor_content = f"{timestamp}-{author}-{section_type}"
-                anchor_id = hashlib.md5(anchor_content.encode()).hexdigest()[:32]
-                
-                logger.info(f"📧 THREADING ({section_type}): Found message - Author: '{author}', Depth: {thread_depth}, Time: {timestamp}, Spaces: {spaces if space_before_backtick else 0}")
+                logger.info(f"📧 THREADING ({section_type}): Found message - Author: '{author}', Depth: {thread_depth}, Time: {timestamp}, Spaces: {leading_spaces}, Backtick: {has_backtick}")
                 
                 thread_structure.append({
                     'timestamp': timestamp,
-                    'anchor_id': f"#{anchor_id}",
+                    'anchor_id': anchor_id,
                     'author': author,
                     'depth': thread_depth,
                     'line': line.strip(),
-                    'section_type': section_type
+                    'section_type': section_type,
+                    'leading_spaces': leading_spaces
                 })
             else:
                 logger.info(f"📧 THREADING ({section_type}): Skipping line (no author found): {line.strip()}")
@@ -286,20 +312,39 @@ def get_author(content_soup):
             author = author_match.group(1).strip()
             # Clean up common artifacts
             author = author.replace("via Bitcoin Development Mailing List", "").strip()
+            # Handle special characters
+            author = author.replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">")
             logger.info(f"📧 AUTHOR: Extracted author from header: '{author}'")
             return author
     
-    # Fallback: try the old method but with better filtering
+    # Fallback: try the From: line method
     text = content_soup.get_text()
     lines = text.split('\n')
-    for line in lines[:10]:  # Only check first 10 lines for headers
+    for line in lines[:15]:  # Check more lines for headers
         if line.startswith('From:') and '@' in line and 'UTC' in line:
+            # Pattern: "From: Jameson Lopp @ 2025-07-12 21:36 UTC"
             from_match = re.search(r'From:\s*(.+?)\s+@\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+UTC', line)
             if from_match:
                 author = from_match.group(1).strip()
                 author = author.replace("'", "").replace("via Bitcoin Development Mailing List", "").strip()
+                # Handle special characters
+                author = author.replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">")
                 logger.info(f"📧 AUTHOR: Extracted author from From line: '{author}'")
                 return author
+    
+    # Enhanced fallback: look for any line with author pattern
+    for line in lines[:20]:
+        # Look for patterns like: "2025-07-14  2:07   ` Antoine Riard"
+        author_pattern = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+[`\s]*(.+?)(?:\s|$)', line)
+        if author_pattern:
+            potential_author = author_pattern.group(1).strip()
+            # Skip if it looks like a subject line or other metadata
+            if not any(skip in potential_author.lower() for skip in ['[bitcoindev]', 'thread overview', 'mbox.gz', 'atom feed', '`']):
+                if len(potential_author) > 3 and not potential_author.startswith('http'):
+                    author = potential_author.replace("via Bitcoin Development Mailing List", "").strip()
+                    author = author.replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">")
+                    logger.info(f"📧 AUTHOR: Extracted author from fallback pattern: '{author}'")
+                    return author
     
     logger.warning(f"⚠️ AUTHOR: Could not extract author from content")
     return "Unknown Author"
@@ -386,38 +431,58 @@ def parse_dumps():
 
                         doc_id = f"mailing-list-{year}-{month:02d}-{anchor_id}"
                         
-                        # Get threading information by matching author and timestamp
+                        # Get threading information by matching with thread structure
                         thread_info = None
                         thread_depth = 0
                         
-                        # Try to match this document with thread structure by author
+                        # Parse document timestamp for matching
                         parsed_date = datetime.fromisoformat(date.replace('Z', '+00:00'))
                         doc_timestamp = parsed_date.strftime('%Y-%m-%d %H:%M')
                         
-                        logger.info(f"📧 THREADING DOC: Processing {anchor_id} - Author: '{author}', Looking for timestamp: {doc_timestamp}")
+                        logger.info(f"📧 THREADING DOC: Processing {anchor_id} - Author: '{author}', Timestamp: {doc_timestamp}")
                         
-                        # Find matching thread info by author (relaxed timestamp matching)
+                        # Find matching thread info by anchor_id first (most reliable)
                         for thread_item in thread_structure:
-                            # Match by author name (case insensitive, flexible matching)
-                            thread_author = thread_item['author'].lower().strip()
-                            doc_author = author.lower().strip()
-                            
-                            # Try exact match first
-                            if thread_author == doc_author:
+                            thread_anchor = thread_item['anchor_id']
+                            # Try exact anchor match
+                            if thread_anchor == anchor_id:
                                 thread_info = thread_item
                                 thread_depth = thread_item.get('depth', 0)
-                                logger.success(f"✅ THREADING DOC: Exact author match! '{author}' -> depth {thread_depth}")
+                                logger.success(f"✅ THREADING DOC: Exact anchor match! {anchor_id} -> depth {thread_depth}")
                                 break
-                            # Try partial match (in case of name variations)
-                            elif thread_author in doc_author or doc_author in thread_author:
-                                thread_info = thread_item
-                                thread_depth = thread_item.get('depth', 0)
-                                logger.success(f"✅ THREADING DOC: Partial author match! '{author}' ≈ '{thread_item['author']}' -> depth {thread_depth}")
-                                break
+                        
+                        # Fallback: match by author and timestamp
+                        if not thread_info:
+                            for thread_item in thread_structure:
+                                thread_author = thread_item['author'].lower().strip()
+                                doc_author = author.lower().strip()
+                                thread_timestamp = thread_item['timestamp']
+                                
+                                # Try exact author + timestamp match
+                                if thread_author == doc_author and thread_timestamp == doc_timestamp:
+                                    thread_info = thread_item
+                                    thread_depth = thread_item.get('depth', 0)
+                                    logger.success(f"✅ THREADING DOC: Author+time match! '{author}' at {doc_timestamp} -> depth {thread_depth}")
+                                    break
+                                # Try author match with close timestamp (within 1 minute)
+                                elif thread_author == doc_author:
+                                    try:
+                                        thread_dt = datetime.strptime(thread_timestamp, '%Y-%m-%d %H:%M')
+                                        doc_dt = datetime.strptime(doc_timestamp, '%Y-%m-%d %H:%M')
+                                        if abs((thread_dt - doc_dt).total_seconds()) <= 60:  # Within 1 minute
+                                            thread_info = thread_item
+                                            thread_depth = thread_item.get('depth', 0)
+                                            logger.success(f"✅ THREADING DOC: Author match with close time! '{author}' -> depth {thread_depth}")
+                                            break
+                                    except:
+                                        pass
                         
                         if not thread_info:
                             logger.warning(f"⚠️ THREADING DOC: No thread match found for '{author}' at {doc_timestamp}")
-                            logger.info(f"📋 THREADING DOC: Available thread authors: {[t['author'] for t in thread_structure]}")
+                            available_authors = [f"{t['author']} ({t['timestamp']})" for t in thread_structure[:5]]
+                            logger.info(f"📋 THREADING DOC: Available thread authors: {available_authors}")
+                        
+                        # Note: doc_id_map could be used for parent resolution if needed in the future
                         
                         # Determine parent relationship
                         parent_id = None
@@ -437,11 +502,11 @@ def parse_dumps():
                                     prev_info = thread_structure[i]
                                     logger.info(f"    Checking previous message {i}: depth={prev_info['depth']}, author='{prev_info['author']}'")
                                     if prev_info['depth'] == target_depth:
-                                        # We'll need to find the actual anchor_id for this parent
-                                        # For now, create a placeholder that will be resolved later
-                                        parent_id = f"mailing-list-{year}-{month:02d}-PARENT-{i}"
+                                        # Create parent document ID based on the parent's anchor
+                                        parent_anchor = prev_info['anchor_id']
+                                        parent_id = f"mailing-list-{year}-{month:02d}-{parent_anchor}"
                                         reply_to_author = prev_info['author']
-                                        logger.success(f"✅ THREADING DOC: Found parent! '{author}' -> '{reply_to_author}' (parent_index: {i})")
+                                        logger.success(f"✅ THREADING DOC: Found parent! '{author}' -> '{reply_to_author}' (parent_anchor: {parent_anchor})")
                                         break
                                 
                                 if not parent_id:
