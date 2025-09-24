@@ -398,6 +398,15 @@ def parse_dumps():
                         if year < 2024 or (year == 2024 and month == 1):
                             continue
 
+                        # Add batch filtering by year/month if specified
+                        BATCH_YEAR = int(os.getenv('BATCH_YEAR', '0'))
+                        BATCH_MONTH = int(os.getenv('BATCH_MONTH', '0'))
+                        
+                        if BATCH_YEAR > 0 and year != BATCH_YEAR:
+                            continue  # Skip documents not in target year
+                        if BATCH_MONTH > 0 and month != BATCH_MONTH:
+                            continue  # Skip documents not in target month
+
                         href = url.get('href')
                         tag_id = url.get('id')
                         anchor_id = href.replace('#', '')
@@ -535,23 +544,29 @@ def parse_dumps():
 
 
 def index_documents(docs):
-    # Check if this is one of our test threads (Quantum Recovery or Post Quantum Migration)
-    is_quantum_recovery_thread = any("Against-Allowing-Quantum-Recovery-of-Bitcoin" in doc.get('title', '') or 
-                                    "Against Allowing Quantum Recovery" in doc.get('title', '') for doc in docs)
+    # Check if batch mode is enabled via environment variable
+    BATCH_MODE = os.getenv('BATCH_MODE', 'false').lower() == 'true'
     
-    is_post_quantum_thread = any("A Post Quantum Migration Proposal" in doc.get('title', '') or
-                                "Post Quantum Migration" in doc.get('title', '') for doc in docs)
-    
-    is_test_thread = is_quantum_recovery_thread or is_post_quantum_thread
-    
-    if is_test_thread:
-        if is_quantum_recovery_thread:
-            logger.success("🎯 Processing Quantum Recovery thread")
-        if is_post_quantum_thread:
-            logger.success("🎯 Processing Post Quantum Migration thread")
+    if not BATCH_MODE:
+        # Original test mode logic - only process quantum threads
+        is_quantum_recovery_thread = any("Against-Allowing-Quantum-Recovery-of-Bitcoin" in doc.get('title', '') or 
+                                        "Against Allowing Quantum Recovery" in doc.get('title', '') for doc in docs)
+        
+        is_post_quantum_thread = any("A Post Quantum Migration Proposal" in doc.get('title', '') or
+                                    "Post Quantum Migration" in doc.get('title', '') for doc in docs)
+        
+        is_test_thread = is_quantum_recovery_thread or is_post_quantum_thread
+        
+        if is_test_thread:
+            if is_quantum_recovery_thread:
+                logger.success("🎯 Processing Quantum Recovery thread")
+            if is_post_quantum_thread:
+                logger.success("🎯 Processing Post Quantum Migration thread")
+        else:
+            logger.warning("🚫 Skipping non-test thread (set BATCH_MODE=true for full processing)")
+            return  # Skip processing entirely for non-test threads
     else:
-        logger.warning("🚫 Skipping non-test thread")
-        return  # Skip processing entirely for non-test threads
+        logger.success("🔥 BATCH MODE: Processing all threads - threading updates enabled!")
     
     new_docs = 0
     existing_docs = 0
@@ -610,7 +625,14 @@ def index_documents(docs):
 
 if __name__ == "__main__":
     logger.info("🚀 Starting mailing list scraper with threading support")
-    logger.warning("⚠️ TEST MODE: Only processing Quantum threads for safety")
+    
+    BATCH_MODE = os.getenv('BATCH_MODE', 'false').lower() == 'true'
+    if not BATCH_MODE:
+        logger.warning("⚠️ TEST MODE: Only processing Quantum threads for safety")
+    else:
+        BATCH_YEAR = os.getenv('BATCH_YEAR', 'all')
+        BATCH_MONTH = os.getenv('BATCH_MONTH', 'all')
+        logger.success(f"🔥 BATCH MODE: Processing year={BATCH_YEAR}, month={BATCH_MONTH}")
     
     if not os.path.exists(DOWNLOAD_PATH):
         os.makedirs(DOWNLOAD_PATH)

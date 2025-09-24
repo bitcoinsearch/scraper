@@ -3,6 +3,23 @@ on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      batch_mode:
+        description: 'Enable batch processing (processes all threads, not just test)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+        - 'false'
+        - 'true'
+      batch_year:
+        description: 'Year to process (0=all years, specific year like 2024)'
+        required: false
+        default: '0'
+      batch_month:
+        description: 'Month to process (0=all months, 1-12=specific month)'
+        required: false
+        default: '0'
 jobs:
   fetch:
     runs-on: ubuntu-latest
@@ -27,3 +44,6 @@ jobs:
             USERNAME: ${{ secrets.USERNAME }}
             INDEX: ${{ secrets.INDEX }}
             DATA_DIR: /tmp/data
+            BATCH_MODE: ${{ github.event.inputs.batch_mode || 'false' }}
+            BATCH_YEAR: ${{ github.event.inputs.batch_year || '0' }}
+            BATCH_MONTH: ${{ github.event.inputs.batch_month || '0' }}
