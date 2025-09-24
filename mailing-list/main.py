@@ -65,8 +65,24 @@ def download_dumps(path, page_visited_count, max_page_count=1):
                 year = int(date[0])
                 mon = int(date[1])
                 month = month_dict.get(int(date[1]))
-                if year < 2024 or (year == 2024 and mon == 1):
-                    return
+                # Check batch mode settings for download filtering
+                BATCH_MODE = os.getenv('BATCH_MODE', 'false').lower() == 'true'
+                BATCH_YEAR = int(os.getenv('BATCH_YEAR', '0'))
+                
+                if not BATCH_MODE:
+                    # Original behavior: only download Feb 2024+
+                    if year < 2024 or (year == 2024 and mon == 1):
+                        return
+                else:
+                    # Batch mode: download based on batch year settings
+                    if BATCH_YEAR > 0:
+                        # Download only the specified year and later
+                        if year < BATCH_YEAR:
+                            return
+                    else:
+                        # Default batch mode: download from 2023+ 
+                        if year < 2023:
+                            return
 
                 href = tag.get('href')
                 file_name = f"{year}-{month}-{href.strip().split('/')[0]}.html"
