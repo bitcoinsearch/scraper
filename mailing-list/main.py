@@ -14,15 +14,18 @@ from loguru import logger
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.elasticsearch_utils import document_view, document_add
+import requests
+import json
 
 load_dotenv()
 
 from config.conf import DATA_DIR, INDEX_NAME
 
 # Migration configuration
-MIGRATION_MODE = os.getenv('MIGRATION_MODE', 'test')  # test, year, full, dry_run
+MIGRATION_MODE = os.getenv('MIGRATION_MODE', 'test')  # test, year, full, dry_run, historical
 MIGRATION_YEAR = int(os.getenv('MIGRATION_YEAR', 2025))  # Which year to process
 DRY_RUN = os.getenv('DRY_RUN', 'false').lower() == 'true'
+HISTORICAL_MODE = os.getenv('HISTORICAL_MODE', 'false').lower() == 'true'  # Process existing ES data
 
 DOWNLOAD_PATH = os.path.join(DATA_DIR, "mailing-list/bitcoin-dev")
 
@@ -42,6 +45,9 @@ def should_process_date(year, month):
         return year >= 2024
     elif MIGRATION_MODE == 'year':
         # Process specific year only
+        return year == MIGRATION_YEAR
+    elif MIGRATION_MODE == 'historical':
+        # Process specific year from existing ES data
         return year == MIGRATION_YEAR
     elif MIGRATION_MODE == 'full':
         # Process all historical data
@@ -68,6 +74,133 @@ def should_process_thread(title):
     else:
         # Process all threads for other modes
         return True
+
+
+def fetch_existing_documents_from_es(year):
+    """Fetch existing documents from Elasticsearch for a specific year"""
+    logger.info(f"📥 Fetching existing documents from Elasticsearch for year {year}")
+    
+    # ES connection details from environment
+    es_url = os.getenv('ES_URL')
+    es_token = os.getenv('ES_TOKEN') 
+    index_name = INDEX_NAME
+    
+    if not es_url or not es_token:
+        logger.error("❌ ES_URL or ES_TOKEN not found in environment")
+        return []
+    
+    headers = {
+        'Authorization': f'ApiKey {es_token}',
+        'Content-Type': 'application/json'
+    }
+    
+    # Query to get documents from specific year that DON'T have threading data yet
+    query = {
+        "size": 1000,  # Process in batches
+        "query": {
+            "bool": {
+                "must": [
+                    {
+                        "term": {
+                            "domain.keyword": "https://lists.linuxfoundation.org/pipermail/bitcoin-dev/"
+                        }
+                    },
+                    {
+                        "range": {
+                            "created_at": {
+                                "gte": f"{year}-01-01",
+                                "lt": f"{year + 1}-01-01"
+                            }
+                        }
+                    }
+                ],
+                "must_not": [
+                    {
+                        "exists": {
+                            "field": "thread_depth"
+                        }
+                    }
+                ]
+            }
+        },
+        "_source": ["id", "title", "body", "created_at", "authors", "url"],
+        "sort": [{"created_at": "asc"}]
+    }
+    
+    try:
+        response = requests.post(
+            f"{es_url}/{index_name}/_search",
+            headers=headers,
+            data=json.dumps(query)
+        )
+        
+        if response.status_code != 200:
+            logger.error(f"❌ ES query failed: {response.status_code} - {response.text}")
+            return []
+        
+        result = response.json()
+        documents = result.get('hits', {}).get('hits', [])
+        
+        logger.success(f"✅ Found {len(documents)} documents from {year} needing threading updates")
+        
+        return documents
+        
+    except Exception as e:
+        logger.error(f"❌ Error fetching from Elasticsearch: {e}")
+        return []
+
+
+def process_historical_documents():
+    """Process existing documents from Elasticsearch and add threading data"""
+    logger.info(f"🔄 Processing historical documents for year {MIGRATION_YEAR}")
+    
+    # Fetch existing documents from ES
+    es_documents = fetch_existing_documents_from_es(MIGRATION_YEAR)
+    
+    if not es_documents:
+        logger.warning(f"⚠️ No documents found for year {MIGRATION_YEAR} that need threading updates")
+        return []
+    
+    processed_docs = []
+    
+    for es_doc in es_documents:
+        try:
+            source = es_doc['_source']
+            doc_id = source['id']
+            
+            # For historical mode, we simulate threading based on existing data
+            # This is a simplified version - you may want to enhance this based on your needs
+            document = {
+                "id": doc_id,
+                "authors": source.get('authors', []),
+                "title": source.get('title', ''),
+                "body": source.get('body', ''),
+                "body_type": "raw",
+                "created_at": source.get('created_at'),
+                "domain": "https://lists.linuxfoundation.org/pipermail/bitcoin-dev/",
+                "url": source.get('url', ''),
+                # Default threading fields for historical data
+                "thread_depth": 0,  # Assume root level for now
+                "thread_position": 0,
+                "parent_id": None,
+                "reply_to_author": None,
+                "anchor_id": doc_id.split('-')[-1] if '-' in doc_id else doc_id
+            }
+            
+            # You could enhance this to detect reply relationships based on:
+            # - Subject line patterns (Re:, [Re:])
+            # - Email threading headers in body
+            # - Timestamp proximity
+            # - Author reply patterns
+            
+            processed_docs.append(document)
+            
+        except Exception as e:
+            logger.error(f"❌ Error processing document {es_doc.get('_id', 'unknown')}: {e}")
+            continue
+    
+    logger.success(f"✅ Processed {len(processed_docs)} historical documents")
+    return processed_docs
 
 
 def save_web_page(link, file_name):
@@ -707,10 +840,12 @@ def index_documents(docs):
 if __name__ == "__main__":
     logger.info("🚀 Starting mailing list scraper with threading support")
     logger.info(f"🎯 Migration mode: {MIGRATION_MODE}")
-    if MIGRATION_MODE == 'year':
+    if MIGRATION_MODE in ['year', 'historical']:
         logger.info(f"📅 Processing year: {MIGRATION_YEAR}")
     if DRY_RUN:
         logger.warning("🔍 DRY RUN MODE: No actual changes will be made")
+    if HISTORICAL_MODE or MIGRATION_MODE == 'historical':
+        logger.info("📚 HISTORICAL MODE: Processing existing Elasticsearch data")
     
     if MIGRATION_MODE == 'test':
         logger.warning("⚠️ TEST MODE: Only processing Quantum threads for safety")
@@ -719,10 +854,20 @@ if __name__ == "__main__":
     logger.debug(f"📋 Environment: MIGRATION_MODE={os.getenv('MIGRATION_MODE', 'not set')}")
     logger.debug(f"📋 Environment: MIGRATION_YEAR={os.getenv('MIGRATION_YEAR', 'not set')}")
     logger.debug(f"📋 Environment: DRY_RUN={os.getenv('DRY_RUN', 'not set')}")
+    logger.debug(f"📋 Environment: HISTORICAL_MODE={os.getenv('HISTORICAL_MODE', 'not set')}")
     
-    if not os.path.exists(DOWNLOAD_PATH):
-        os.makedirs(DOWNLOAD_PATH)
+    # Choose processing mode
+    if HISTORICAL_MODE or MIGRATION_MODE == 'historical':
+        # Process existing Elasticsearch data
+        logger.info("📥 Processing existing documents from Elasticsearch")
+        documents = process_historical_documents()
+    else:
+        # Traditional web scraping mode
+        if not os.path.exists(DOWNLOAD_PATH):
+            os.makedirs(DOWNLOAD_PATH)
 
-    download_dumps(ORIGINAL_URL, page_visited_count=0)
-    documents = parse_dumps()
+        download_dumps(ORIGINAL_URL, page_visited_count=0)
+        documents = parse_dumps()
+    
+    # Index the documents (same for both modes)
     index_documents(documents)
