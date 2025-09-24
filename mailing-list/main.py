@@ -87,11 +87,11 @@ def download_dumps(path, page_visited_count, max_page_count=1):
                 else:
                     # Batch mode: download based on batch year settings
                     if BATCH_YEAR > 0:
-                        # Skip files older than specified year, but continue pagination
-                        if year < BATCH_YEAR:
-                            continue  # Skip this file, continue with others
+                        # Only download files from the specified year
+                        if year != BATCH_YEAR:
+                            continue  # Skip files not from target year
                     else:
-                        # Default batch mode: skip files older than 2023
+                        # Default batch mode: download from 2023+
                         if year < 2023:
                             continue  # Skip this file, continue with others
 
