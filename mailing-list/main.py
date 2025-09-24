@@ -48,6 +48,11 @@ def download_dumps(path, page_visited_count, max_page_count=1):
     if page_visited_count > max_page_count: return
     page_visited_count += 1
     logger.info(f"Page {page_visited_count}: {path}")
+    
+    # Check batch mode settings for pagination control
+    BATCH_MODE = os.getenv('BATCH_MODE', 'false').lower() == 'true'
+    BATCH_YEAR = int(os.getenv('BATCH_YEAR', '0'))
+    
     with urllib.request.urlopen(f"{path}") as f:
         soup = BeautifulSoup(f, "html.parser")
         pre_tags = soup.find_all('pre')
@@ -55,6 +60,9 @@ def download_dumps(path, page_visited_count, max_page_count=1):
             return
 
         next_page_link = f"{ORIGINAL_URL}{soup.find('a', {'rel': 'next'}).get('href')}"
+        
+        found_target_data = False
+        page_too_old = True
         for tag in pre_tags[1].find_all('a'):
             try:
                 date = tag.next_sibling.strip()[:7]
@@ -65,25 +73,29 @@ def download_dumps(path, page_visited_count, max_page_count=1):
                 year = int(date[0])
                 mon = int(date[1])
                 month = month_dict.get(int(date[1]))
-                # Check batch mode settings for download filtering
-                BATCH_MODE = os.getenv('BATCH_MODE', 'false').lower() == 'true'
-                BATCH_YEAR = int(os.getenv('BATCH_YEAR', '0'))
+                
+                # Track if we found data in our target range
+                target_year_min = BATCH_YEAR if BATCH_MODE and BATCH_YEAR > 0 else (2024 if not BATCH_MODE else 2023)
+                
+                if year >= target_year_min:
+                    page_too_old = False  # This page has data we want
                 
                 if not BATCH_MODE:
                     # Original behavior: only download Feb 2024+
                     if year < 2024 or (year == 2024 and mon == 1):
-                        return
+                        continue  # Skip this file, continue with others
                 else:
                     # Batch mode: download based on batch year settings
                     if BATCH_YEAR > 0:
-                        # Download only the specified year and later
+                        # Skip files older than specified year, but continue pagination
                         if year < BATCH_YEAR:
-                            return
+                            continue  # Skip this file, continue with others
                     else:
-                        # Default batch mode: download from 2023+ 
+                        # Default batch mode: skip files older than 2023
                         if year < 2023:
-                            return
+                            continue  # Skip this file, continue with others
 
+                found_target_data = True
                 href = tag.get('href')
                 file_name = f"{year}-{month}-{href.strip().split('/')[0]}.html"
 
@@ -94,6 +106,12 @@ def download_dumps(path, page_visited_count, max_page_count=1):
                 logger.error(tag)
                 continue
         logger.info('----------------------------------------------------------\n')
+        
+        # Stop pagination if this entire page was too old and we haven't found target data yet
+        if page_too_old and not found_target_data and page_visited_count > 1:
+            logger.info(f"📅 Reached pages older than target year {target_year_min}, stopping pagination")
+            return
+            
         if next_page_link:
             download_dumps(next_page_link, page_visited_count)
 
