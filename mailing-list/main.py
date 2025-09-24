@@ -547,6 +547,10 @@ def index_documents(docs):
     # Check if batch mode is enabled via environment variable
     BATCH_MODE = os.getenv('BATCH_MODE', 'false').lower() == 'true'
     
+    # Initialize quantum thread variables for both modes
+    is_quantum_recovery_thread = False
+    is_post_quantum_thread = False
+    
     if not BATCH_MODE:
         # Original test mode logic - only process quantum threads
         is_quantum_recovery_thread = any("Against-Allowing-Quantum-Recovery-of-Bitcoin" in doc.get('title', '') or 
