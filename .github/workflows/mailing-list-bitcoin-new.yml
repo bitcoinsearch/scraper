@@ -3,6 +3,26 @@ on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      migration_mode:
+        description: 'Migration mode'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+        - test
+        - year
+        - full
+        - dry_run
+      migration_year:
+        description: 'Year to process (for year mode)'
+        required: false
+        default: '2025'
+      dry_run:
+        description: 'Dry run mode (preview only)'
+        required: false
+        default: false
+        type: boolean
 jobs:
   fetch:
     runs-on: ubuntu-latest
@@ -27,3 +47,6 @@ jobs:
             USERNAME: ${{ secrets.USERNAME }}
             INDEX: ${{ secrets.INDEX }}
             DATA_DIR: /tmp/data
+            MIGRATION_MODE: ${{ github.event.inputs.migration_mode || 'test' }}
+            MIGRATION_YEAR: ${{ github.event.inputs.migration_year || '2025' }}
+            DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}

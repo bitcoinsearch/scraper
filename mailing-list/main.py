@@ -19,6 +19,11 @@ load_dotenv()
 
 from config.conf import DATA_DIR, INDEX_NAME
 
+# Migration configuration
+MIGRATION_MODE = os.getenv('MIGRATION_MODE', 'test')  # test, year, full, dry_run
+MIGRATION_YEAR = int(os.getenv('MIGRATION_YEAR', 2025))  # Which year to process
+DRY_RUN = os.getenv('DRY_RUN', 'false').lower() == 'true'
+
 DOWNLOAD_PATH = os.path.join(DATA_DIR, "mailing-list/bitcoin-dev")
 
 ORIGINAL_URL = "https://gnusha.org/pi/bitcoindev/"
@@ -28,6 +33,41 @@ month_dict = {
     1: "Jan", 2: "Feb", 3: "March", 4: "April", 5: "May", 6: "June",
     7: "July", 8: "Aug", 9: "Sept", 10: "Oct", 11: "Nov", 12: "Dec"
 }
+
+
+def should_process_date(year, month):
+    """Determine if a date should be processed based on migration mode"""
+    if MIGRATION_MODE == 'test':
+        # Only process 2024+ for quantum test threads
+        return year >= 2024
+    elif MIGRATION_MODE == 'year':
+        # Process specific year only
+        return year == MIGRATION_YEAR
+    elif MIGRATION_MODE == 'full':
+        # Process all historical data
+        return year >= 2009  # Bitcoin started in 2009
+    elif MIGRATION_MODE == 'dry_run':
+        # For dry run, process a small sample
+        return year == MIGRATION_YEAR
+    else:
+        # Default to test mode
+        return year >= 2024
+
+
+def should_process_thread(title):
+    """Determine if a thread should be processed based on migration mode"""
+    if MIGRATION_MODE == 'test':
+        # Only process quantum-related threads for testing
+        quantum_keywords = [
+            "Against-Allowing-Quantum-Recovery-of-Bitcoin",
+            "Against Allowing Quantum Recovery", 
+            "A Post Quantum Migration Proposal",
+            "Post Quantum Migration"
+        ]
+        return any(keyword in title for keyword in quantum_keywords)
+    else:
+        # Process all threads for other modes
+        return True
 
 
 def save_web_page(link, file_name):
@@ -65,8 +105,10 @@ def download_dumps(path, page_visited_count, max_page_count=1):
                 year = int(date[0])
                 mon = int(date[1])
                 month = month_dict.get(int(date[1]))
-                if year < 2024 or (year == 2024 and mon == 1):
-                    return
+                
+                # Apply migration filtering based on mode
+                if not should_process_date(year, mon):
+                    continue
 
                 href = tag.get('href')
                 file_name = f"{year}-{month}-{href.strip().split('/')[0]}.html"
@@ -395,7 +437,7 @@ def parse_dumps():
                 for index, (url, date) in enumerate(urls_with_date):
                     try:
                         year, month = get_year_month(date)
-                        if year < 2024 or (year == 2024 and month == 1):
+                        if not should_process_date(year, month):
                             continue
 
                         href = url.get('href')
@@ -535,23 +577,24 @@ def parse_dumps():
 
 
 def index_documents(docs):
-    # Check if this is one of our test threads (Quantum Recovery or Post Quantum Migration)
-    is_quantum_recovery_thread = any("Against-Allowing-Quantum-Recovery-of-Bitcoin" in doc.get('title', '') or 
-                                    "Against Allowing Quantum Recovery" in doc.get('title', '') for doc in docs)
+    # Filter documents based on migration mode
+    filtered_docs = []
+    skipped_docs = 0
     
-    is_post_quantum_thread = any("A Post Quantum Migration Proposal" in doc.get('title', '') or
-                                "Post Quantum Migration" in doc.get('title', '') for doc in docs)
+    for doc in docs:
+        title = doc.get('title', '')
+        if should_process_thread(title):
+            filtered_docs.append(doc)
+        else:
+            skipped_docs += 1
     
-    is_test_thread = is_quantum_recovery_thread or is_post_quantum_thread
+    if skipped_docs > 0:
+        logger.info(f"📋 Filtered: Processing {len(filtered_docs)} docs, skipped {skipped_docs} docs")
     
-    if is_test_thread:
-        if is_quantum_recovery_thread:
-            logger.success("🎯 Processing Quantum Recovery thread")
-        if is_post_quantum_thread:
-            logger.success("🎯 Processing Post Quantum Migration thread")
-    else:
-        logger.warning("🚫 Skipping non-test thread")
-        return  # Skip processing entirely for non-test threads
+    docs = filtered_docs
+    if not docs:
+        logger.warning("🚫 No documents to process after filtering")
+        return
     
     new_docs = 0
     existing_docs = 0
@@ -571,46 +614,61 @@ def index_documents(docs):
             threading_docs += 1
 
         resp = document_view(index_name=INDEX_NAME, doc_id=doc['id'])
-        if not resp:
-            # Process all new documents in Quantum thread
-            _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
-            new_docs += 1
-            
-            if has_threading and doc.get("thread_depth", 0) > 0:
-                logger.success(f'✅ Added: {doc.get("authors", ["Unknown"])[0]} (depth {doc.get("thread_depth", 0)})')
-            elif not has_threading:
-                logger.warning(f'⚠️ No threading data: {doc.get("authors", ["Unknown"])[0]}')
+        
+        if DRY_RUN:
+            # In dry run mode, just log what would happen
+            if not resp:
+                logger.info(f'🔍 DRY RUN: Would add new doc: {doc.get("authors", ["Unknown"])[0]} (depth {doc.get("thread_depth", 0)})')
+                new_docs += 1
+            else:
+                logger.info(f'🔍 DRY RUN: Would update existing doc: {doc.get("authors", ["Unknown"])[0]} (depth {doc.get("thread_depth", 0)})')
+                updated_docs += 1
+                existing_docs += 1
         else:
-            existing_docs += 1
-            
-            # Update the existing document with new threading fields
-            _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
-            updated_docs += 1
-            
-            if has_threading and doc.get("thread_depth", 0) > 0:
-                logger.success(f'✅ Updated: {doc.get("authors", ["Unknown"])[0]} (depth {doc.get("thread_depth", 0)})')
-            elif not has_threading:
-                logger.warning(f'⚠️ No threading data to update: {doc.get("authors", ["Unknown"])[0]}')
+            # Normal processing
+            if not resp:
+                _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
+                new_docs += 1
+                
+                if has_threading and doc.get("thread_depth", 0) > 0:
+                    logger.success(f'✅ Added: {doc.get("authors", ["Unknown"])[0]} (depth {doc.get("thread_depth", 0)})')
+                elif not has_threading:
+                    logger.warning(f'⚠️ No threading data: {doc.get("authors", ["Unknown"])[0]}')
+            else:
+                existing_docs += 1
+                
+                # Update the existing document with new threading fields
+                _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
+                updated_docs += 1
+                
+                if has_threading and doc.get("thread_depth", 0) > 0:
+                    logger.success(f'✅ Updated: {doc.get("authors", ["Unknown"])[0]} (depth {doc.get("thread_depth", 0)})')
+                elif not has_threading:
+                    logger.warning(f'⚠️ No threading data to update: {doc.get("authors", ["Unknown"])[0]}')
     
+    mode_indicator = "🔍 DRY RUN" if DRY_RUN else "✅ LIVE"
     logger.success("📊 INDEXING SUMMARY:")
     logger.success(f"    📝 Total documents processed: {len(docs)}")
     logger.success(f"    ✅ New documents added: {new_docs}")
     logger.success(f"    📄 Existing documents: {existing_docs}")
     logger.success(f"    🔄 Documents updated: {updated_docs}")
     logger.success(f"    🧵 Documents with threading data: {threading_docs}")
-    
-    # Show which test thread mode is active
-    if is_quantum_recovery_thread:
-        logger.success(f"    🎯 Test thread mode: QUANTUM RECOVERY")
-    elif is_post_quantum_thread:
-        logger.success(f"    🎯 Test thread mode: POST QUANTUM MIGRATION")
-    else:
-        logger.success(f"    🎯 Test thread mode: OFF")
+    logger.success(f"    🎯 Migration mode: {MIGRATION_MODE.upper()}")
+    if MIGRATION_MODE == 'year':
+        logger.success(f"    📅 Processing year: {MIGRATION_YEAR}")
+    logger.success(f"    🚀 Execution mode: {mode_indicator}")
 
 
 if __name__ == "__main__":
     logger.info("🚀 Starting mailing list scraper with threading support")
-    logger.warning("⚠️ TEST MODE: Only processing Quantum threads for safety")
+    logger.info(f"🎯 Migration mode: {MIGRATION_MODE}")
+    if MIGRATION_MODE == 'year':
+        logger.info(f"📅 Processing year: {MIGRATION_YEAR}")
+    if DRY_RUN:
+        logger.warning("🔍 DRY RUN MODE: No actual changes will be made")
+    
+    if MIGRATION_MODE == 'test':
+        logger.warning("⚠️ TEST MODE: Only processing Quantum threads for safety")
     
     if not os.path.exists(DOWNLOAD_PATH):
         os.makedirs(DOWNLOAD_PATH)
