@@ -95,6 +95,27 @@ def download_dumps(path, page_visited_count, max_page_count=1):
             return
 
         next_page_link = f"{ORIGINAL_URL}{soup.find('a', {'rel': 'next'}).get('href')}"
+        processed_count = 0
+        skipped_count = 0
+        
+        # First pass: collect all available years for reporting
+        available_years = set()
+        for tag in pre_tags[1].find_all('a'):
+            try:
+                date = tag.next_sibling.strip()[:7] if tag.next_sibling else ""
+                date_parts = date.strip().split('-')
+                if len(date_parts) >= 2:
+                    year = int(date_parts[0])
+                    available_years.add(year)
+            except (ValueError, AttributeError):
+                continue
+        
+        if available_years:
+            logger.info(f"📅 Available years on this page: {sorted(available_years)}")
+            if MIGRATION_MODE == 'year' and MIGRATION_YEAR not in available_years:
+                logger.warning(f"⚠️ Target year {MIGRATION_YEAR} not found on this page! Available: {sorted(available_years)}")
+        
+        # Second pass: process files
         for tag in pre_tags[1].find_all('a'):
             try:
                 date = tag.next_sibling.strip()[:7]
@@ -106,19 +127,27 @@ def download_dumps(path, page_visited_count, max_page_count=1):
                 mon = int(date[1])
                 month = month_dict.get(int(date[1]))
                 
+                # Debug: Log what we're checking  
+                logger.info(f"🔍 Checking date: {year}-{mon:02d} | Mode: {MIGRATION_MODE} | Target year: {MIGRATION_YEAR}")
+                
                 # Apply migration filtering based on mode
                 if not should_process_date(year, mon):
+                    skipped_count += 1
+                    logger.info(f"⏭️ Skipped: {year}-{mon:02d}")
                     continue
 
+                processed_count += 1
                 href = tag.get('href')
                 file_name = f"{year}-{month}-{href.strip().split('/')[0]}.html"
-
+                
+                logger.info(f"💾 Downloading: {file_name}")
                 save_web_page(href, file_name)
 
             except Exception as e:
                 logger.error(e)
                 logger.error(tag)
                 continue
+        logger.info(f"📊 Page {page_visited_count} summary: Downloaded {processed_count} files, skipped {skipped_count} files")
         logger.info('----------------------------------------------------------\n')
         if next_page_link:
             download_dumps(next_page_link, page_visited_count)
@@ -406,6 +435,22 @@ def preprocess_body_text(text):
 
 def parse_dumps():
     doc = []
+    
+    # Debug: Check what files exist
+    if not os.path.exists(DOWNLOAD_PATH):
+        logger.error(f"❌ Download path does not exist: {DOWNLOAD_PATH}")
+        return doc
+    
+    files_found = []
+    for root, dirs, files in os.walk(DOWNLOAD_PATH):
+        files_found.extend(files)
+    
+    logger.info(f"📁 Found {len(files_found)} files to parse: {files_found[:5]}{'...' if len(files_found) > 5 else ''}")
+    
+    if not files_found:
+        logger.warning("⚠️ No files found to parse - check download_dumps filtering")
+        return doc
+    
     for root, dirs, files in os.walk(DOWNLOAD_PATH):
         for file in reversed(files):
             logger.info(f'parsing : {file}')
@@ -669,6 +714,11 @@ if __name__ == "__main__":
     
     if MIGRATION_MODE == 'test':
         logger.warning("⚠️ TEST MODE: Only processing Quantum threads for safety")
+    
+    # Debug environment variables
+    logger.debug(f"📋 Environment: MIGRATION_MODE={os.getenv('MIGRATION_MODE', 'not set')}")
+    logger.debug(f"📋 Environment: MIGRATION_YEAR={os.getenv('MIGRATION_YEAR', 'not set')}")
+    logger.debug(f"📋 Environment: DRY_RUN={os.getenv('DRY_RUN', 'not set')}")
     
     if not os.path.exists(DOWNLOAD_PATH):
         os.makedirs(DOWNLOAD_PATH)

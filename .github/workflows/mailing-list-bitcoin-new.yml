@@ -18,6 +18,12 @@ on:
         description: 'Year to process (for year mode)'
         required: false
         default: '2025'
+        type: choice
+        options:
+        - '2025'
+        - '2024'
+        - '2023'
+        - '2022'
       dry_run:
         description: 'Dry run mode (preview only)'
         required: false
