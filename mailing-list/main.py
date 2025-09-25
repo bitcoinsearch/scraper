@@ -24,6 +24,9 @@ DOWNLOAD_PATH = os.path.join(DATA_DIR, "mailing-list/bitcoin-dev")
 ORIGINAL_URL = "https://gnusha.org/pi/bitcoindev/"
 CUSTOM_URL = "https://mailing-list.bitcoindevs.xyz/bitcoindev/"
 
+# Configuration: Target year to process
+TARGET_YEAR = int(os.getenv('TARGET_YEAR', 2023))
+
 month_dict = {
     1: "Jan", 2: "Feb", 3: "March", 4: "April", 5: "May", 6: "June",
     7: "July", 8: "Aug", 9: "Sept", 10: "Oct", 11: "Nov", 12: "Dec"
@@ -44,10 +47,13 @@ def save_web_page(link, file_name):
         file.write(str(soup))
 
 
-def download_dumps(path, page_visited_count, max_page_count=1):
+def download_dumps(path, page_visited_count, max_page_count=1, target_year=2023):
     if page_visited_count > max_page_count: return
     page_visited_count += 1
     logger.info(f"Page {page_visited_count}: {path}")
+    
+    found_target_year = False
+    
     with urllib.request.urlopen(f"{path}") as f:
         soup = BeautifulSoup(f, "html.parser")
         pre_tags = soup.find_all('pre')
@@ -65,13 +71,21 @@ def download_dumps(path, page_visited_count, max_page_count=1):
                 year = int(date[0])
                 mon = int(date[1])
                 month = month_dict.get(int(date[1]))
-                if year < 2024 or (year == 2024 and mon == 1):
-                    return
-
-                href = tag.get('href')
-                file_name = f"{year}-{month}-{href.strip().split('/')[0]}.html"
-
-                save_web_page(href, file_name)
+                
+                # Target specific year processing
+                if year == target_year:
+                    found_target_year = True
+                    href = tag.get('href')
+                    file_name = f"{year}-{month}-{href.strip().split('/')[0]}.html"
+                    save_web_page(href, file_name)
+                elif year < target_year:
+                    # Stop if we've gone past our target year
+                    if found_target_year:
+                        logger.info(f"📅 Finished processing {target_year} data, reached {year}")
+                        return
+                # Skip years newer than target (we'll process them in order)
+                elif year > target_year:
+                    continue
 
             except Exception as e:
                 logger.error(e)
@@ -79,7 +93,7 @@ def download_dumps(path, page_visited_count, max_page_count=1):
                 continue
         logger.info('----------------------------------------------------------\n')
         if next_page_link:
-            download_dumps(next_page_link, page_visited_count)
+            download_dumps(next_page_link, page_visited_count, max_page_count, target_year)
 
 
 def get_thread_structure(soup):
@@ -395,7 +409,8 @@ def parse_dumps():
                 for index, (url, date) in enumerate(urls_with_date):
                     try:
                         year, month = get_year_month(date)
-                        if year < 2024 or (year == 2024 and month == 1):
+                        # Process target year data only
+                        if year != TARGET_YEAR:
                             continue
 
                         href = url.get('href')
@@ -535,23 +550,18 @@ def parse_dumps():
 
 
 def index_documents(docs):
-    # Check if this is one of our test threads (Quantum Recovery or Post Quantum Migration)
-    is_quantum_recovery_thread = any("Against-Allowing-Quantum-Recovery-of-Bitcoin" in doc.get('title', '') or 
-                                    "Against Allowing Quantum Recovery" in doc.get('title', '') for doc in docs)
+    # Process all threads from 2023 onwards (removed test thread restriction)
+    if not docs:
+        logger.warning("🚫 No documents to process")
+        return
     
-    is_post_quantum_thread = any("A Post Quantum Migration Proposal" in doc.get('title', '') or
-                                "Post Quantum Migration" in doc.get('title', '') for doc in docs)
-    
-    is_test_thread = is_quantum_recovery_thread or is_post_quantum_thread
-    
-    if is_test_thread:
-        if is_quantum_recovery_thread:
-            logger.success("🎯 Processing Quantum Recovery thread")
-        if is_post_quantum_thread:
-            logger.success("🎯 Processing Post Quantum Migration thread")
+    # Get the year from the first document to show what we're processing
+    first_doc_date = docs[0].get('created_at', '')
+    if first_doc_date:
+        doc_year = first_doc_date[:4]
+        logger.success(f"🎯 Processing thread from {doc_year}: {docs[0].get('title', 'Unknown title')[:80]}...")
     else:
-        logger.warning("🚫 Skipping non-test thread")
-        return  # Skip processing entirely for non-test threads
+        logger.success(f"🎯 Processing thread with {len(docs)} documents")
     
     new_docs = 0
     existing_docs = 0
@@ -572,7 +582,7 @@ def index_documents(docs):
 
         resp = document_view(index_name=INDEX_NAME, doc_id=doc['id'])
         if not resp:
-            # Process all new documents in Quantum thread
+            # Process all new documents
             _ = document_add(index_name=INDEX_NAME, doc=doc, doc_id=doc['id'])
             new_docs += 1
             
@@ -599,22 +609,18 @@ def index_documents(docs):
     logger.success(f"    🔄 Documents updated: {updated_docs}")
     logger.success(f"    🧵 Documents with threading data: {threading_docs}")
     
-    # Show which test thread mode is active
-    if is_quantum_recovery_thread:
-        logger.success(f"    🎯 Test thread mode: QUANTUM RECOVERY")
-    elif is_post_quantum_thread:
-        logger.success(f"    🎯 Test thread mode: POST QUANTUM MIGRATION")
-    else:
-        logger.success(f"    🎯 Test thread mode: OFF")
+    # Show processing mode
+    logger.success(f"    🎯 Processing mode: {TARGET_YEAR} threads (all threads)")
 
 
 if __name__ == "__main__":
     logger.info("🚀 Starting mailing list scraper with threading support")
-    logger.warning("⚠️ TEST MODE: Only processing Quantum threads for safety")
+    logger.success(f"📅 PROCESSING MODE: Targeting year {TARGET_YEAR}")
     
     if not os.path.exists(DOWNLOAD_PATH):
         os.makedirs(DOWNLOAD_PATH)
 
-    download_dumps(ORIGINAL_URL, page_visited_count=0)
+    # Process with increased page count to find the target year
+    download_dumps(ORIGINAL_URL, page_visited_count=0, max_page_count=50, target_year=TARGET_YEAR)
     documents = parse_dumps()
     index_documents(documents)

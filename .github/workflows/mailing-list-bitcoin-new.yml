@@ -3,6 +3,12 @@ on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      target_year:
+        description: 'Target year to process (e.g., 2023, 2024, 2025)'
+        required: true
+        default: '2023'
+        type: string
 jobs:
   fetch:
     runs-on: ubuntu-latest
@@ -15,6 +21,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      - name: Show target year
+        run: |
+          echo "🎯 Processing Bitcoin mailing list data for year: ${{ inputs.target_year || '2023' }}"
       - name: Fetch data
         run: |
           python mailing-list/main.py
@@ -27,3 +36,4 @@ jobs:
             USERNAME: ${{ secrets.USERNAME }}
             INDEX: ${{ secrets.INDEX }}
             DATA_DIR: /tmp/data
+            TARGET_YEAR: ${{ inputs.target_year || '2023' }}
