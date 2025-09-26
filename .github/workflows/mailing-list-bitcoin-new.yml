@@ -4,9 +4,27 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
-      target_year:
-        description: 'Target year to process (e.g., 2023, 2024, 2025)'
+      processing_mode:
+        description: 'Processing mode'
         required: true
+        default: 'single_year'
+        type: choice
+        options:
+        - single_year
+        - date_range
+      target_year:
+        description: 'Target year to process (for single year mode)'
+        required: false
+        default: '2023'
+        type: string
+      from_year:
+        description: 'Start year for range processing (e.g., 2020)'
+        required: false
+        default: '2020'
+        type: string
+      to_year:
+        description: 'End year for range processing (e.g., 2023)'
+        required: false
         default: '2023'
         type: string
 jobs:
@@ -21,9 +39,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Show target year
+      - name: Show processing configuration
         run: |
-          echo "🎯 Processing Bitcoin mailing list data for year: ${{ inputs.target_year || '2023' }}"
+          if [ "${{ inputs.processing_mode }}" = "date_range" ]; then
+            echo "🎯 Processing Bitcoin mailing list data for range: ${{ inputs.from_year || '2020' }} to ${{ inputs.to_year || '2023' }}"
+            echo "📅 Processing mode: Date Range"
+          else
+            echo "🎯 Processing Bitcoin mailing list data for year: ${{ inputs.target_year || '2023' }}"
+            echo "📅 Processing mode: Single Year"
+          fi
+          echo "ℹ️ Note: Data availability varies by year. Archive may not contain data before 2015."
       - name: Fetch data
         run: |
           python mailing-list/main.py
@@ -36,4 +61,9 @@ jobs:
             USERNAME: ${{ secrets.USERNAME }}
             INDEX: ${{ secrets.INDEX }}
             DATA_DIR: /tmp/data
+            # Single year mode variables (backwards compatibility)
             TARGET_YEAR: ${{ inputs.target_year || '2023' }}
+            FLEXIBLE_YEAR_PROCESSING: 'true'
+            # Date range mode variables
+            FROM_YEAR: ${{ inputs.processing_mode == 'date_range' && inputs.from_year || '' }}
+            TO_YEAR: ${{ inputs.processing_mode == 'date_range' && inputs.to_year || '' }}

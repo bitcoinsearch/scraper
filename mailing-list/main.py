@@ -24,8 +24,19 @@ DOWNLOAD_PATH = os.path.join(DATA_DIR, "mailing-list/bitcoin-dev")
 ORIGINAL_URL = "https://gnusha.org/pi/bitcoindev/"
 CUSTOM_URL = "https://mailing-list.bitcoindevs.xyz/bitcoindev/"
 
-# Configuration: Target year to process
-TARGET_YEAR = int(os.getenv('TARGET_YEAR', 2023))
+# Configuration: Target year(s) to process
+# Support both single year and date range
+FROM_YEAR = int(os.getenv('FROM_YEAR', os.getenv('TARGET_YEAR', '2023')))
+TO_YEAR = int(os.getenv('TO_YEAR', os.getenv('TARGET_YEAR', str(FROM_YEAR))))
+
+# Backwards compatibility
+TARGET_YEAR = FROM_YEAR  # For existing code that uses TARGET_YEAR
+
+# Allow flexible year processing
+FLEXIBLE_YEAR_PROCESSING = os.getenv('FLEXIBLE_YEAR_PROCESSING', 'true').lower() == 'true'
+
+# Check if we're processing a range
+IS_RANGE_MODE = FROM_YEAR != TO_YEAR
 
 month_dict = {
     1: "Jan", 2: "Feb", 3: "March", 4: "April", 5: "May", 6: "June",
@@ -47,12 +58,15 @@ def save_web_page(link, file_name):
         file.write(str(soup))
 
 
-def download_dumps(path, page_visited_count, max_page_count=1, target_year=2023):
-    if page_visited_count > max_page_count: return
+def download_dumps_range(path, page_visited_count, max_page_count=1, from_year=2023, to_year=2023):
+    """Download dumps for a range of years"""
+    if page_visited_count > max_page_count: 
+        return
     page_visited_count += 1
     logger.info(f"Page {page_visited_count}: {path}")
     
-    found_target_year = False
+    found_target_range = False
+    years_found_in_page = set()
     
     with urllib.request.urlopen(f"{path}") as f:
         soup = BeautifulSoup(f, "html.parser")
@@ -60,40 +74,53 @@ def download_dumps(path, page_visited_count, max_page_count=1, target_year=2023)
         if len(pre_tags) < 1:
             return
 
-        next_page_link = f"{ORIGINAL_URL}{soup.find('a', {'rel': 'next'}).get('href')}"
+        # Get next page link safely
+        next_link_element = soup.find('a', {'rel': 'next'})
+        next_page_link = f"{ORIGINAL_URL}{next_link_element.get('href')}" if next_link_element else None
+        
         for tag in pre_tags[1].find_all('a'):
             try:
                 date = tag.next_sibling.strip()[:7]
                 date = date.strip().split('-')
-                # date = tag.next_sibling.strip()[:8]
                 if len(date) < 2:
                     continue
                 year = int(date[0])
-                mon = int(date[1])
                 month = month_dict.get(int(date[1]))
                 
-                # Target specific year processing
-                if year == target_year:
-                    found_target_year = True
+                years_found_in_page.add(year)
+                
+                # Check if year is in our target range
+                if from_year <= year <= to_year:
+                    found_target_range = True
                     href = tag.get('href')
                     file_name = f"{year}-{month}-{href.strip().split('/')[0]}.html"
                     save_web_page(href, file_name)
-                elif year < target_year:
-                    # Stop if we've gone past our target year
-                    if found_target_year:
-                        logger.info(f"📅 Finished processing {target_year} data, reached {year}")
+                elif year < from_year:
+                    # Stop if we've gone past our target range
+                    if found_target_range:
+                        logger.info(f"📅 Finished processing range {from_year}-{to_year}, reached {year}")
                         return
-                # Skip years newer than target (we'll process them in order)
-                elif year > target_year:
-                    continue
+                # Continue if year > to_year (we'll find older years on next pages)
 
             except Exception as e:
                 logger.error(e)
                 logger.error(tag)
                 continue
+        
+        # Log progress for range processing
+        if years_found_in_page:
+            years_in_range = [y for y in years_found_in_page if from_year <= y <= to_year]
+            if years_in_range:
+                logger.info(f"📅 Found years in range: {sorted(years_in_range)}")
+        
         logger.info('----------------------------------------------------------\n')
         if next_page_link:
-            download_dumps(next_page_link, page_visited_count, max_page_count, target_year)
+            download_dumps_range(next_page_link, page_visited_count, max_page_count, from_year, to_year)
+
+
+def download_dumps(path, page_visited_count, max_page_count=1, target_year=2023):
+    """Backwards compatibility wrapper - delegates to range function"""
+    download_dumps_range(path, page_visited_count, max_page_count, target_year, target_year)
 
 
 def get_thread_structure(soup):
@@ -376,9 +403,36 @@ def preprocess_body_text(text):
     return text
 
 
+def analyze_available_years():
+    """Analyze what years are available in the downloaded data"""
+    available_years = set()
+    
+    for root, _, files in os.walk(DOWNLOAD_PATH):
+        for file in files:
+            with open(f'{os.path.join(root, file)}', 'r', encoding='utf-8') as f:
+                html_content = f.read()
+                soup = BeautifulSoup(html_content, 'html.parser')
+                
+                urls_with_date = get_thread_urls_with_date(soup.find_all('pre'))
+                for _, date in urls_with_date:
+                    year, _ = get_year_month(date)
+                    available_years.add(year)
+    
+    return sorted(available_years)
+
+
 def parse_dumps():
     doc = []
-    for root, dirs, files in os.walk(DOWNLOAD_PATH):
+    
+    # First analyze what years are available
+    available_years = analyze_available_years()
+    if available_years:
+        logger.info(f"📅 Available years in archive: {available_years}")
+        if TARGET_YEAR not in available_years:
+            logger.warning(f"⚠️ Target year {TARGET_YEAR} not found in available data!")
+            logger.warning(f"💡 Consider using one of these years: {available_years}")
+    
+    for root, _, files in os.walk(DOWNLOAD_PATH):
         for file in reversed(files):
             logger.info(f'parsing : {file}')
             with open(f'{os.path.join(root, file)}', 'r', encoding='utf-8') as f:
@@ -409,9 +463,17 @@ def parse_dumps():
                 for index, (url, date) in enumerate(urls_with_date):
                     try:
                         year, month = get_year_month(date)
-                        # Process target year data only
-                        if year != TARGET_YEAR:
-                            continue
+                        # Process data based on range or single year
+                        if IS_RANGE_MODE:
+                            # Range mode: check if year is within FROM_YEAR to TO_YEAR
+                            if not (FROM_YEAR <= year <= TO_YEAR):
+                                continue
+                        else:
+                            # Single year mode: process target year data only, or allow flexible processing
+                            if not FLEXIBLE_YEAR_PROCESSING and year != TARGET_YEAR:
+                                continue
+                            elif FLEXIBLE_YEAR_PROCESSING and year not in available_years:
+                                continue  # This shouldn't happen but just in case
 
                         href = url.get('href')
                         tag_id = url.get('id')
@@ -553,6 +615,11 @@ def index_documents(docs):
     # Process all threads from 2023 onwards (removed test thread restriction)
     if not docs:
         logger.warning("🚫 No documents to process")
+        logger.warning(f"🔍 This might be because:")
+        logger.warning(f"   1. The target year {TARGET_YEAR} has no data in the archive")
+        logger.warning(f"   2. The archive source doesn't go back to {TARGET_YEAR}")
+        logger.warning(f"   3. The mailing list wasn't active in {TARGET_YEAR}")
+        logger.warning(f"💡 Try a more recent year (2015+) or check available years first")
         return
     
     # Get the year from the first document to show what we're processing
@@ -610,17 +677,44 @@ def index_documents(docs):
     logger.success(f"    🧵 Documents with threading data: {threading_docs}")
     
     # Show processing mode
-    logger.success(f"    🎯 Processing mode: {TARGET_YEAR} threads (all threads)")
+    if IS_RANGE_MODE:
+        logger.success(f"    🎯 Processing mode: {FROM_YEAR}-{TO_YEAR} range (all threads)")
+    else:
+        logger.success(f"    🎯 Processing mode: {TARGET_YEAR} threads (all threads)")
 
 
 if __name__ == "__main__":
     logger.info("🚀 Starting mailing list scraper with threading support")
-    logger.success(f"📅 PROCESSING MODE: Targeting year {TARGET_YEAR}")
+    
+    if IS_RANGE_MODE:
+        logger.success(f"📅 PROCESSING MODE: Date range {FROM_YEAR} to {TO_YEAR}")
+        logger.info(f"🎯 Will process {TO_YEAR - FROM_YEAR + 1} year(s) of data")
+    else:
+        logger.success(f"📅 PROCESSING MODE: Single year {TARGET_YEAR}")
+        
+        if FLEXIBLE_YEAR_PROCESSING:
+            logger.info("🔄 FLEXIBLE MODE: Will process available years if target year not found")
     
     if not os.path.exists(DOWNLOAD_PATH):
         os.makedirs(DOWNLOAD_PATH)
 
-    # Process with increased page count to find the target year
-    download_dumps(ORIGINAL_URL, page_visited_count=0, max_page_count=50, target_year=TARGET_YEAR)
+    # Process with increased page count to find the target year(s)
+    if IS_RANGE_MODE:
+        download_dumps_range(ORIGINAL_URL, page_visited_count=0, max_page_count=50, 
+                           from_year=FROM_YEAR, to_year=TO_YEAR)
+    else:
+        download_dumps(ORIGINAL_URL, page_visited_count=0, max_page_count=50, target_year=TARGET_YEAR)
+    
     documents = parse_dumps()
+    
+    # If no documents found, provide helpful suggestions
+    if not documents:
+        if IS_RANGE_MODE:
+            logger.error(f"❌ No documents found for range {FROM_YEAR}-{TO_YEAR}")
+            logger.error("💡 Try a more recent range (e.g., FROM_YEAR=2020 TO_YEAR=2023)")
+        elif not FLEXIBLE_YEAR_PROCESSING:
+            logger.error("❌ No documents found. Try running with FLEXIBLE_YEAR_PROCESSING=true to see available years")
+            logger.error("💡 Example: FLEXIBLE_YEAR_PROCESSING=true TARGET_YEAR=2023 python mailing-list/main.py")
+        logger.error("💡 Or try using a date range: FROM_YEAR=2020 TO_YEAR=2023 python mailing-list/main.py")
+    
     index_documents(documents)
