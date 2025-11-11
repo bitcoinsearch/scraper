@@ -144,6 +144,9 @@ def _parse_thread_lines_fixed(lines, thread_overview_soup):
             "mbox.gz" in line or
             "Atom feed" in line or
             "end of thread" in line or
+            "other threads:" in line or
+            "only message in thread" in line or
+            "| newest]" in line or
             not line.strip()):
             continue
         
@@ -216,12 +219,38 @@ def _parse_thread_lines_fixed(lines, thread_overview_soup):
         else:
             author_part = clean_line
         
-        # Clean up the author name
+        # FIX: Extract just the author name, not the title
+        # Pattern: "Title of the post 'Author Name'" or "Title of the post Author Name"
+        # The author is typically after the title, often in quotes
         author = author_part.strip()
         
-        # Remove [bitcoindev] and quote marks
-        author = re.sub(r'^\[bitcoindev\]\s*["\s]*', '', author)
-        author = re.sub(r'^["\s]*', '', author)
+        # Try to extract quoted author name first (most reliable)
+        quoted_author = re.search(r"['\"]([^'\"]+)['\"]$", author)
+        if quoted_author:
+            # Found author in quotes at the end
+            author = quoted_author.group(1).strip()
+        else:
+            # No quotes, so split by common patterns and take the last part
+            # The title and author might be separated by multiple spaces or special chars
+            # Author names are typically 1-3 words at the end
+            # Remove [bitcoindev] prefix first
+            author = re.sub(r'^\[bitcoindev\]\s*', '', author, flags=re.IGNORECASE)
+            
+            # Split by multiple spaces (often separates title from author)
+            parts = re.split(r'\s{2,}', author)
+            if len(parts) > 1:
+                # Take the last part as author
+                author = parts[-1].strip()
+            else:
+                # Fall back to taking last 1-3 words as author name
+                words = author.split()
+                if len(words) > 3:
+                    # Likely has title + author, take last 2-3 words
+                    author = ' '.join(words[-2:])
+                else:
+                    author = author.strip()
+        
+        # Clean up the author name
         author = author.strip('\'"` \t')
         
         # Remove "via Bitcoin Development Mailing List" suffix
@@ -331,12 +360,16 @@ def get_author(content_soup):
     
     # Enhanced fallback: look for any line with author pattern
     for line in lines[:20]:
+        # Skip navigation and metadata lines
+        if any(skip in line.lower() for skip in ['other threads:', 'only message in thread', '| newest', 'thread overview', 'mbox.gz', 'atom feed', 'links below jump']):
+            continue
+        
         # Look for patterns like: "2025-07-14  2:07   ` Antoine Riard"
         author_pattern = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+[`\s]*(.+?)(?:\s|$)', line)
         if author_pattern:
             potential_author = author_pattern.group(1).strip()
-            # Skip if it looks like a subject line or other metadata
-            if not any(skip in potential_author.lower() for skip in ['[bitcoindev]', 'thread overview', 'mbox.gz', 'atom feed', '`']):
+            # Skip if it looks like a subject line, metadata, or contains 'UTC' (which indicates navigation text)
+            if not any(skip in potential_author.lower() for skip in ['[bitcoindev]', 'thread overview', 'mbox.gz', 'atom feed', '`', 'utc']):
                 if len(potential_author) > 3 and not potential_author.startswith('http'):
                     author = potential_author.replace("via Bitcoin Development Mailing List", "").strip()
                     author = author.replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">")
