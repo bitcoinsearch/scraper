@@ -395,6 +395,9 @@ def sanitize_author(author, max_length=60):
     if 'UTC' in author and '|' in author and 'newest' in author:
         return "Unknown Author"
     
+    # Remove delvingbitcoin .NNNNNN+00:00 suffix
+    author = re.sub(r'\.\d{6}[+\-]\d{2}:\d{2}$', '', author)
+    
     # Remove timestamps at the end in various formats:
     # - "2025-12-12 20:17:00+00:00"
     # - "2025-12-12T20:17:00.000Z"
