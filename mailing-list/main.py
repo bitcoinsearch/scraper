@@ -129,15 +129,51 @@ def _parse_thread_lines_fixed(lines, thread_overview_soup):
     """FIXED: Parse thread lines correctly from the HTML structure"""
     thread_structure = []
     
-    # Extract anchor links from the HTML soup for proper anchor ID matching
-    anchor_links = []
-    if thread_overview_soup:
-        anchor_links = thread_overview_soup.find_all('a', href=lambda href: href and href.startswith('#m'))
+    if not thread_overview_soup:
+        return thread_structure
     
-    anchor_link_index = 0  # Track which anchor link we're processing
+    anchor_to_author = {}
+    
+    anchor_links = thread_overview_soup.find_all('a', href=lambda href: href and href.startswith('#m'))
+    
+    for link in anchor_links:
+        href = link.get('href', '')
+        anchor_id = href.replace('#', '') if href.startswith('#') else None
+        if not anchor_id:
+            continue
+        
+        link_text = link.get_text().strip()
+        
+        if link_text.startswith('['):
+            # Author is in the text node AFTER this link
+            next_sibling = link.next_sibling
+            if next_sibling:
+                if hasattr(next_sibling, 'strip'):
+                    author_text = str(next_sibling)
+                elif hasattr(next_sibling, 'get_text'):
+                    author_text = next_sibling.get_text()
+                else:
+                    author_text = str(next_sibling)
+                
+                # Clean up
+                author_text = author_text.strip()
+                if '\n' in author_text:
+                    author_text = author_text.split('\n')[0].strip()
+            else:
+                author_text = ""
+        else:
+            author_text = link_text
+        
+        author_text = author_text.rstrip('`"\' ')
+        author_text = re.sub(r'\s+via\s+Bitcoin\s+Development\s+Mailing\s+List.*$', '', 
+                             author_text, flags=re.IGNORECASE).strip()
+        
+        if author_text and len(author_text) >= 2:
+            anchor_to_author[anchor_id] = author_text
+    anchor_link_index = 0
     
     for line in lines:
-        # Skip lines that don't contain thread information
+        # Skip non-thread lines
         if ("links below jump to the message" in line or 
             "Thread overview:" in line or
             "download:" in line or
@@ -149,10 +185,7 @@ def _parse_thread_lines_fixed(lines, thread_overview_soup):
             not line.strip()):
             continue
         
-        # Match the pattern: "YYYY-MM-DD HH:MM [optional spaces and backtick] ... Author Name"
-        # Example: "2025-07-13 23:19 ` [bitcoindev] " Tadge Dryja"
-        
-        # First, find the timestamp pattern
+        # Find timestamp pattern
         timestamp_pattern = r'(\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2})'
         timestamp_match = re.search(timestamp_pattern, line)
         
@@ -160,27 +193,22 @@ def _parse_thread_lines_fixed(lines, thread_overview_soup):
             continue
         
         timestamp = timestamp_match.group(1)
-        
-        # Get everything after the timestamp
         after_timestamp = line[timestamp_match.end():]
         
-        # Count leading spaces after timestamp to determine depth
+        # Count leading spaces for depth
         space_match = re.match(r'^(\s*)', after_timestamp)
         leading_spaces = len(space_match.group(1)) if space_match else 0
         
-        # Check for backtick to determine if this is a reply
+        # Check for backtick (indicates reply)
         has_backtick = '`' in after_timestamp
         
-        # Calculate thread depth based on spacing
+        # Calculate thread depth
         if has_backtick:
-            # Every 2 spaces before backtick increases depth by 1
-            # " ` " = depth 1, "   ` " = depth 2, "     ` " = depth 3, etc.
             thread_depth = leading_spaces // 2 + 1 if leading_spaces > 0 else 1
         else:
-            # No backtick means original post (depth 0)
             thread_depth = 0
         
-        # Extract anchor ID from the corresponding HTML link (FIXED!)
+        # Get anchor ID from HTML structure
         anchor_id = None
         if anchor_link_index < len(anchor_links):
             href = anchor_links[anchor_link_index].get('href', '')
@@ -188,90 +216,25 @@ def _parse_thread_lines_fixed(lines, thread_overview_soup):
             anchor_link_index += 1
         
         if not anchor_id:
-            # Fallback: try to extract from the line text
-            anchor_match = re.search(r'href="#([^"]+)"', line)
-            anchor_id = anchor_match.group(1) if anchor_match else None
-        
-        if not anchor_id:
-            # Create synthetic anchor if still not found
             import hashlib
             anchor_content = f"{timestamp}-{line[:50]}"
             anchor_id = hashlib.md5(anchor_content.encode()).hexdigest()[:32]
         
-        # Extract author name - it's typically at the end of the line
-        # Remove HTML tags first
-        clean_line = re.sub(r'<a[^>]*>.*?</a>', '', after_timestamp)
-        clean_line = re.sub(r'<[^>]+>', '', clean_line)
+        # Get author from our pre-built map (THE CORRECT WAY)
+        author = anchor_to_author.get(anchor_id, '')
         
-        # Clean up HTML entities
-        clean_line = clean_line.replace('&#39;', "'").replace('&#34;', '"').replace('&lt;', '<').replace('&gt;', '>')
-        
-        # The author is typically the last part after removing subject info
-        # Remove backtick and [bitcoindev] patterns
-        if has_backtick:
-            # Split by backtick and take the part after it
-            parts = clean_line.split('`', 1)
-            if len(parts) > 1:
-                author_part = parts[1]
-            else:
-                author_part = clean_line
-        else:
-            author_part = clean_line
-        
-        # Clean up the author name
-        author = author_part.strip()
-        
-        # Remove [bitcoindev] and quote marks
-        author = re.sub(r'^\[bitcoindev\]\s*["\s]*', '', author)
-        author = re.sub(r'^["\s]*', '', author)
-        # Remove leading/trailing backticks and whitespace
-        author = author.strip('\'"` \t')
-        # Remove any remaining backticks from the middle
-        author = author.replace('`', '')
-        
-        # Remove "via Bitcoin Development Mailing List" suffix
-        author = re.sub(r'\s+via\s+Bitcoin\s+Development\s+Mailing\s+List.*$', '', author, flags=re.IGNORECASE).strip()
-        
-        # Filter out navigation/timestamp artifacts like "UTC | newest]"
-        # These come from the thread overview navigation links
-        if re.search(r'UTC\s*\|\s*newest', author, re.IGNORECASE):
-            continue
-        if re.search(r'^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}\s+UTC', author):
-            continue
-        
-        # Handle empty author
+        # Skip if we couldn't extract a valid author
         if not author or len(author) < 2:
-            # Try to extract from the original line more carefully
-            # Look for text after all HTML tags
-            text_parts = re.sub(r'<[^>]*>', ' ', line).split()
-            # Find text parts that look like names (avoid timestamps and technical terms)
-            name_candidates = []
-            for part in text_parts:
-                if (len(part) > 2 and 
-                    not re.match(r'\d{4}-\d{2}-\d{2}', part) and
-                    not re.match(r'\d{1,2}:\d{2}', part) and
-                    part not in ['bitcoindev', 'href', 'id'] and
-                    not part.startswith('#')):
-                    name_candidates.append(part)
-            
-            if name_candidates:
-                # Take the last 1-2 parts as likely author name
-                author = ' '.join(name_candidates[-2:]) if len(name_candidates) >= 2 else name_candidates[-1]
-            else:
-                author = "Unknown Author"
+            logger.warning(f"⚠️ THREADING: Could not extract author for anchor {anchor_id}")
+            author = "Unknown Author"
         
-        # Final cleanup
-        author = author.strip()
-        
-        # Final validation: skip if author looks like navigation/metadata
-        if not author or len(author) <= 1:
-            continue
-        if "UTC" in author and "|" in author and "newest" in author:
+        # Filter out navigation artifacts
+        if re.search(r'UTC\s*\|\s*newest', author, re.IGNORECASE):
             continue
         if author.lower() in ["utc", "newest", "flat", "nested", "permalink", "raw", "reply"]:
             continue
         
-        # Sanitize author to prevent title-in-author and timestamp bugs
+        # Final sanitization
         author = sanitize_author(author)
         
         thread_structure.append({
@@ -379,54 +342,41 @@ def get_author(content_soup):
     return "Unknown Author"
 
 
-def sanitize_author(author, max_length=60):
+def sanitize_author(author, max_length=100):
     """
-    Sanitize author name to prevent common bugs:
-    - Author too long (likely contains title)
-    - UTC | newest pattern
-    - Timestamps in author
     """
     if not author:
         return "Unknown Author"
     
     author = str(author).strip()
     
-    # Remove 'UTC | newest]' pattern
+    # Remove 'UTC | newest]' pattern (navigation artifact)
     if 'UTC' in author and '|' in author and 'newest' in author:
         return "Unknown Author"
     
-    # Remove timestamps at the end in various formats:
-    # - "2025-12-12 20:17:00+00:00"
-    # - "2025-12-12T20:17:00.000Z"
-    # - "2025-12-12 20:17:00"
+    # Remove leading/trailing quotes (some author names have these)
+    author = author.strip('`"\' ')
+    
+    # Remove timestamps at the end in various formats
     author = re.sub(r'\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[+\-]\d{2}:\d{2}$', '', author)
     author = re.sub(r'\s+\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.*$', '', author)
     author = re.sub(r'\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$', '', author)
     author = re.sub(r'\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}$', '', author)
     
-    # If author is too long, extract last words that aren't dates/timestamps
+    # Remove "via Bitcoin Development Mailing List" suffix
+    author = re.sub(r'\s+via\s+Bitcoin\s+Development\s+Mailing\s+List.*$', '', author, flags=re.IGNORECASE)
+    
+    # Remove common title prefixes that might have leaked in
+    author = re.sub(r'^Re:\s*', '', author)
+    author = re.sub(r'^\[bitcoindev\]\s*', '', author, flags=re.IGNORECASE)
+    author = re.sub(r'^\[Bitcoin-development\]\s*', '', author, flags=re.IGNORECASE)
+    author = re.sub(r'^\[bitcoin-dev\]\s*', '', author, flags=re.IGNORECASE)
+    
+    # Final cleanup of any remaining quotes
+    author = author.strip('`"\' ')
+    
     if len(author) > max_length:
-        words = author.split()
-        real_author_words = []
-        
-        for word in reversed(words):
-            # Skip if word looks like a date or timestamp component
-            if re.match(r'^\d{4}-\d{2}-\d{2}$', word):  # Date: 2025-12-11
-                continue
-            if re.match(r'^\d{1,2}:\d{2}(:\d{2})?$', word):  # Time: 12:30 or 12:30:00
-                continue
-            if re.match(r'^\d{4}$', word):  # Year: 2025
-                continue
-            if re.match(r'^[+\-]\d{2}:\d{2}$', word):  # Timezone: +00:00
-                continue
-            
-            real_author_words.insert(0, word)
-            # Most author names are 1-3 words
-            if len(real_author_words) >= 2:
-                break
-        
-        if real_author_words:
-            author = ' '.join(real_author_words)
+        logger.warning(f"⚠️ AUTHOR: Suspiciously long author name ({len(author)} chars): {author[:50]}...")
     
     return author.strip() if author.strip() else "Unknown Author"
 
