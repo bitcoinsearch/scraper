@@ -165,7 +165,7 @@ def download_dumps() -> None:
         # Resync over the last day to catch any post edits.
         last_sync_date -= datetime.timedelta(days=1)
 
-    log.info("detected latest synced post date:{last_sync_date}")
+    log.info(f"detected latest synced post date: {last_sync_date}")
 
     topics_to_get = {}
     max_created_at = None
