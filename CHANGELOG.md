@@ -1,3 +1,9 @@
+## 0.3.1 (2026-11-07)
+
+### Fix
+
+- bitcointranscript scrape failing
+
 ## 0.3.0 (2025-01-31)
 
 ### Feat
