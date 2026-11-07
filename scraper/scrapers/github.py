@@ -109,7 +109,7 @@ class GithubScraper(BaseScraper):
             origin.pull()
         else:
             logger.info(f"Cloning repo to path: {self.repo_path}")
-            repo = Repo.clone_from(self.config.url, self.repo_path)
+            repo = Repo.clone_from(str(self.config.url), self.repo_path)
         return repo
 
     async def process_files(self, repo: Repo, files: List[str]) -> int:
