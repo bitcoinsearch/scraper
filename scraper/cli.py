@@ -70,11 +70,11 @@ def scrape(source, output):
                     src for src in all_sources if src.name.lower() == source.lower()
                 ]
                 if not sources_to_scrape:
-                    click.echo(
-                        f"Error: Source '{source}' not found. Please check the source name and try again."
+                    raise click.ClickException(
+                        f"Source '{source}' not found. Please check the source name and try again."
                     )
-                    return
 
+                failed = []
                 for src in sources_to_scrape:
                     try:
                         scraper = ScraperFactory.create_scraper(src, output)
@@ -82,6 +82,12 @@ def scrape(source, output):
                     except Exception as e:
                         click.echo(f"Error scraping {src.name}: {str(e)}")
                         logger.exception("Full traceback:")
+                        failed.append(src.name)
+
+                if failed:
+                    raise click.ClickException(
+                        f"Scraping failed for: {', '.join(failed)}"
+                    )
 
         return run_in_reactor(run_scraping())
 
