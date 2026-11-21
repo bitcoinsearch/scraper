@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import time
 import traceback
 import urllib.request
 from datetime import datetime
@@ -30,11 +31,23 @@ month_dict = {
 }
 
 
-def save_web_page(link, file_name):
+def save_web_page(link, file_name, retries=3):
     main_url = ORIGINAL_URL + link
-    html_response = requests.get(f"{ORIGINAL_URL}{link}")
+    html_response = None
+    for attempt in range(1, retries + 1):
+        try:
+            html_response = requests.get(main_url, timeout=60)
+            html_response.raise_for_status()
+            break
+        except requests.RequestException as e:
+            logger.warning(f"Attempt {attempt}/{retries} failed for {main_url}: {e}")
+            if attempt == retries:
+                raise
+            time.sleep(5 * attempt)
 
     soup = BeautifulSoup(html_response.content, 'html.parser')
+    if soup.body is None or soup.find('pre') is None:
+        raise ValueError(f"Unexpected page content for {main_url}, not saving {file_name}")
     main_url_anchor = soup.new_tag("a", href=main_url.replace('#t', ''), id='main_url')
     soup.body.append(main_url_anchor)
 
@@ -409,10 +422,20 @@ def parse_dumps():
 
                 # scrape url
                 main_url = soup.find('a', id='main_url')
+                if main_url is None:
+                    logger.warning(f"Skipping {file}: no main_url anchor (page was likely not downloaded correctly)")
+                    continue
                 main_url = main_url.get('href')
 
-                # Scrape title
-                title = soup.find_all('b')[1].text
+                # Scrape title (second <b> is the thread subject; fall back to <title>)
+                b_tags = soup.find_all('b')
+                if len(b_tags) > 1:
+                    title = b_tags[1].text
+                elif soup.title and soup.title.text.strip():
+                    title = soup.title.text
+                else:
+                    logger.warning(f"Skipping {file}: could not find thread title")
+                    continue
                 title = title.replace("[Bitcoin-development] ", "").replace("[bitcoin-dev] ", "").replace(
                     "[bitcoindev] ", "").replace("\t", "").strip()
 
